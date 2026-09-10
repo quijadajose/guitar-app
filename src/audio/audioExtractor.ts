@@ -1,6 +1,7 @@
 import type { EditorNote, SongProject } from '../types/editor.types';
 import { beatFromStep, STEPS_PER_BEAT, STEPS_PER_MEASURE } from '../rhythm';
 import { SONG_LIMITS } from '../songSafety';
+import { fft, hannWindow, magnitudeSpectrum } from './fft';
 
 export interface ExtractionOptions {
   bpm?: number;
@@ -44,10 +45,6 @@ export class AudioNoteExtractor {
   private static readonly PITCH_FFT_SIZE = 4096;
   /** Minimum share of the new energy a note's harmonics must explain. */
   private static readonly MIN_ONSET_CONFIDENCE = 0.15;
-
-  private twiddleCos: Float32Array | null = null;
-  private twiddleSin: Float32Array | null = null;
-  private twiddleSize = 0;
 
   /**
    * Decode an audio or video file (ArrayBuffer) into an AudioBuffer.
@@ -241,9 +238,9 @@ export class AudioNoteExtractor {
     if (postStart + size > buffer.length) return null;
 
     // Reduced in place into the difference spectrum: only the partials that grew at the attack.
-    const diff = this.magnitudeSpectrum(buffer, postStart, size);
+    const diff = magnitudeSpectrum(buffer, postStart, size);
     if (preStart >= 0) {
-      const pre = this.magnitudeSpectrum(buffer, preStart, size);
+      const pre = magnitudeSpectrum(buffer, preStart, size);
       for (let k = 0; k < bins; k++) {
         diff[k] = Math.max(0, diff[k] - pre[k]);
       }
@@ -309,24 +306,6 @@ export class AudioNoteExtractor {
     return { freq, confidence };
   }
 
-  /** Hann-windowed magnitude spectrum of `size` samples starting at `start`. */
-  private magnitudeSpectrum(buffer: Float32Array, start: number, size: number): Float32Array {
-    const re = new Float32Array(size);
-    const im = new Float32Array(size);
-    for (let i = 0; i < size; i++) {
-      const w = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (size - 1));
-      re[i] = (buffer[start + i] ?? 0) * w;
-    }
-    this.fft(re, im);
-
-    const bins = size / 2;
-    const out = new Float32Array(bins);
-    for (let k = 0; k < bins; k++) {
-      out[k] = Math.sqrt(re[k] * re[k] + im[k] * im[k]);
-    }
-    return out;
-  }
-
   private interpolateBin(mag: Float32Array, position: number): number {
     if (position < 0 || position >= mag.length - 1) return 0;
     const i = Math.floor(position);
@@ -362,7 +341,7 @@ export class AudioNoteExtractor {
    * is louder than what is already sounding, silently drops those notes in arpeggios and legato
    * passages. Returns onset positions in samples.
    */
-  private detectOnsets(
+  public detectOnsets(
     buffer: Float32Array,
     sampleRate: number,
     sensitivity: number,
@@ -374,11 +353,7 @@ export class AudioNoteExtractor {
     if (numFrames < 4) return [];
 
     const bins = frameSize / 2;
-    const window = new Float32Array(frameSize);
-    for (let i = 0; i < frameSize; i++) {
-      window[i] = 0.5 - 0.5 * Math.cos((2 * Math.PI * i) / (frameSize - 1));
-    }
-
+    const window = hannWindow(frameSize);
     const re = new Float32Array(frameSize);
     const im = new Float32Array(frameSize);
     const prevMag = new Float32Array(bins);
@@ -390,7 +365,7 @@ export class AudioNoteExtractor {
         re[i] = buffer[offset + i] * window[i];
         im[i] = 0;
       }
-      this.fft(re, im);
+      fft(re, im);
 
       let sum = 0;
       for (let k = 1; k < bins; k++) {
@@ -441,56 +416,6 @@ export class AudioNoteExtractor {
     }
 
     return onsets;
-  }
-
-  /** In-place iterative radix-2 FFT. Length must be a power of two. */
-  private fft(re: Float32Array, im: Float32Array): void {
-    const n = re.length;
-    this.ensureTwiddles(n);
-    const cos = this.twiddleCos!;
-    const sin = this.twiddleSin!;
-
-    for (let i = 1, j = 0; i < n; i++) {
-      let bit = n >> 1;
-      for (; j & bit; bit >>= 1) j ^= bit;
-      j ^= bit;
-      if (i < j) {
-        let t = re[i]; re[i] = re[j]; re[j] = t;
-        t = im[i]; im[i] = im[j]; im[j] = t;
-      }
-    }
-
-    for (let len = 2; len <= n; len <<= 1) {
-      const half = len >> 1;
-      const stride = n / len;
-      for (let i = 0; i < n; i += len) {
-        for (let k = 0; k < half; k++) {
-          const wr = cos[k * stride];
-          const wi = sin[k * stride];
-          const a = i + k;
-          const b = a + half;
-          const vr = re[b] * wr - im[b] * wi;
-          const vi = re[b] * wi + im[b] * wr;
-          re[b] = re[a] - vr;
-          im[b] = im[a] - vi;
-          re[a] += vr;
-          im[a] += vi;
-        }
-      }
-    }
-  }
-
-  private ensureTwiddles(n: number): void {
-    if (this.twiddleSize === n && this.twiddleCos && this.twiddleSin) return;
-    const half = n >> 1;
-    this.twiddleCos = new Float32Array(half);
-    this.twiddleSin = new Float32Array(half);
-    for (let k = 0; k < half; k++) {
-      const angle = (-2 * Math.PI * k) / n;
-      this.twiddleCos[k] = Math.cos(angle);
-      this.twiddleSin[k] = Math.sin(angle);
-    }
-    this.twiddleSize = n;
   }
 
   /**

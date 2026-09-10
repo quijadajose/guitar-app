@@ -1,4 +1,5 @@
 import type { StringNumber, OnPitchDetectedCallback, PitchMatchResult } from '../types/audio.types';
+import { chromaFromMagnitudes } from './chords';
 
 /**
  * Web Audio Guitar Sound Engine
@@ -21,6 +22,7 @@ export class GuitarAudioEngine {
   // Onset detection (spectral flux) and chroma state
   private specDb: Float32Array<ArrayBuffer> | null = null;
   private prevMag: Float32Array<ArrayBuffer> | null = null;
+  private linearMag: Float32Array<ArrayBuffer> | null = null;
   private chromaBins: Float32Array<ArrayBuffer> = new Float32Array(12);
   private fluxAverage: number = 0;
   private onsetArmed: boolean = false;
@@ -372,6 +374,7 @@ export class GuitarAudioEngine {
     this.pitchBuffer = null;
     this.specDb = null;
     this.prevMag = null;
+    this.linearMag = null;
   }
 
   /**
@@ -393,29 +396,21 @@ export class GuitarAudioEngine {
     const binHz = sampleRate / (bins * 2);
     // Transients are broadband, so measure flux well above the fundamentals.
     const fluxMaxBin = Math.min(bins - 1, Math.floor(5000 / binHz));
-    // Chroma ignores the muddy bottom end (bins there are narrower than a semitone) and the
-    // upper partials that no longer identify the chord.
-    const chromaMinBin = Math.max(1, Math.floor(100 / binHz));
-    const chromaMaxBin = Math.min(bins - 1, Math.floor(2000 / binHz));
 
-    this.chromaBins.fill(0);
+    if (!this.linearMag || this.linearMag.length !== bins) {
+      this.linearMag = new Float32Array(bins);
+    }
+    const mags = this.linearMag;
+    mags.fill(0);
+
     let flux = 0;
-    let chromaTotal = 0;
-
     for (let k = 1; k <= fluxMaxBin; k++) {
       const db = this.specDb[k];
       const mag = db > -140 && Number.isFinite(db) ? Math.pow(10, db / 20) : 0;
       const rise = mag - this.prevMag[k];
       if (rise > 0) flux += rise;
       this.prevMag[k] = mag;
-
-      if (k >= chromaMinBin && k <= chromaMaxBin && mag > 0) {
-        const freq = k * binHz;
-        const midi = Math.round(69 + 12 * Math.log2(freq / 440));
-        const pitchClass = ((midi % 12) + 12) % 12;
-        this.chromaBins[pitchClass] += mag;
-        chromaTotal += mag;
-      }
+      mags[k] = mag;
     }
 
     const threshold = this.fluxAverage * 2.4 + 1e-4;
@@ -434,13 +429,8 @@ export class GuitarAudioEngine {
 
     this.fluxAverage = this.fluxAverage * 0.9 + flux * 0.1;
 
-    if (chromaTotal <= 0) {
-      return { isOnset, chroma: null };
-    }
-    for (let i = 0; i < 12; i++) {
-      this.chromaBins[i] /= chromaTotal;
-    }
-    return { isOnset, chroma: this.chromaBins };
+    const hasChroma = chromaFromMagnitudes(mags, binHz, this.chromaBins);
+    return { isOnset, chroma: hasChroma ? this.chromaBins : null };
   }
 
   /**

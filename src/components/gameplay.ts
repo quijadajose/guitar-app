@@ -1,4 +1,5 @@
 import { guitarAudio } from '../audio/audioEngine';
+import { chordMatchesChroma } from '../audio/chords';
 import { cloneTemplate, firstElement, setSlotText, fillFromTemplate, fillSvgFromTemplate } from '../dom';
 import type { NoteTrackItem, ChordTrackItem, GameplayMode, GameplaySessionMode } from '../types/gameplay.types';
 import type { SongProject } from '../types/editor.types';
@@ -143,18 +144,6 @@ export class GameplayEngine {
     }
   };
 
-  /** Pitch classes of each chord, 0 = C. Used to verify a strum against the chroma profile. */
-  private readonly chordPitchClasses: Record<string, number[]> = {
-    'Am': [9, 0, 4],   // A  C  E
-    'C':  [0, 4, 7],   // C  E  G
-    'Em': [4, 7, 11],  // E  G  B
-    'G':  [7, 11, 2],  // G  B  D
-    'D':  [2, 6, 9],   // D  F# A
-    'Dm': [2, 5, 9],   // D  F  A
-    'F':  [5, 9, 0],   // F  A  C
-    'E':  [4, 8, 11]   // E  G# B
-  };
-
   /** How far before or after a note the mic may score it, in seconds. */
   private static readonly MIC_TIMING_WINDOW = 0.45;
   /** Shortest gap between two mic-scored attacks, in milliseconds (~7 notes per second). */
@@ -163,10 +152,6 @@ export class GameplayEngine {
   private static readonly MIC_ATTACK_SETTLE_MS = 45;
   private static readonly MIC_CENTS_TOLERANCE = 50;
   private static readonly MIC_OCTAVE_CENTS_TOLERANCE = 35;
-  /** Share of chroma energy that must sit on the chord's own pitch classes. */
-  private static readonly CHORD_ENERGY_THRESHOLD = 0.5;
-  /** How far below the best-scoring chord template the expected chord may fall. */
-  private static readonly CHORD_SCORE_MARGIN = 0.08;
 
   private micRefractoryUntil: number = 0;
   private micAttackPendingAt: number = 0;
@@ -1213,42 +1198,10 @@ export class GameplayEngine {
     }
 
     if (!bestChord) return;
-    if (!this.chordMatchesAudio(bestChord.chord, freq, chroma)) return;
+    if (!chordMatchesChroma(bestChord.chord, freq, chroma)) return;
 
     bestChord.hit = true;
     this.triggerChordHit(bestChord);
-  }
-
-  /**
-   * Check a strum against the expected chord using its pitch class profile.
-   *
-   * A monophonic pitch tracker cannot describe a strum, but the chroma vector can: a triad
-   * concentrates its energy in three pitch classes. Requiring the expected chord to also be the
-   * best-scoring template separates chords that share notes, like Am and C.
-   */
-  private chordMatchesAudio(chordName: string, freq: number, chroma?: Float32Array | null): boolean {
-    const target = this.chordPitchClasses[chordName];
-    if (!target) return true;
-
-    if (!chroma) {
-      // No spectrum available: at least require the detected fundamental to be a chord tone.
-      if (!(freq > 0)) return false;
-      const pitchClass = ((Math.round(69 + 12 * Math.log2(freq / 440)) % 12) + 12) % 12;
-      return target.includes(pitchClass);
-    }
-
-    const scoreOf = (classes: number[]): number =>
-      classes.reduce((sum, pc) => sum + chroma[pc], 0);
-
-    const targetScore = scoreOf(target);
-    if (targetScore < GameplayEngine.CHORD_ENERGY_THRESHOLD) return false;
-
-    let bestScore = targetScore;
-    for (const name of Object.keys(this.chordPitchClasses)) {
-      bestScore = Math.max(bestScore, scoreOf(this.chordPitchClasses[name]));
-    }
-
-    return targetScore >= bestScore - GameplayEngine.CHORD_SCORE_MARGIN;
   }
 
   public userPlayChord(chordName: string): void {
