@@ -1,0 +1,17 @@
+{
+  "name": "App de guitarra",
+  "short_name": "Guitarra",
+  "start_url": "/guitar-app/",
+  "scope": "/guitar-app/",
+  "display": "standalone",
+  "background_color": "#0d0e10",
+  "theme_color": "#0d0e10",
+  "icons": [
+    {
+      "src": "apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
