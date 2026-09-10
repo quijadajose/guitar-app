@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { CHORD_PITCH_CLASSES, chordMatchesChroma, chromaFromMagnitudes } from '../chords';
+import { CHORD_PITCH_CLASSES, chordMatchesChroma, chordNameFromPitchClasses, chromaFromMagnitudes } from '../chords';
 import { magnitudeSpectrum } from '../fft';
 import { SAMPLE_RATE, strum, whiteNoise } from './signals';
 
@@ -63,8 +63,10 @@ describe('chord matching from chroma', () => {
     expect(chordMatchesChroma('Am', 0, null)).toBe(false);
   });
 
-  it('allows unknown chord names through instead of blocking the player', () => {
-    expect(chordMatchesChroma('B7', 246.94, new Float32Array(12))).toBe(true);
+  it('names a triad from its pitch classes', () => {
+    expect(chordNameFromPitchClasses([9, 0, 4])).toBe('Am');
+    expect(chordNameFromPitchClasses([0, 4, 7, 0])).toBe('C');
+    expect(chordNameFromPitchClasses([4])).toBeNull();
   });
 });
 

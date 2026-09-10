@@ -6,6 +6,7 @@ import type { SongProject } from '../types/editor.types';
 import { goToScreen } from '../screens';
 import { noteDurationSteps, noteStartStepIndex, noteStep, STEPS_PER_BEAT } from '../rhythm';
 import { fingerCapsuleClass, sanitizeCssColor, sanitizeFinger, sanitizeSongProject } from '../songSafety';
+import { SOUND_PROBE_TITLE } from '../songs/soundProbe';
 
 interface TrackNoteWithDOM extends NoteTrackItem {
   el?: HTMLElement;
@@ -27,6 +28,8 @@ interface ChordDiagramDot {
  */
 export class GameplayEngine {
   public wasPlayingThisSession: boolean = false;
+  private probeLog: string[] = [];
+  private probeLoggedIds = new Set<number>();
   public isPlaying: boolean = false;
   public mode: GameplayMode = 'notes';
   public sessionMode: GameplaySessionMode = 'performance';
@@ -48,6 +51,7 @@ export class GameplayEngine {
   public lastTime: number = 0;
   public animationFrame: number | null = null;
   public isCountingDown: boolean = false;
+  public isCalibrating: boolean = false;
   private countdownTimer: number | null = null;
 
   public defaultNotes: NoteTrackItem[] = [
@@ -371,6 +375,8 @@ export class GameplayEngine {
     this.isCustomSongLoaded = true;
     this.mode = song.mode;
     this.songTitle = song.title || song.section || 'Canción';
+    this.probeLog = [];
+    this.probeLoggedIds.clear();
     this.bpm = song.bpm;
     this.scrollSpeed = (this.bpm / 60) * 160;
     const beatSeconds = 60 / this.bpm;
@@ -567,7 +573,7 @@ export class GameplayEngine {
   }
 
   public togglePlay(): void {
-    if (this.isCountingDown) return;
+    if (this.isCountingDown || this.isCalibrating) return;
     if (this.isPlaying) {
       this.pausePlaying();
     } else {
@@ -718,7 +724,33 @@ export class GameplayEngine {
     const scoreEl = document.getElementById('perf-stat-score');
     if (scoreEl) scoreEl.textContent = `${Math.round(this.score)}`;
 
+    const probeBox = document.getElementById('probe-log');
+    const probeText = document.getElementById('probe-log-text');
+    if (probeBox && probeText) {
+      const showProbe = this.songTitle === SOUND_PROBE_TITLE;
+      probeBox.hidden = !showProbe;
+      if (showProbe) probeText.textContent = this.formatProbeLog();
+    }
+
     modal.style.display = 'flex';
+  }
+
+  private formatProbeLog(): string {
+    const header = 'esperado\toyó Hz\tdetectó\tcents\tresultado';
+    return [header, ...this.probeLog].join('\n');
+  }
+
+  private recordProbe(note: { id: number; string: number; fret: number }, heard: { freq: number; string: number | null; fret: number | null; cents: number | null; result: string } | null): void {
+    if (this.songTitle !== SOUND_PROBE_TITLE || this.probeLoggedIds.has(note.id)) return;
+    this.probeLoggedIds.add(note.id);
+    const expected = `c${note.string} t${note.fret}`;
+    if (!heard) {
+      this.probeLog.push(`${expected}\t—\t—\t—\tsin ataque`);
+      return;
+    }
+    const detected = heard.string != null && heard.fret != null ? `c${heard.string} t${heard.fret}` : '—';
+    const cents = heard.cents == null ? '—' : `${heard.cents > 0 ? '+' : ''}${Math.round(heard.cents)}`;
+    this.probeLog.push(`${expected}\t${heard.freq.toFixed(1)}\t${detected}\t${cents}\t${heard.result}`);
   }
 
   public resetHits(): void {
@@ -804,6 +836,7 @@ export class GameplayEngine {
       if (!note.hit && !note.missed) {
         if (this.currentTime > note.time + 0.45) {
           note.missed = true;
+          this.recordProbe(note, null);
           this.triggerNoteMiss(note);
         }
       }
@@ -1153,7 +1186,8 @@ export class GameplayEngine {
     for (const note of this.notesTrack) {
       if (note.hit || note.missed) continue;
       const diff = Math.abs(this.currentTime - note.time);
-      if (diff <= GameplayEngine.MIC_TIMING_WINDOW && diff < minDiff) {
+      const window = this.songTitle === SOUND_PROBE_TITLE ? 0.7 : GameplayEngine.MIC_TIMING_WINDOW;
+      if (diff <= window && diff < minDiff) {
         minDiff = diff;
         bestNote = note;
       }
@@ -1175,9 +1209,21 @@ export class GameplayEngine {
     const matchesPitch = Math.abs(cents) <= GameplayEngine.MIC_CENTS_TOLERANCE ||
       (Math.abs(octaves) === 1 && Math.abs(centsInOctave) <= GameplayEngine.MIC_OCTAVE_CENTS_TOLERANCE);
 
-    if (exactFretMatched || matchesPitch) {
+    const ok = exactFretMatched || matchesPitch;
+    this.recordProbe(bestNote, {
+      freq,
+      string: fretMatch?.string ?? null,
+      fret: fretMatch?.fret ?? null,
+      cents: Number.isFinite(cents) ? cents : null,
+      result: ok ? 'ok' : 'distinto'
+    });
+
+    if (ok) {
       bestNote.hit = true;
       this.triggerNoteHit(bestNote);
+    } else if (freq > 0) {
+      bestNote.missed = true;
+      this.triggerNoteMiss(bestNote);
     }
   }
 
@@ -1198,7 +1244,7 @@ export class GameplayEngine {
     }
 
     if (!bestChord) return;
-    if (!chordMatchesChroma(bestChord.chord, freq, chroma)) return;
+    if (!chordMatchesChroma(bestChord.chord, freq, chroma, guitarAudio.sessionProfile)) return;
 
     bestChord.hit = true;
     this.triggerChordHit(bestChord);
@@ -1583,6 +1629,32 @@ export class GameplayEngine {
       });
     }
 
+    const copyBtn = document.getElementById('probe-log-copy');
+    if (copyBtn) {
+      copyBtn.addEventListener('click', () => {
+        const text = document.getElementById('probe-log-text')?.textContent ?? '';
+        navigator.clipboard?.writeText(text).then(() => {
+          copyBtn.textContent = 'Copiado';
+        }).catch(() => {
+          copyBtn.textContent = 'No se pudo copiar';
+        });
+      });
+    }
+
+    const downloadBtn = document.getElementById('probe-log-download');
+    if (downloadBtn) {
+      downloadBtn.addEventListener('click', () => {
+        const text = document.getElementById('probe-log-text')?.textContent ?? '';
+        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'prueba-de-sonido.txt';
+        a.click();
+        URL.revokeObjectURL(url);
+      });
+    }
+
     const exitBtn = document.getElementById('perf-btn-exit');
     if (exitBtn) {
       exitBtn.addEventListener('click', () => {
@@ -1598,6 +1670,8 @@ export class GameplayEngine {
     const modal = document.getElementById('performance-results-modal');
     if (modal) modal.style.display = 'none';
 
+    this.probeLog = [];
+    this.probeLoggedIds.clear();
     this.currentTime = 0;
     this.progress = 0;
     this.score = 0;

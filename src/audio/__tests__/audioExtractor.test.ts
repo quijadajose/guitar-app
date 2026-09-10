@@ -6,6 +6,7 @@ import {
   SAMPLE_RATE,
   type MelodyNote,
   type NoteName,
+  addPluck,
   centsBetween,
   fakeAudioBuffer,
   nearestNote,
@@ -110,7 +111,7 @@ describe('song extraction', () => {
     ];
     const { audio } = renderMelody({ notes, bpm: 120, subdivision: 2, leadInSeconds: 0.37 });
 
-    const song = await extractor.extractSongProject(fakeAudioBuffer(audio), 'test.wav', {
+    const { project: song } = await extractor.extractSongProject(fakeAudioBuffer(audio), 'test.wav', {
       threshold: 0.012,
       autoBpm: true
     });
@@ -131,7 +132,7 @@ describe('song extraction', () => {
     ];
     const { audio } = renderMelody({ notes, bpm: 90, subdivision: 1, leadInSeconds: 0.2 });
 
-    const song = await extractor.extractSongProject(fakeAudioBuffer(audio), 'test.wav', {
+    const { project: song } = await extractor.extractSongProject(fakeAudioBuffer(audio), 'test.wav', {
       threshold: 0.012,
       autoBpm: true
     });
@@ -151,7 +152,7 @@ describe('song extraction', () => {
     ];
     const { audio } = renderMelody({ notes, bpm: 100, subdivision: 4, leadInSeconds: 0.15 });
 
-    const song = await extractor.extractSongProject(fakeAudioBuffer(audio), 'test.wav', {
+    const { project: song } = await extractor.extractSongProject(fakeAudioBuffer(audio), 'test.wav', {
       threshold: 0.012,
       autoBpm: true
     });
@@ -170,7 +171,7 @@ describe('song extraction', () => {
     ];
     const { audio } = renderMelody({ notes, bpm: 110, subdivision: 2, leadInSeconds: 0.3 });
 
-    const song = await extractor.extractSongProject(fakeAudioBuffer(audio), 'test.wav', {});
+    const { project: song } = await extractor.extractSongProject(fakeAudioBuffer(audio), 'test.wav', {});
 
     for (const note of song.notes) {
       expect(note.beat).toBe(Math.floor((note.step - 1) / 4) + 1);
@@ -183,11 +184,27 @@ describe('song extraction', () => {
   });
 
   it('produces an empty song from silence rather than throwing', async () => {
-    const song = await extractor.extractSongProject(
+    const { project: song } = await extractor.extractSongProject(
       fakeAudioBuffer(new Float32Array(SAMPLE_RATE * 3)),
       'silencio.wav',
       {}
     );
     expect(song.notes).toHaveLength(0);
+  });
+
+  it('peels a strum into several notes and names the chord', async () => {
+    const audio = new Float32Array(Math.floor(SAMPLE_RATE * 2.5));
+    const voicing = [164.81, 196.0, 261.63, 329.63]; // C: E3 G3 C4 E4
+    voicing.forEach((freq) => {
+      addPluck(audio, 0.4, freq, 1);
+    });
+
+    const { project } = await extractor.extractSongProject(fakeAudioBuffer(audio), 'acorde.wav', {
+      threshold: 0.012,
+      autoBpm: false,
+      bpm: 80
+    });
+
+    expect(project.notes.length).toBeGreaterThanOrEqual(2);
   });
 });

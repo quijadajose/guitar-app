@@ -1,5 +1,6 @@
 import { guitarAudio } from '../audio/audioEngine';
 import { audioExtractor } from '../audio/audioExtractor';
+import { copyPcmChannels, extractionClient } from '../audio/extractionClient';
 import type { SongProject, LegacySongProject, EditorNote, EditorChord } from '../types/editor.types';
 import { beatFromStep, lastContentStepIndex, noteDurationSteps, noteStep, STEP_CELL_PX, STEPS_PER_BEAT, STEPS_PER_MEASURE } from '../rhythm';
 import { gameplayEngine } from './gameplay';
@@ -43,6 +44,8 @@ export class SongEditor {
   public currentSequencerBeat: number = 0;
   public isDualPlaybackPlaying: boolean = false;
   private referenceObjectUrl: string | null = null;
+
+  private extractionGeneration = 0;
 
   public selectedCell: { string: number; measure: number; beat: number; step: number; cellElement?: HTMLElement } | null = null;
   public selectedFret: number = 3;
@@ -498,6 +501,8 @@ export class SongEditor {
     }
 
     const closeModal = () => {
+      extractionClient.cancel();
+      this.extractionGeneration += 1;
       if (modal) modal.style.display = 'none';
       const progress = document.getElementById('extract-progress-wrap');
       if (progress) {
@@ -617,28 +622,29 @@ export class SongEditor {
       progressWrap.style.display = 'flex';
       progressWrap.classList.remove('is-error');
     }
-    if (progressFill) progressFill.style.width = '25%';
+      if (progressFill) progressFill.style.width = '8%';
     if (statusText) {
       statusText.classList.remove('is-error');
       statusText.textContent = `Leyendo ${file.name}…`;
     }
 
+    const generation = ++this.extractionGeneration;
+
     try {
       const arrayBuffer = await file.arrayBuffer();
+      if (generation !== this.extractionGeneration) return;
 
-      if (progressFill) progressFill.style.width = '55%';
-      if (statusText) statusText.textContent = 'Decodificando pista de audio con Web Audio API...';
+      if (progressFill) progressFill.style.width = '12%';
+      if (statusText) statusText.textContent = 'Decodificando pista de audio…';
 
       const audioBuffer = await audioExtractor.decodeAudioFile(arrayBuffer);
+      if (generation !== this.extractionGeneration) return;
       this.decodedAudioBuffer = audioBuffer;
-
-      if (progressFill) progressFill.style.width = '80%';
-      if (statusText) statusText.textContent = 'Analizando transitorios espectrales y frecuencias de cuerda...';
 
       const sensitivitySelect = document.getElementById('extract-sensitivity') as HTMLSelectElement | null;
       const bpmSelect = document.getElementById('extract-bpm-mode') as HTMLSelectElement | null;
 
-      const threshold = sensitivitySelect ? parseFloat(sensitivitySelect.value) : 0.012;
+      const threshold = sensitivitySelect ? parseFloat(sensitivitySelect.value) : 1.8;
       let bpmParam: number | undefined = undefined;
       let autoBpm = true;
 
@@ -651,25 +657,38 @@ export class SongEditor {
         }
       }
 
-      const extractedProject = await audioExtractor.extractSongProject(
-        audioBuffer,
-        sanitizePlainText(file.name, SONG_LIMITS.titleMax, 'Canción detectada'),
+      if (statusText) statusText.textContent = 'Analizando en segundo plano…';
+      const outcome = await extractionClient.extract(
         {
-        threshold,
-        bpm: bpmParam,
-        autoBpm
-      });
+          channels: copyPcmChannels(audioBuffer),
+          sampleRate: audioBuffer.sampleRate,
+          duration: audioBuffer.duration
+        },
+        sanitizePlainText(file.name, SONG_LIMITS.titleMax, 'Canción detectada'),
+        { threshold, bpm: bpmParam, autoBpm },
+        (progress) => {
+          if (generation !== this.extractionGeneration) return;
+          if (progressFill) progressFill.style.width = `${Math.round(12 + progress.ratio * 86)}%`;
+          if (statusText) statusText.textContent = progress.stage;
+        }
+      );
+      if (generation !== this.extractionGeneration) return;
 
+      const extractedProject = outcome.project;
       if (progressFill) progressFill.style.width = '100%';
-      if (statusText) statusText.textContent = `¡Completado! ${extractedProject.notes.length} notas volcadas en ${extractedProject.measures} compases.`;
+      if (statusText) {
+        const cut = outcome.truncated
+          ? ` (se recortó a ${SONG_LIMITS.measuresMax} de ${outcome.rawMeasures} compases)`
+          : '';
+        statusText.textContent = `¡Completado! ${extractedProject.notes.length} notas volcadas en ${extractedProject.measures} compases.${cut}`;
+      }
 
       const audioUrl = URL.createObjectURL(file);
 
       setTimeout(() => {
+        if (generation !== this.extractionGeneration) return;
         this.applySong(extractedProject);
-
         this.setupReferenceAudioPlayer(audioUrl, file.name);
-
         const modal = document.getElementById('audio-extract-modal');
         if (modal) modal.style.display = 'none';
         if (progressWrap) progressWrap.style.display = 'none';

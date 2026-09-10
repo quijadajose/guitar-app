@@ -965,10 +965,10 @@
                 <div class="extract-option-item">
                   <label class="extract-label" for="extract-sensitivity">Sensibilidad</label>
                   <select id="extract-sensitivity" class="extract-select">
-                    <option value="0.012" selected>Alta (fingerstyle / arpegios)</option>
-                    <option value="0.022">Media (melodía estándar)</option>
-                    <option value="0.04">Baja (púa fuerte)</option>
-                    <option value="0.07">Muy baja (ataques marcados)</option>
+                    <option value="1.4">Alta (fingerstyle / arpegios)</option>
+                    <option value="1.8" selected>Media (melodía estándar)</option>
+                    <option value="2.4">Baja (púa fuerte)</option>
+                    <option value="3.2">Muy baja (ataques marcados)</option>
                   </select>
                 </div>
 
@@ -1085,6 +1085,15 @@
           </div>
         </div>
 
+        <div class="probe-log" id="probe-log" hidden>
+          <p class="probe-log-title">Registro del micrófono</p>
+          <pre class="probe-log-text" id="probe-log-text"></pre>
+          <div class="probe-log-actions">
+            <button class="perf-btn perf-btn-practice" id="probe-log-copy" type="button">Copiar registro</button>
+            <button class="perf-btn perf-btn-retry" id="probe-log-download" type="button">Descargar</button>
+          </div>
+        </div>
+
         <!-- Action Buttons -->
         <div class="perf-actions-row">
           <button class="perf-btn perf-btn-retry" id="perf-btn-retry" title="Intentar de nuevo en modo interpretación">
@@ -1130,6 +1139,49 @@
           </button>
         </div>
       </div>
+    </div>
+
+    <div class="gameplay-calib-overlay" id="gameplay-calib-overlay" hidden>
+      <p class="calib-step-counter" id="calib-counter"></p>
+      <h2 class="calib-title" id="calib-title">Toca los acordes antes de comenzar la canción</h2>
+      <div class="calib-body">
+        <div class="calib-mic-meter" aria-hidden="true">
+          <div class="calib-mic-dots" id="calib-mic-dots">
+            <span class="calib-mic-dot"></span>
+            <span class="calib-mic-dot"></span>
+            <span class="calib-mic-dot"></span>
+            <span class="calib-mic-dot"></span>
+            <span class="calib-mic-dot"></span>
+            <span class="calib-mic-dot"></span>
+            <span class="calib-mic-dot"></span>
+            <span class="calib-mic-dot"></span>
+            <span class="calib-mic-dot"></span>
+            <span class="calib-mic-dot"></span>
+            <span class="calib-mic-dot"></span>
+            <span class="calib-mic-dot"></span>
+          </div>
+          <span class="calib-mic-label">Mic</span>
+        </div>
+        <div class="calib-chord-card" id="calib-chord-card">
+          <div class="calib-nut" id="calib-nut"></div>
+          <svg id="calib-chord-svg" class="calib-chord-svg" viewBox="0 0 140 85">
+            <rect x="0" y="0" width="140" height="85" rx="4" fill="#1b2432"/>
+            <line x1="18" y1="0" x2="18" y2="85" stroke="#ffffff" stroke-width="2.5"/>
+            <line x1="48" y1="0" x2="48" y2="85" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+            <line x1="78" y1="0" x2="78" y2="85" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+            <line x1="108" y1="0" x2="108" y2="85" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+            <line x1="18" y1="14" x2="140" y2="14" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+            <line x1="18" y1="28" x2="140" y2="28" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+            <line x1="18" y1="42" x2="140" y2="42" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+            <line x1="18" y1="56" x2="140" y2="56" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+            <line x1="18" y1="70" x2="140" y2="70" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+            <line x1="18" y1="78" x2="140" y2="78" stroke="#883333" stroke-width="1.5"/>
+          </svg>
+          <p class="calib-chord-name" id="calib-chord-name">Am</p>
+        </div>
+      </div>
+      <p class="calib-hint" id="calib-hint">Un rasgueo claro. Así escuchamos cómo suena tu guitarra hoy.</p>
+      <button type="button" class="calib-skip-btn" id="calib-skip-btn">Saltar</button>
     </div>
 
     <div class="gameplay-countdown-overlay" id="gameplay-countdown-overlay" hidden>

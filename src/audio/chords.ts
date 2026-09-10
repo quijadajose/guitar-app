@@ -1,3 +1,6 @@
+import type { SessionAudioProfile } from './sessionProfile';
+import { chromaCosine } from './sessionProfile';
+
 /**
  * Chord recognition from a chroma (pitch class) profile.
  *
@@ -69,9 +72,31 @@ function scoreTemplate(chroma: Float32Array, pitchClasses: number[]): number {
  * accept either for both. `freq` is the tracked fundamental, used only when no chroma is
  * available, in which case all that can be checked is that the note belongs to the chord.
  */
-export function chordMatchesChroma(chordName: string, freq: number, chroma?: Float32Array | null): boolean {
+export function chordMatchesChroma(
+  chordName: string,
+  freq: number,
+  chroma?: Float32Array | null,
+  profile?: SessionAudioProfile | null
+): boolean {
   const target = CHORD_PITCH_CLASSES[chordName];
   if (!target) return true;
+
+  const stored = profile?.playerChromas[chordName];
+  if (stored && chroma && profile) {
+    const sim = chromaCosine(chroma, stored);
+    if (sim < 0.78) return false;
+    let bestName = chordName;
+    let bestSim = sim;
+    for (const [name, template] of Object.entries(profile.playerChromas)) {
+      const rival = chromaCosine(chroma, template);
+      if (rival > bestSim) {
+        bestSim = rival;
+        bestName = name;
+      }
+    }
+    if (bestName !== chordName && bestSim - sim > 0.05) return false;
+    return true;
+  }
 
   if (!chroma) {
     if (!(freq > 0)) return false;
@@ -79,13 +104,50 @@ export function chordMatchesChroma(chordName: string, freq: number, chroma?: Flo
     return target.includes(pitchClass);
   }
 
+  const energyFloor = profile?.chordEnergyThreshold ?? CHORD_ENERGY_THRESHOLD;
   const targetScore = scoreTemplate(chroma, target);
-  if (targetScore < CHORD_ENERGY_THRESHOLD) return false;
+  if (targetScore < energyFloor) return false;
 
+  let bestName = chordName;
   let bestScore = targetScore;
   for (const name of Object.keys(CHORD_PITCH_CLASSES)) {
-    bestScore = Math.max(bestScore, scoreTemplate(chroma, CHORD_PITCH_CLASSES[name]));
+    const score = scoreTemplate(chroma, CHORD_PITCH_CLASSES[name]);
+    if (score > bestScore) {
+      bestScore = score;
+      bestName = name;
+    }
   }
 
-  return targetScore >= bestScore - CHORD_SCORE_MARGIN;
+  if (targetScore < bestScore - CHORD_SCORE_MARGIN) return false;
+
+  // Near-ties (E vs Em share two notes) are decided by the pitch class that distinguishes them.
+  if (bestName !== chordName && bestScore - targetScore <= CHORD_SCORE_MARGIN) {
+    const asked = CHORD_PITCH_CLASSES[chordName];
+    const rival = CHORD_PITCH_CLASSES[bestName];
+    const uniqueAsked = asked.filter(pc => !rival.includes(pc));
+    const uniqueRival = rival.filter(pc => !asked.includes(pc));
+    const askedUnique = uniqueAsked.reduce((s, pc) => s + chroma[pc], 0);
+    const rivalUnique = uniqueRival.reduce((s, pc) => s + chroma[pc], 0);
+    if (askedUnique < rivalUnique) return false;
+  }
+
+  return true;
+}
+
+/** Name the chord whose pitch classes are all present in `pitchClasses`. */
+export function chordNameFromPitchClasses(pitchClasses: Iterable<number>): string | null {
+  const present = new Set<number>();
+  for (const pc of pitchClasses) present.add(((pc % 12) + 12) % 12);
+
+  let best: string | null = null;
+  let bestExtra = Infinity;
+  for (const [name, classes] of Object.entries(CHORD_PITCH_CLASSES)) {
+    if (!classes.every(pc => present.has(pc))) continue;
+    const extra = present.size - classes.length;
+    if (extra < bestExtra) {
+      bestExtra = extra;
+      best = name;
+    }
+  }
+  return best;
 }

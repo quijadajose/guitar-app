@@ -1,13 +1,31 @@
-import type { EditorNote, SongProject } from '../types/editor.types';
+import type { EditorChord, EditorNote, SongProject } from '../types/editor.types';
 import { beatFromStep, STEPS_PER_BEAT, STEPS_PER_MEASURE } from '../rhythm';
 import { SONG_LIMITS } from '../songSafety';
 import { fft, hannWindow, magnitudeSpectrum } from './fft';
+import { chordNameFromPitchClasses } from './chords';
 
 export interface ExtractionOptions {
   bpm?: number;
-  threshold?: number; // 0.01 to 0.1 sensitivity
+  threshold?: number; // flux multiplier (>= 0.8) or legacy amplitude delta
   minNoteDuration?: number; // seconds
   autoBpm?: boolean;
+}
+
+export interface PcmSource {
+  channels: Float32Array[];
+  sampleRate: number;
+  duration: number;
+}
+
+export interface ExtractionProgress {
+  stage: string;
+  ratio: number;
+}
+
+export interface ExtractionResult {
+  project: SongProject;
+  truncated: boolean;
+  rawMeasures: number;
 }
 
 export interface ExtractedNoteCandidate {
@@ -60,24 +78,35 @@ export class AudioNoteExtractor {
   }
 
   /**
-   * Extract notes and cadence from an AudioBuffer
+   * Extract notes and cadence from decoded PCM (AudioBuffer or a plain channel list).
    */
   public async extractSongProject(
-    audioBuffer: AudioBuffer,
+    source: AudioBuffer | PcmSource,
     songTitle: string = 'Canción Detectada',
-    options: ExtractionOptions = {}
-  ): Promise<SongProject> {
-    const channelData = this.toMono(audioBuffer);
-    const sampleRate = audioBuffer.sampleRate;
-    const totalDuration = audioBuffer.duration;
+    options: ExtractionOptions = {},
+    onProgress?: (progress: ExtractionProgress) => void
+  ): Promise<ExtractionResult> {
+    const report = (stage: string, ratio: number): void => {
+      onProgress?.({ stage, ratio: Math.max(0, Math.min(1, ratio)) });
+    };
 
-    const threshold = options.threshold ?? 0.04;
-    const minNoteDuration = options.minNoteDuration ?? 0.12; // at least 120ms between notes
+    const channelData = this.toMono(source);
+    const sampleRate = source.sampleRate;
+    const totalDuration = source.duration;
 
-    // 1. Detect Onsets & Pitches across the timeline
-    const candidates = this.detectOnsetsAndPitches(channelData, sampleRate, threshold, minNoteDuration);
+    const threshold = options.threshold ?? 1.8;
+    const minNoteDuration = options.minNoteDuration ?? 0.12;
 
-    // 2. Estimate BPM and Cadence
+    report('Buscando ataques…', 0.05);
+    const candidates = this.detectOnsetsAndPitches(
+      channelData,
+      sampleRate,
+      threshold,
+      minNoteDuration,
+      (ratio) => report('Buscando ataques…', 0.05 + ratio * 0.7)
+    );
+
+    report('Estimando tempo…', 0.78);
     let bpm = options.bpm;
     if (!bpm || options.autoBpm) {
       bpm = this.estimateBpmFromOnsets(candidates.map(c => c.time), totalDuration) || 85;
@@ -87,48 +116,79 @@ export class AudioNoteExtractor {
     const beatDuration = 60 / bpm;
     const stepDuration = beatDuration / STEPS_PER_BEAT;
     const measureDuration = beatDuration * 4;
-    const totalMeasures = Math.max(
-      4,
-      Math.min(SONG_LIMITS.measuresMax, Math.ceil(totalDuration / measureDuration))
-    );
+    const rawMeasures = Math.max(4, Math.ceil(totalDuration / measureDuration));
+    const truncated = rawMeasures > SONG_LIMITS.measuresMax;
+    const totalMeasures = Math.max(4, Math.min(SONG_LIMITS.measuresMax, rawMeasures));
 
-    // 3. Quantize onto the sixteenth-note grid the editor uses, aligning the grid to the
-    //    performance instead of assuming the recording starts exactly on beat one.
+    report('Cuantizando a la grilla…', 0.88);
     const gridOffset = this.estimateGridOffset(candidates.map(c => c.time), stepDuration);
 
     const notes: EditorNote[] = [];
+    const chords: EditorChord[] = [];
     const occupiedSlots = new Set<string>();
+    const occupiedChordSlots = new Set<string>();
     const idBase = Date.now();
+    const chordColors: Record<string, string> = {
+      Am: '#ea5b57', C: '#27ae60', Em: '#e67e22', G: '#aa22e6',
+      D: '#3498db', Dm: '#9b59b6', F: '#1abc9c', E: '#f39c12'
+    };
 
-    for (let i = 0; i < candidates.length; i++) {
-      const cand = candidates[i];
-      const stepIndex = Math.max(0, Math.round((cand.time - gridOffset) / stepDuration));
+    let prevTab: { string: number; fret: number } | null = null;
+
+    const groups = this.groupSimultaneous(candidates, 0.045);
+
+    for (let g = 0; g < groups.length; g++) {
+      const group = groups[g];
+      const time = group[0].time;
+      const stepIndex = Math.max(0, Math.round((time - gridOffset) / stepDuration));
       const measure = Math.floor(stepIndex / STEPS_PER_MEASURE) + 1;
       const step = (stepIndex % STEPS_PER_MEASURE) + 1;
-
       if (measure > totalMeasures) continue;
 
-      const slotKey = `${measure}-${step}-${cand.string}`;
-      if (occupiedSlots.has(slotKey)) continue;
-      occupiedSlots.add(slotKey);
-
-      // Hold the note until the next attack, so eighths read as eighths and a held note
-      // is not drawn as a sixteenth.
-      const nextTime = candidates[i + 1]?.time ?? cand.time + beatDuration;
-      const gapSteps = Math.round((nextTime - cand.time) / stepDuration);
+      const nextTime = groups[g + 1]?.[0].time ?? time + beatDuration;
+      const gapSteps = Math.round((nextTime - time) / stepDuration);
       const duration = Math.max(1, Math.min(STEPS_PER_BEAT * 2, gapSteps || 1));
 
-      notes.push({
-        id: idBase + i,
-        measure,
-        beat: beatFromStep(step),
-        step,
-        duration,
-        string: cand.string,
-        fret: cand.fret,
-        finger: cand.finger
-      });
+      if (group.length >= 3) {
+        const pcs = group.map(c => Math.round(69 + 12 * Math.log2(c.freq / 440)));
+        const chordName = chordNameFromPitchClasses(pcs);
+        const slot = `${measure}-${step}`;
+        if (chordName && !occupiedChordSlots.has(slot)) {
+          occupiedChordSlots.add(slot);
+          chords.push({
+            id: idBase + 80000 + chords.length,
+            measure,
+            beat: beatFromStep(step),
+            chord: chordName,
+            duration: Math.max(1, Math.round(duration / STEPS_PER_BEAT) || 1),
+            color: chordColors[chordName] ?? '#ea5b57'
+          });
+        }
+      }
 
+      for (const cand of group) {
+        const mapped = this.mapFrequencyToGuitarFret(cand.freq, prevTab);
+        const tab: { string: number; fret: number; finger: number } = mapped ?? {
+          string: cand.string,
+          fret: cand.fret,
+          finger: cand.finger
+        };
+        prevTab = { string: tab.string, fret: tab.fret };
+        const slotKey = `${measure}-${step}-${tab.string}`;
+        if (occupiedSlots.has(slotKey)) continue;
+        occupiedSlots.add(slotKey);
+        notes.push({
+          id: idBase + notes.length,
+          measure,
+          beat: beatFromStep(step),
+          step,
+          duration,
+          string: tab.string,
+          fret: tab.fret,
+          finger: tab.finger
+        });
+        if (notes.length >= SONG_LIMITS.notesMax) break;
+      }
       if (notes.length >= SONG_LIMITS.notesMax) break;
     }
 
@@ -137,30 +197,58 @@ export class AudioNoteExtractor {
       return a.step - b.step;
     });
 
+    report('Listo', 1);
     return {
-      title: songTitle.replace(/\.[^/.]+$/, ''),
-      section: 'Transcripción',
-      bpm,
-      mode: 'notes',
-      measures: totalMeasures,
-      notes,
-      chords: []
+      project: {
+        title: songTitle.replace(/\.[^/.]+$/, ''),
+        section: 'Transcripción',
+        bpm,
+        mode: chords.length > notes.length ? 'chords' : 'notes',
+        measures: totalMeasures,
+        notes,
+        chords
+      },
+      truncated,
+      rawMeasures
     };
   }
 
-  /** Average the channels so a guitar panned to one side is not analysed at half strength. */
-  private toMono(audioBuffer: AudioBuffer): Float32Array {
-    const channels = audioBuffer.numberOfChannels;
-    const left = audioBuffer.getChannelData(0);
-    if (channels < 2) return left;
+  private groupSimultaneous(candidates: ExtractedNoteCandidate[], windowSeconds: number): ExtractedNoteCandidate[][] {
+    const groups: ExtractedNoteCandidate[][] = [];
+    for (const cand of candidates) {
+      const last = groups[groups.length - 1];
+      if (last && cand.time - last[0].time <= windowSeconds) last.push(cand);
+      else groups.push([cand]);
+    }
+    return groups;
+  }
 
-    const mono = new Float32Array(left.length);
-    mono.set(left);
-    for (let c = 1; c < channels; c++) {
-      const data = audioBuffer.getChannelData(c);
+  /** Average the channels so a guitar panned to one side is not analysed at half strength. */
+  private toMono(source: AudioBuffer | PcmSource): Float32Array {
+    if ('getChannelData' in source) {
+      const channels = source.numberOfChannels;
+      const left = source.getChannelData(0);
+      if (channels < 2) return left;
+      const mono = new Float32Array(left.length);
+      mono.set(left);
+      for (let c = 1; c < channels; c++) {
+        const data = source.getChannelData(c);
+        for (let i = 0; i < mono.length; i++) mono[i] += data[i];
+      }
+      for (let i = 0; i < mono.length; i++) mono[i] /= channels;
+      return mono;
+    }
+
+    const channels = source.channels;
+    if (channels.length === 0) return new Float32Array(0);
+    if (channels.length === 1) return channels[0];
+    const mono = new Float32Array(channels[0].length);
+    mono.set(channels[0]);
+    for (let c = 1; c < channels.length; c++) {
+      const data = channels[c];
       for (let i = 0; i < mono.length; i++) mono[i] += data[i];
     }
-    for (let i = 0; i < mono.length; i++) mono[i] /= channels;
+    for (let i = 0; i < mono.length; i++) mono[i] /= channels.length;
     return mono;
   }
 
@@ -171,73 +259,67 @@ export class AudioNoteExtractor {
     buffer: Float32Array,
     sampleRate: number,
     threshold: number,
-    minIntervalSeconds: number
+    minIntervalSeconds: number,
+    onProgress?: (ratio: number) => void
   ): ExtractedNoteCandidate[] {
     const candidates: ExtractedNoteCandidate[] = [];
-    const onsets = this.detectOnsets(buffer, sampleRate, threshold, minIntervalSeconds);
+    const onsets = this.detectOnsets(buffer, sampleRate, threshold, minIntervalSeconds, (ratio) => {
+      onProgress?.(ratio * 0.55);
+    });
 
-    for (const onsetSample of onsets) {
-      const pitch = this.detectPitchAtOnset(buffer, sampleRate, onsetSample);
-      if (!pitch) continue;
+    for (let o = 0; o < onsets.length; o++) {
+      const onsetSample = onsets[o];
+      const pitches = this.detectPitchesAtOnset(buffer, sampleRate, onsetSample);
+      onProgress?.(0.55 + ((o + 1) / Math.max(1, onsets.length)) * 0.45);
 
-      const tab = this.mapFrequencyToGuitarFret(pitch.freq);
-      if (!tab) continue;
-
-      candidates.push({
-        time: onsetSample / sampleRate,
-        freq: pitch.freq,
-        string: tab.string,
-        fret: tab.fret,
-        finger: tab.finger,
-        confidence: pitch.confidence
-      });
+      for (const pitch of pitches) {
+        const tab = this.mapFrequencyToGuitarFret(pitch.freq);
+        if (!tab) continue;
+        candidates.push({
+          time: onsetSample / sampleRate,
+          freq: pitch.freq,
+          string: tab.string,
+          fret: tab.fret,
+          finger: tab.finger,
+          confidence: pitch.confidence
+        });
+      }
     }
 
     return candidates;
   }
 
   /**
-   * Read the pitch of the note that starts at an onset, ignoring whatever is still ringing.
-   *
-   * Any monophonic detector fed a mixture of two notes returns a compromise between them, so a
-   * melody note struck while the previous one sustains comes out wrong no matter where the
-   * analysis window sits. Subtracting the spectrum just before the attack from the spectrum just
-   * after leaves only the partials that grew, which belong to the new note; a harmonic sum over
-   * that difference then finds its fundamental even when it is quieter than the tail.
+   * Iterative harmonic subtraction: peel the strongest F0 off the difference spectrum and
+   * repeat, so a strum yields several notes instead of only the loudest partial.
    */
-  private detectPitchAtOnset(
+  private detectPitchesAtOnset(
     buffer: Float32Array,
     sampleRate: number,
     onsetSample: number
-  ): { freq: number; confidence: number } | null {
-    const spectral = this.detectPitchFromSpectralDifference(buffer, sampleRate, onsetSample);
-    if (spectral) return spectral;
+  ): Array<{ freq: number; confidence: number }> {
+    const found = this.peelHarmonics(buffer, sampleRate, onsetSample);
+    if (found.length > 0) return found;
 
-    // An inconclusive difference spectrum almost always means the string was struck again on
-    // the same note, so the attack added no partials that were not already sounding. That is
-    // the one case a monophonic detector reads correctly, because there is only one pitch.
     const size = AudioNoteExtractor.FFT_SIZE;
     const start = onsetSample + Math.floor(0.028 * sampleRate);
-    if (start + size > buffer.length) return null;
-    return this.detectPitchInSlice(buffer.subarray(start, start + size), sampleRate);
+    if (start + size > buffer.length) return [];
+    const fallback = this.detectPitchInSlice(buffer.subarray(start, start + size), sampleRate);
+    return fallback ? [fallback] : [];
   }
 
-  private detectPitchFromSpectralDifference(
+  private peelHarmonics(
     buffer: Float32Array,
     sampleRate: number,
     onsetSample: number
-  ): { freq: number; confidence: number } | null {
+  ): Array<{ freq: number; confidence: number }> {
     const size = AudioNoteExtractor.PITCH_FFT_SIZE;
     const bins = size / 2;
     const binHz = sampleRate / size;
-
-    // Let the broadband pluck noise pass before measuring, and leave a small guard before the
-    // attack so the "before" frame holds none of the new note.
     const postStart = onsetSample + Math.floor(0.012 * sampleRate);
     const preStart = onsetSample - Math.floor(0.006 * sampleRate) - size;
-    if (postStart + size > buffer.length) return null;
+    if (postStart + size > buffer.length) return [];
 
-    // Reduced in place into the difference spectrum: only the partials that grew at the attack.
     const diff = magnitudeSpectrum(buffer, postStart, size);
     if (preStart >= 0) {
       const pre = magnitudeSpectrum(buffer, preStart, size);
@@ -248,9 +330,37 @@ export class AudioNoteExtractor {
 
     let diffTotal = 0;
     for (let k = 1; k < bins; k++) diffTotal += diff[k];
-    if (diffTotal <= 1e-6) return null;
+    if (diffTotal <= 1e-6) return [];
 
-    // Coarse search on a 10 cent grid over the guitar range.
+    const results: Array<{ freq: number; confidence: number }> = [];
+
+    for (let pass = 0; pass < 6; pass++) {
+      const minConf = pass === 0 ? AudioNoteExtractor.MIN_ONSET_CONFIDENCE : 0.08;
+      const picked = this.bestFundamental(diff, binHz, bins, diffTotal, minConf);
+      if (!picked) break;
+      if (results.some(r => {
+        const cents = Math.abs(1200 * Math.log2(r.freq / picked.freq));
+        return cents < 50 || Math.abs(cents - 1200) < 40 || Math.abs(cents - 2400) < 40;
+      })) {
+        this.subtractHarmonics(diff, picked.freq, binHz);
+        continue;
+      }
+      if (results.length > 0 && picked.confidence < Math.max(0.12, results[0].confidence * 0.35)) break;
+      results.push(picked);
+      this.subtractHarmonics(diff, picked.freq, binHz);
+    }
+
+    results.sort((a, b) => b.confidence - a.confidence);
+    return results;
+  }
+
+  private bestFundamental(
+    diff: Float32Array,
+    binHz: number,
+    bins: number,
+    diffTotal: number,
+    minConfidence: number
+  ): { freq: number; confidence: number } | null {
     const harmonics = 8;
     const totalCents = Math.round(1200 * Math.log2(AudioNoteExtractor.MAX_FREQ / AudioNoteExtractor.MIN_FREQ));
     let bestFreq = 0;
@@ -276,15 +386,11 @@ export class AudioNoteExtractor {
     }
     if (bestFreq <= 0) return null;
 
-    // A harmonic sum also scores well one octave up, where every partial it looks at is a
-    // partial of the true note. Prefer the sub-octave whenever it explains the spectrum too.
     const subOctave = bestFreq / 2;
     if (subOctave >= AudioNoteExtractor.MIN_FREQ && scoreOf(subOctave) > bestScore * 0.82) {
       bestFreq = subOctave;
     }
 
-    // Refine against the actual partial peaks: the h-th harmonic locates the fundamental h times
-    // more precisely than the fundamental's own bin does.
     let weightedSum = 0;
     let weightTotal = 0;
     for (let h = 1; h <= 4; h++) {
@@ -299,11 +405,24 @@ export class AudioNoteExtractor {
     const freq = weightTotal > 0 ? weightedSum / weightTotal : bestFreq;
     if (freq < AudioNoteExtractor.MIN_FREQ || freq > AudioNoteExtractor.MAX_FREQ) return null;
 
-    // Share of the new energy explained by this note's harmonic series.
     const confidence = Math.min(1, scoreOf(freq) / diffTotal * 4);
-    if (confidence < AudioNoteExtractor.MIN_ONSET_CONFIDENCE) return null;
-
+    if (confidence < minConfidence) return null;
     return { freq, confidence };
+  }
+
+  private subtractHarmonics(diff: Float32Array, freq: number, binHz: number): void {
+    for (let h = 1; h <= 8; h++) {
+      const target = (freq * h) / binHz;
+      const peak = this.refinePeak(diff, target, 0.04 * target + 1.5);
+      if (!peak) continue;
+      const center = Math.round(peak.bin);
+      for (let k = center - 2; k <= center + 2; k++) {
+        if (k > 0 && k < diff.length) {
+          const dist = Math.abs(k - peak.bin);
+          diff[k] *= dist > 1.2 ? 0.55 : 0.22;
+        }
+      }
+    }
   }
 
   private interpolateBin(mag: Float32Array, position: number): number {
@@ -345,7 +464,8 @@ export class AudioNoteExtractor {
     buffer: Float32Array,
     sampleRate: number,
     sensitivity: number,
-    minIntervalSeconds: number
+    minIntervalSeconds: number,
+    onFrame?: (ratio: number) => void
   ): number[] {
     const frameSize = AudioNoteExtractor.FFT_SIZE;
     const hop = AudioNoteExtractor.FFT_HOP;
@@ -376,6 +496,7 @@ export class AudioNoteExtractor {
         prevMag[k] = mag;
       }
       flux[f] = sum;
+      if (onFrame && (f % 32 === 0 || f === numFrames - 1)) onFrame(f / numFrames);
     }
 
     let maxFlux = 0;
@@ -383,10 +504,7 @@ export class AudioNoteExtractor {
     if (maxFlux <= 0) return [];
     for (let f = 0; f < numFrames; f++) flux[f] /= maxFlux;
 
-    // The sensitivity select still hands us the old amplitude-delta values (0.012 to 0.07);
-    // map them onto how far above the local average a peak has to stand.
-    const clamped = Math.max(0.005, Math.min(0.12, sensitivity));
-    const meanMultiplier = 1.25 + clamped * 25;
+    const meanMultiplier = this.fluxMeanMultiplier(sensitivity);
 
     const peakSpan = 3;
     const meanSpan = 12;
@@ -416,6 +534,16 @@ export class AudioNoteExtractor {
     }
 
     return onsets;
+  }
+
+  /**
+   * Values >= 0.8 are the spectral-flux mean multiplier used by the UI.
+   * Smaller values are the old amplitude-delta scale and get remapped so existing tests still pass.
+   */
+  private fluxMeanMultiplier(sensitivity: number): number {
+    if (sensitivity >= 0.8) return Math.max(1.2, Math.min(4, sensitivity));
+    const clamped = Math.max(0.005, Math.min(0.12, sensitivity));
+    return 1.25 + clamped * 25;
   }
 
   /**
@@ -496,7 +624,10 @@ export class AudioNoteExtractor {
    * Map a frequency (Hz) to the most ergonomic guitar string (1-6), fret (0-12) and finger (0-4)
    * Prioritizes lower positions (frets 0 to 5) which are standard for tutorial melodies like Coco
    */
-  public mapFrequencyToGuitarFret(freq: number): { string: number; fret: number; finger: number } | null {
+  public mapFrequencyToGuitarFret(
+    freq: number,
+    previous?: { string: number; fret: number } | null
+  ): { string: number; fret: number; finger: number } | null {
     let bestMatch: { string: number; fret: number; finger: number } | null = null;
     let minWeightedScore = Infinity;
 
@@ -514,7 +645,10 @@ export class AudioNoteExtractor {
           // fret 1 and string 3 fret 5), so the penalty has to grow from the very first fret to
           // break that tie; the extra term past fret 5 pushes harder out of upper positions.
           const fretPenalty = f * 1.5 + (f > 5 ? (f - 5) * 8 : 0);
-          const weightedScore = cents + fretPenalty;
+          const jumpPenalty = previous
+            ? Math.abs(f - previous.fret) * 1.8 + Math.abs(s - previous.string) * 2.5
+            : 0;
+          const weightedScore = cents + fretPenalty + jumpPenalty;
 
           if (weightedScore < minWeightedScore) {
             minWeightedScore = weightedScore;

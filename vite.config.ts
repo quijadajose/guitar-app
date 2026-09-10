@@ -26,5 +26,8 @@ const securityHeaders = {
 export default defineConfig({
   preview: {
     headers: securityHeaders
+  },
+  worker: {
+    format: 'es'
   }
 });

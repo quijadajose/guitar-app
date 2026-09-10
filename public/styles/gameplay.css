@@ -1096,6 +1096,44 @@
   letter-spacing: 0.5px;
 }
 
+.probe-log {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 14px;
+}
+
+.probe-log-title {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+}
+
+.probe-log-text {
+  margin: 0;
+  max-height: 220px;
+  overflow: auto;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: rgba(0, 0, 0, 0.35);
+  color: #e8e8e8;
+  font-size: 12px;
+  line-height: 1.45;
+  text-align: left;
+  white-space: pre;
+}
+
+.probe-log-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.probe-log-actions .perf-btn {
+  flex: 1;
+}
+
 /* Action Buttons Row */
 .perf-actions-row {
   display: flex;
@@ -1244,5 +1282,157 @@
   display: flex;
   gap: 10px;
   justify-content: center;
+}
+
+.gameplay-calib-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1085;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  background: oklch(22% 0.03 170 / 0.82);
+  padding: 24px 32px 40px;
+}
+
+.gameplay-calib-overlay[hidden] {
+  display: none;
+}
+
+.calib-step-counter {
+  position: absolute;
+  top: 28px;
+  left: 48px;
+  font-size: 22px;
+  font-weight: 700;
+  color: oklch(96% 0.01 140);
+  letter-spacing: 0.08em;
+}
+
+.calib-title {
+  max-width: 520px;
+  text-align: center;
+  font-size: 22px;
+  font-weight: 700;
+  color: oklch(97% 0.02 140);
+  line-height: 1.3;
+}
+
+.calib-body {
+  display: flex;
+  align-items: center;
+  gap: 36px;
+}
+
+.calib-mic-meter {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+}
+
+.calib-mic-dots {
+  display: flex;
+  flex-direction: column-reverse;
+  gap: 7px;
+}
+
+.calib-mic-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: oklch(32% 0.03 220);
+}
+
+.calib-mic-dot.active {
+  background: #39e39f;
+  box-shadow: 0 0 8px #39e39f;
+  transform: scale(1.12);
+}
+
+.calib-mic-dot:nth-child(n+9).active {
+  background: #f1c40f;
+  box-shadow: 0 0 8px #f1c40f;
+}
+
+.calib-mic-dot:nth-child(n+11).active {
+  background: #ff5252;
+  box-shadow: 0 0 8px #ff5252;
+}
+
+.calib-mic-label {
+  font-size: 16px;
+  font-weight: 700;
+  color: oklch(96% 0.01 140);
+}
+
+.calib-chord-card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: oklch(24% 0.03 220);
+  border-radius: 12px;
+  padding: 14px 18px 12px;
+  border: 1px solid oklch(92% 0.02 140 / 0.12);
+}
+
+.calib-chord-card.calib-heard {
+  box-shadow: 0 0 0 2px #39e39f;
+}
+
+.calib-nut {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 85px;
+  width: 18px;
+  font-size: 11px;
+  font-weight: 700;
+  color: oklch(92% 0.02 140);
+  text-align: center;
+}
+
+.calib-nut-mark {
+  height: 14px;
+  line-height: 14px;
+}
+
+.calib-chord-svg {
+  width: 180px;
+  height: 110px;
+}
+
+.calib-chord-name {
+  font-size: 42px;
+  font-weight: 800;
+  color: oklch(97% 0.02 140);
+  min-width: 72px;
+  text-align: center;
+}
+
+.calib-hint {
+  max-width: 420px;
+  text-align: center;
+  font-size: 14px;
+  color: oklch(85% 0.02 140);
+}
+
+.calib-skip-btn {
+  position: absolute;
+  right: 36px;
+  bottom: 28px;
+  background: transparent;
+  border: none;
+  color: oklch(90% 0.02 140);
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  padding: 8px 12px;
+}
+
+.calib-skip-btn:hover {
+  color: #ffffff;
 }
 

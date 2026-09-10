@@ -1,11 +1,13 @@
 import { guitarAudio } from './audio/audioEngine';
 import { songEditor } from './components/editor';
 import { gameplayEngine } from './components/gameplay';
+import { sessionCalibrator } from './components/calibration';
 import { tunerMotion } from './components/tunerMotion';
 import type { PitchMatchResult } from './types/audio.types';
 import { cloneTemplate, slot } from './dom';
 import { registerScreenSwitcher, takeQueuedGameplaySong, queueGameplaySong } from './screens';
 import { listNotePickerItems, removeLibrarySong, clearLibrary } from './songLibrary';
+import { soundProbeSong } from './songs/soundProbe';
 
 export class GuitarApp {
   public screens: Record<string, HTMLElement | null> = {};
@@ -26,6 +28,7 @@ export class GuitarApp {
   public isMicActive: boolean = false;
   public hasGrantedMicPermission: boolean = false;
   private tunerMicCandidate: number | null = null;
+  /** Milliseconds the same open string has been detected continuously. */
   private tunerMicStableFrames: number = 0;
   private tunerMicInTuneMs: number = 0;
   private tunerMicLastFrameAt: number = 0;
@@ -68,6 +71,7 @@ export class GuitarApp {
     this.fillTunerPitchLabel('E4', 'Mi agudo', '329.6');
     this.setupGameplay();
     this.setupHotkeys();
+    sessionCalibrator.bind();
 
     songEditor.init();
     gameplayEngine.setupScrubbingListeners();
@@ -137,9 +141,10 @@ export class GuitarApp {
         if (gameplayEngine.mode === 'notes') gameplayEngine.buildDOMNotes();
         else gameplayEngine.buildDOMChords();
         gameplayEngine.renderFrame();
-        gameplayEngine.beginWithCountdown();
+        sessionCalibrator.start(() => gameplayEngine.beginWithCountdown());
       });
     } else {
+      sessionCalibrator.abort();
       gameplayEngine.cancelCountdown();
       gameplayEngine.wasPlayingThisSession = false;
       gameplayEngine.pausePlaying();
@@ -214,7 +219,10 @@ export class GuitarApp {
     list.replaceChildren();
 
     const items = listNotePickerItems(songEditor.presets);
-    const lessons = items.filter(item => item.source === 'leccion');
+    const lessons = [
+      { id: 'builtin:sound_probe', source: 'leccion' as const, song: soundProbeSong },
+      ...items.filter(item => item.source === 'leccion')
+    ];
     const yours = items.filter(item => item.source === 'tuya');
 
     const addGroup = (label: string, rows: typeof items, emptyText?: string, yoursGroup = false): void => {
@@ -633,15 +641,17 @@ export class GuitarApp {
       const match = data.stringMatch;
 
       if (this.tunerMicCandidate === match.string) {
-        this.tunerMicStableFrames += 1;
+        const dt = this.tunerMicLastFrameAt ? now - this.tunerMicLastFrameAt : 16;
+        this.tunerMicStableFrames += dt;
       } else {
         this.tunerMicCandidate = match.string;
-        this.tunerMicStableFrames = 1;
+        this.tunerMicStableFrames = 0;
         this.tunerMicInTuneMs = 0;
         this.tunerSmoothedCents = match.cents;
       }
 
-      if (this.tunerMicStableFrames < 5) {
+      if (this.tunerMicStableFrames < 120) {
+        this.tunerMicLastFrameAt = now;
         return;
       }
 
@@ -731,7 +741,12 @@ export class GuitarApp {
   }
 
   private onGameplayPitch = (data: PitchMatchResult): void => {
-    if (!this.isGameplayMicActive || !data || !data.freq) return;
+    if (!this.isGameplayMicActive || !data) return;
+    if (sessionCalibrator.isActive) {
+      sessionCalibrator.feed(data);
+      return;
+    }
+    if (!data.freq) return;
     if (!gameplayEngine.isPlaying) return;
 
     if (gameplayEngine.mode === 'notes') {
@@ -759,6 +774,10 @@ export class GuitarApp {
       const onGameplay = this.currentScreenId === 'notes' || this.currentScreenId === 'chords';
       if (onGameplay && (e.key === 'Escape' || e.key === 'p' || e.key === 'P' || e.key === ' ')) {
         e.preventDefault();
+        if (sessionCalibrator.isActive) {
+          if (e.key === 'Escape') sessionCalibrator.skip();
+          return;
+        }
         if (gameplayEngine.isCountingDown) {
           gameplayEngine.cancelCountdown();
           return;
