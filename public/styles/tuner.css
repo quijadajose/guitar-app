@@ -1,0 +1,579 @@
+/* ==========================================================================
+   Screen 1: Afinador (Guitar Tuner) Stylesheet
+   ========================================================================== */
+
+#view-tuner {
+  background: oklch(0.145 0.012 250);
+  justify-content: space-between;
+  align-items: center;
+  padding: 28px 0 16px 0;
+  isolation: isolate;
+}
+
+#view-tuner::before,
+#view-tuner::after {
+  content: '';
+  position: absolute;
+  inset: -18%;
+  pointer-events: none;
+  z-index: 0;
+}
+
+#view-tuner::before {
+  background:
+    radial-gradient(ellipse 72% 52% at 18% 28%, oklch(0.32 0.045 250 / 0.55), transparent 62%),
+    radial-gradient(ellipse 58% 48% at 88% 72%, oklch(0.26 0.05 195 / 0.42), transparent 58%),
+    radial-gradient(ellipse 50% 36% at 52% 8%, oklch(0.38 0.03 85 / 0.22), transparent 52%);
+  animation: tuner-background-flow 18s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+#view-tuner::after {
+  background:
+    radial-gradient(ellipse 40% 30% at 70% 18%, oklch(0.5 0.04 200 / 0.12), transparent 70%),
+    radial-gradient(ellipse 36% 28% at 12% 82%, oklch(0.28 0.04 280 / 0.18), transparent 70%);
+  animation: tuner-background-flow-alt 22s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+}
+
+@keyframes tuner-background-flow {
+  0% { transform: translate3d(-2.4%, -1.2%, 0) scale(1.04); }
+  50% { transform: translate3d(3.2%, 2.4%, 0) scale(1.1); }
+  100% { transform: translate3d(-2.4%, -1.2%, 0) scale(1.04); }
+}
+
+@keyframes tuner-background-flow-alt {
+  0% { transform: translate3d(2%, 1.5%, 0) scale(1.06); }
+  50% { transform: translate3d(-3%, -2%, 0) scale(1.02); }
+  100% { transform: translate3d(2%, 1.5%, 0) scale(1.06); }
+}
+
+#view-tuner > *:not(.btn-back-menu):not(.btn-skip):not(.tuner-continue-btn):not(.tuner-mic-overlay) {
+  position: relative;
+  z-index: 1;
+}
+
+/* --------------------------------------------------------------------------
+   Top Pitch Meter Section
+   -------------------------------------------------------------------------- */
+.tuner-top-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 8px;
+  position: relative;
+  z-index: 20;
+}
+
+.tuner-meter-container {
+  position: relative;
+  width: 520px;
+  height: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Ticks Scale */
+.tuner-meter-ticks {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 12px;
+  pointer-events: none;
+}
+
+.meter-tick {
+  width: 2.5px;
+  background-color: rgba(255, 255, 255, 0.95);
+  border-radius: 2px;
+}
+
+.meter-tick.tall {
+  height: 52px;
+}
+
+.meter-tick.medium {
+  height: 36px;
+}
+
+.meter-tick.short {
+  height: 24px;
+}
+
+/* Moving Indicator Block */
+.tuner-indicator-track {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.tuner-pitch-indicator {
+  position: absolute;
+  width: 42px;
+  height: 52px;
+  background: #7d828c;
+  border-radius: 6px;
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: transform 0.65s cubic-bezier(0.25, 1, 0.5, 1), background-color 0.35s ease, box-shadow 0.35s ease;
+  z-index: 10;
+  will-change: transform;
+}
+
+.tuner-pitch-indicator::after {
+  content: '';
+  width: 2px;
+  height: 100%;
+  background-color: #ffffff;
+  border-radius: 1px;
+}
+
+.tuner-pitch-indicator.in-tune {
+  background: #00d68f;
+  box-shadow: 0 0 28px rgba(0, 214, 143, 0.9);
+}
+
+/* Completion title (Matching video 00:13) */
+.tuner-complete-title {
+  display: none;
+  font-size: 26px;
+  font-weight: 800;
+  color: #ffffff;
+  letter-spacing: -0.2px;
+  margin-bottom: 12px;
+  text-align: center;
+  text-shadow: 0 2px 16px rgba(0, 0, 0, 0.6);
+}
+
+.tuner-complete-title.visible {
+  display: block;
+  animation: completeTitleAnim 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes completeTitleAnim {
+  0% { opacity: 0; transform: translateY(-14px) scale(0.94); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.tuner-feedback-panel {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  margin-top: 14px;
+  font-size: 15px;
+  color: rgba(255, 255, 255, 0.88);
+  gap: 3px;
+}
+
+/* Guide prompt text ("Deja que suene" matching video) */
+.tuner-prompt-text {
+  font-size: 16px;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.82);
+  margin-bottom: 2px;
+  letter-spacing: 0.2px;
+  transition: opacity 0.3s ease;
+}
+
+.tuner-pitch-label strong {
+  color: #ffffff;
+  font-size: 17px;
+}
+
+.tuner-cents-label {
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+/* --------------------------------------------------------------------------
+   Center Headstock (Clavijero)
+   -------------------------------------------------------------------------- */
+.tuner-headstock-wrapper {
+  position: relative;
+  width: 100%;
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  margin-bottom: 8px;
+}
+
+.headstock-canvas-container {
+  position: relative;
+  display: grid;
+  grid-template-columns: 72px minmax(220px, 340px) 72px;
+  align-items: start;
+  justify-content: center;
+  width: min(560px, 100%);
+  height: min(620px, 64vh);
+  margin: 0 auto;
+  left: 0;
+}
+
+.tuner-note-col {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 22px;
+  padding-top: 52px;
+  z-index: 40;
+}
+
+.tuner-note-slot {
+  position: relative;
+}
+
+.headstock-photo {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center top;
+  pointer-events: none;
+  filter: drop-shadow(0 22px 36px rgba(0, 0, 0, 0.72));
+  animation: headstockIdleFloat 8s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+  transform-origin: 50% 28%;
+}
+
+.headstock-photo.vibrating {
+  animation: headstockPluck 0.12s ease-in-out infinite;
+}
+
+@keyframes headstockPluck {
+  0%, 100% { transform: translate3d(0, 0, 0); }
+  50% { transform: translate3d(0, 1.5px, 0); }
+}
+
+@keyframes headstockIdleFloat {
+  0% { transform: translate3d(0, 0, 0) rotate(-0.25deg); }
+  50% { transform: translate3d(0, -4px, 0) rotate(0.3deg); }
+  100% { transform: translate3d(0, 0, 0) rotate(-0.25deg); }
+}
+
+.headstock-sheen {
+  mix-blend-mode: screen;
+  animation: headstockSheenSweep 5.5s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+@keyframes headstockSheenSweep {
+  0% { transform: translateX(-42%); opacity: 0; }
+  18% { opacity: 0.85; }
+  42% { transform: translateX(48%); opacity: 0; }
+  100% { transform: translateX(48%); opacity: 0; }
+}
+
+.headstock-string-glow {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0;
+  filter: blur(2.5px);
+  pointer-events: none;
+  transition: opacity 0.2s ease;
+}
+
+.headstock-string-glow.vibrating {
+  opacity: 0.55;
+  animation: stringGlowPulse 0.9s ease-in-out infinite;
+}
+
+@keyframes stringGlowPulse {
+  0%, 100% { opacity: 0.28; }
+  50% { opacity: 0.7; }
+}
+
+.headstock-string {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  transition: stroke 0.25s ease, stroke-width 0.25s ease;
+}
+
+.headstock-string.vibrating {
+  stroke: #ffffff !important;
+  filter: drop-shadow(0 0 4px rgba(255, 255, 255, 0.95)) drop-shadow(0 0 12px rgba(255, 255, 255, 0.55));
+}
+
+/* Floating string number tag along fretboard (Matching video 00:03, 00:09, 00:12) */
+.tuner-fret-tag {
+  font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  font-size: 18px;
+  font-weight: 800;
+  fill: #ffffff;
+  opacity: 0;
+  pointer-events: none;
+  filter: drop-shadow(0 0 6px rgba(255, 255, 255, 0.95)) drop-shadow(0 2px 4px rgba(0, 0, 0, 0.8));
+  transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+.tuner-fret-tag.active {
+  opacity: 1;
+  animation: fretTagPulse 1.2s ease-in-out infinite alternate;
+}
+
+@keyframes fretTagPulse {
+  0% { transform: scale(1); opacity: 0.92; }
+  100% { transform: scale(1.12); opacity: 1; filter: drop-shadow(0 0 12px rgba(255, 255, 255, 1)); }
+}
+
+.tuner-peg-badge {
+  position: relative;
+  width: 52px;
+  height: 52px;
+  border: 2px solid transparent;
+  border-radius: 50%;
+  background: oklch(0.3 0.012 250 / 0.92);
+  color: oklch(0.93 0.01 90);
+  font-size: 20px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 40;
+  transition: transform 0.2s cubic-bezier(0.22, 1, 0.36, 1), background-color 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.tuner-peg-badge:hover {
+  background: oklch(0.36 0.015 250 / 0.95);
+  transform: scale(1.06);
+}
+
+.tuner-peg-badge.active {
+  background: oklch(0.22 0.03 160 / 0.55);
+  color: #ffffff;
+  border-color: #2ee59a;
+  box-shadow: 0 0 0 3px oklch(0.72 0.14 160 / 0.28);
+  transform: scale(1.06);
+}
+
+.tuner-peg-check {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: #00d68f;
+  box-shadow: 0 0 12px rgba(0, 214, 143, 0.85), 0 2px 6px rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  pointer-events: none;
+  transform: scale(0);
+  transition: transform 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.25s ease;
+  z-index: 45;
+}
+
+.tuner-peg-check svg {
+  width: 12px;
+  height: 12px;
+  stroke: #ffffff;
+  stroke-width: 3.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
+}
+
+.tuner-peg-check.tuned {
+  opacity: 1;
+  transform: scale(1);
+}
+
+.tuner-peg-check.pop-in {
+  animation: checkPopIn 0.5s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes checkPopIn {
+  0% { transform: scale(0); opacity: 0; }
+  60% { transform: scale(1.22); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+/* Continue CTA Button (Shown on tuning complete matching video 00:13-00:16) */
+.tuner-continue-btn {
+  position: absolute;
+  bottom: 28px;
+  right: 36px;
+  background: #00d68f;
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 16px;
+  font-weight: 700;
+  padding: 13px 34px;
+  border-radius: 28px;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 4px 22px rgba(0, 214, 143, 0.55);
+  display: none;
+  opacity: 0;
+  transform: translateY(18px);
+  transition: all 0.25s cubic-bezier(0.2, 0.8, 0.2, 1);
+  z-index: 60;
+}
+
+.tuner-continue-btn.visible {
+  display: block;
+  opacity: 1;
+  transform: translateY(0);
+  animation: continueBtnEntrance 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+@keyframes continueBtnEntrance {
+  0% { opacity: 0; transform: translateY(20px) scale(0.9); }
+  60% { transform: translateY(-4px) scale(1.04); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.tuner-continue-btn:hover {
+  background: #05eb9e;
+  box-shadow: 0 6px 28px rgba(0, 214, 143, 0.75);
+  transform: translateY(-2px) scale(1.04);
+}
+
+.tuner-continue-btn:active {
+  transform: translateY(0) scale(0.98);
+}
+
+/* --------------------------------------------------------------------------
+   Modal de Permiso de Micrófono para el Afinador
+   -------------------------------------------------------------------------- */
+.tuner-mic-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 14, 20, 0.85);
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  opacity: 1;
+  visibility: visible;
+  transition: opacity 0.35s ease, visibility 0.35s ease;
+}
+
+.tuner-mic-error {
+  font-size: 13px;
+  color: #f87171;
+  margin: -12px 0 16px;
+}
+
+.tuner-mic-overlay.hidden {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.tuner-mic-modal {
+  background: linear-gradient(145deg, #182232 0%, #101722 100%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.7), 0 0 40px rgba(23, 203, 142, 0.15);
+  border-radius: 24px;
+  padding: 36px 32px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: modalScaleUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+@keyframes modalScaleUp {
+  0% { transform: scale(0.9) translateY(20px); opacity: 0; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+
+.tuner-mic-icon-pulse {
+  width: 76px;
+  height: 76px;
+  border-radius: 50%;
+  background: rgba(23, 203, 142, 0.15);
+  border: 2px solid rgba(23, 203, 142, 0.4);
+  color: #17cb8e;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 22px;
+  box-shadow: 0 0 30px rgba(23, 203, 142, 0.25);
+  animation: micIconBreath 2.2s infinite ease-in-out;
+}
+
+@keyframes micIconBreath {
+  0%, 100% { transform: scale(1); box-shadow: 0 0 20px rgba(23, 203, 142, 0.25); }
+  50% { transform: scale(1.08); box-shadow: 0 0 38px rgba(23, 203, 142, 0.5); }
+}
+
+.tuner-mic-title {
+  font-size: 24px;
+  font-weight: 800;
+  color: #ffffff;
+  margin-bottom: 12px;
+  letter-spacing: -0.3px;
+}
+
+.tuner-mic-description {
+  font-size: 14px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.72);
+  margin-bottom: 28px;
+}
+
+.tuner-mic-actions {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.tuner-btn-enable-mic {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 20px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #17cb8e 0%, #0fa874 100%);
+  color: #ffffff;
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  border: none;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(23, 203, 142, 0.4);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.tuner-btn-enable-mic:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 30px rgba(23, 203, 142, 0.55);
+  filter: brightness(1.08);
+}
+
+.tuner-btn-enable-mic:active {
+  transform: translateY(0);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #view-tuner::before,
+  #view-tuner::after,
+  .headstock-photo,
+  .tuner-mic-icon-pulse {
+    animation: none;
+  }
+}
+
+

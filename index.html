@@ -1,0 +1,1206 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>App de guitarra</title>
+  <meta name="description" content="App de guitarra: afina, practica acordes, toca lecciones y crea las tuyas para exportar.">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
+
+  <!-- Google Font: Outfit -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+
+  <!-- Stylesheets -->
+  <link rel="stylesheet" href="/styles/main.css">
+  <link rel="stylesheet" href="/styles/tuner.css">
+  <link rel="stylesheet" href="/styles/gameplay.css">
+  <link rel="stylesheet" href="/styles/editor.css">
+</head>
+<body>
+
+  <!-- Master Application Container -->
+  <main class="app-container" id="guitar-app">
+
+    <!-- Main Viewport for Screens -->
+    <div class="views-viewport" id="viewport">
+
+      <!-- ===================================================================
+           PANTALLA 0: MENÚ PRINCIPAL (HUB SELECCIÓN DE MODO)
+           =================================================================== -->
+      <section class="screen-view view-active" id="view-menu" aria-label="Inicio">
+        <div class="hub">
+          <section class="hub-learn" aria-labelledby="hub-learn-title">
+            <h1 id="hub-learn-title" class="hub-kicker">Aprender</h1>
+            <p class="hub-lead">Afina, coloca los acordes y toca. El micrófono da la retroalimentación.</p>
+            <ol class="hub-path">
+              <li>
+                <button class="hub-step" data-nav="tuner" type="button">
+                  <span class="hub-step-num">1</span>
+                  <span class="hub-step-copy">
+                    <span class="hub-step-title">Afinar</span>
+                    <span class="hub-step-desc">Seis cuerdas, Hz y cents. Micrófono o simulador.</span>
+                  </span>
+                </button>
+              </li>
+              <li>
+                <button class="hub-step" data-nav="songs" type="button">
+                  <span class="hub-step-num">2</span>
+                  <span class="hub-step-copy">
+                    <span class="hub-step-title">Tocar notas</span>
+                    <span class="hub-step-desc">Lección rítmica cuerda a cuerda. Pulsa reproducir cuando estés listo.</span>
+                  </span>
+                </button>
+              </li>
+              <li>
+                <button class="hub-step" data-nav="chords" type="button">
+                  <span class="hub-step-num">3</span>
+                  <span class="hub-step-copy">
+                    <span class="hub-step-title">Tocar acordes</span>
+                    <span class="hub-step-desc">Rasgueos en bloque con el diagrama de la mano izquierda.</span>
+                  </span>
+                </button>
+              </li>
+            </ol>
+          </section>
+
+          <div class="hub-side">
+            <section class="hub-create" aria-labelledby="hub-create-title">
+              <h2 id="hub-create-title" class="hub-kicker">Crear</h2>
+              <button class="hub-create-btn" data-nav="editor" type="button">
+                <span class="hub-step-title">Editor de lecciones</span>
+                <span class="hub-step-desc">Escribe la tablatura, pruébala y exporta JSON.</span>
+              </button>
+            </section>
+
+            <section class="hub-soon" aria-labelledby="hub-soon-title">
+              <h2 id="hub-soon-title" class="hub-kicker">Jugar con otros</h2>
+              <p class="hub-soon-body">
+                <strong>Multiplayer</strong>
+                <span>Próximamente. Primero dejamos el toque a solas bien resuelto.</span>
+              </p>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section class="screen-view view-hidden" id="view-songs" aria-label="Elegir canción">
+        <button class="btn-back-menu" data-target="menu" type="button" title="Volver al menú">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          <span>Menú</span>
+        </button>
+        <div class="song-picker">
+          <header class="song-picker-header">
+            <p class="hub-kicker">Tocar notas</p>
+            <h1 class="song-picker-title">Elegí una canción</h1>
+            <p class="hub-lead">Lecciones incluidas y las que guardaste en el editor.</p>
+          </header>
+          <div class="song-picker-list" id="song-picker-list"></div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           PANTALLA 1: AFINADOR (GUITAR TUNER)
+           =================================================================== -->
+      <section class="screen-view view-hidden" id="view-tuner" aria-label="Afinador de Guitarra">
+        <button class="btn-back-menu" data-target="menu" title="Volver al Menú Principal">
+          <svg viewBox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Menú
+        </button>
+        <button class="btn-skip" id="tuner-skip-btn">Omitir</button>
+
+        <!-- Top Section: Pitch Scale Meter -->
+        <header class="tuner-top-section">
+          <div class="tuner-meter-container">
+            <div class="tuner-meter-ticks">
+              <span class="meter-tick tall"></span>
+              <span class="meter-tick medium"></span>
+              <span class="meter-tick short"></span>
+              <span class="meter-tick short"></span>
+              <span class="meter-tick medium"></span>
+              <span class="meter-tick short"></span>
+              <span class="meter-tick short"></span>
+              <!-- Center area -->
+              <span class="meter-tick short"></span>
+              <span class="meter-tick short"></span>
+              <span class="meter-tick medium"></span>
+              <span class="meter-tick short"></span>
+              <span class="meter-tick short"></span>
+              <span class="meter-tick medium"></span>
+              <span class="meter-tick tall"></span>
+            </div>
+            <div class="tuner-indicator-track">
+              <div class="tuner-pitch-indicator" id="tuner-pitch-indicator"></div>
+            </div>
+          </div>
+
+          <!-- Tuning Completed Title (Shown when all strings tuned) -->
+          <div class="tuner-complete-title" id="tuner-complete-title">¡Listo, está afinado!</div>
+
+          <div class="tuner-feedback-panel">
+            <div class="tuner-prompt-text" id="tuner-prompt-text">Activa el micrófono para comenzar</div>
+            <div class="tuner-pitch-label" id="tuner-pitch-label"></div>
+            <div class="tuner-cents-label" id="tuner-cents-label">En espera de sonido...</div>
+          </div>
+        </header>
+
+        <div class="tuner-headstock-wrapper">
+          <div class="headstock-canvas-container">
+            <div class="tuner-note-col tuner-note-col-left">
+              <div class="tuner-note-slot">
+                <div class="tuner-peg-check" id="tuner-check-4" title="Cuerda 4 afinada">
+                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <button class="tuner-peg-badge" data-peg="4" aria-label="Cuerda 4, Re">D</button>
+              </div>
+              <div class="tuner-note-slot">
+                <div class="tuner-peg-check" id="tuner-check-5" title="Cuerda 5 afinada">
+                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <button class="tuner-peg-badge" data-peg="5" aria-label="Cuerda 5, La">A</button>
+              </div>
+              <div class="tuner-note-slot">
+                <div class="tuner-peg-check" id="tuner-check-6" title="Cuerda 6 afinada">
+                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <button class="tuner-peg-badge" data-peg="6" aria-label="Cuerda 6, Mi grave">E</button>
+              </div>
+            </div>
+
+            <img
+              class="headstock-photo"
+              id="tuner-headstock-photo"
+              src="/images/tuner-headstock.png"
+              alt=""
+              width="941"
+              height="1672"
+            />
+
+            <div class="tuner-note-col tuner-note-col-right">
+              <div class="tuner-note-slot">
+                <div class="tuner-peg-check" id="tuner-check-3" title="Cuerda 3 afinada">
+                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <button class="tuner-peg-badge" data-peg="3" aria-label="Cuerda 3, Sol">G</button>
+              </div>
+              <div class="tuner-note-slot">
+                <div class="tuner-peg-check" id="tuner-check-2" title="Cuerda 2 afinada">
+                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <button class="tuner-peg-badge active" data-peg="2" aria-label="Cuerda 2, Si">B</button>
+              </div>
+              <div class="tuner-note-slot">
+                <div class="tuner-peg-check" id="tuner-check-1" title="Cuerda 1 afinada">
+                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <button class="tuner-peg-badge" data-peg="1" aria-label="Cuerda 1, Mi agudo">E</button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Continue Button (matching reference video completion CTA) -->
+        <button class="tuner-continue-btn" id="tuner-continue-btn">Continuar</button>
+      </section>
+
+
+
+
+      <!-- ===================================================================
+           PANTALLA 3: INTERPRETACIÓN DE CANCIÓN (NOTAS INDIVIDUALES)
+           =================================================================== -->
+      <section class="screen-view gameplay-view view-hidden" id="view-notes" aria-label="Canción: Notas">
+        <div class="ambient-dust"></div>
+        <div class="flowing-waves"></div>
+
+        <header class="gameplay-hud-top">
+          <!-- Left: Salir & Reanudar -->
+          <div class="hud-left-group">
+            <button class="hud-btn hud-exit-btn btn-back-menu" data-target="menu" title="Volver al Menú Principal">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+              </svg>
+              <span>Salir</span>
+            </button>
+
+            <button class="hud-btn hud-play-pause-btn play-pause-btn" title="Pausar o Reanudar (Espacio)">
+              <svg class="icon-hud-play" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <polygon points="6,4 20,12 6,20"/>
+              </svg>
+              <span class="btn-play-pause-label">Reproducir</span>
+            </button>
+          </div>
+
+          <!-- Center: Mode Switcher (Práctica vs Interpretar) -->
+          <div class="hud-mode-pill" role="tablist" aria-label="Modo de ejecución">
+            <button class="mode-tab-btn mode-btn-practice" data-session-mode="practice" title="Bucle y velocidad regulable">
+              <span>Práctica</span>
+            </button>
+            <button class="mode-tab-btn mode-btn-performance active" data-session-mode="performance" title="Un intento evaluado">
+              <span>Interpretar</span>
+            </button>
+          </div>
+
+          <div class="hud-speed-controller-pill" title="Velocidad y bucle">
+            <button class="speed-step-btn speed-minus-btn" title="Reducir velocidad (-10%)">−</button>
+            <div class="speed-slider-wrap">
+              <input type="range" class="gameplay-speed-slider" min="25" max="150" step="5" value="100" title="Ajustar velocidad" />
+            </div>
+            <button class="speed-step-btn speed-plus-btn" title="Aumentar velocidad (+10%)">+</button>
+            <span class="gameplay-speed-label">100 % Velocidad</span>
+            <button class="hud-loop-toggle-btn" title="La pista se detiene al terminar">Sin bucle</button>
+          </div>
+
+          <!-- Right: Multiplier & Score -->
+          <div class="hud-right-group">
+            <div class="hud-multiplier-box">
+              <span class="hud-multiplier-text">1×</span>
+              <div class="hud-combo-dots">
+                <span class="hud-combo-dot"></span>
+                <span class="hud-combo-dot"></span>
+                <span class="hud-combo-dot"></span>
+                <span class="hud-combo-dot"></span>
+                <span class="hud-combo-dot"></span>
+              </div>
+            </div>
+
+            <div class="hud-score-box">
+              <span class="current-score">0</span>
+              <span class="target-score">3450</span>
+            </div>
+          </div>
+        </header>
+
+        <!-- Center Ambient Section Markers -->
+        <div class="game-hit-zone-line"></div>
+        <div class="game-measure-line measure-line-1"></div>
+        <div class="game-measure-line measure-line-2"></div>
+
+        <!-- Center: 2.5D Fretboard Track Runway -->
+        <div class="fretboard-track-wrapper">
+          <div class="fretboard-canvas-container">
+            <div class="fretboard-plane">
+              <div class="fretboard-frets-grid">
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+              </div>
+
+              <!-- 6 Strings: Thin steel on top (1, 2, 3), Thick wound at bottom (4, 5, 6) -->
+              <div class="track-string steel string-1"></div>
+              <div class="track-string steel string-2"></div>
+              <div class="track-string steel string-3"></div>
+              <div class="track-string wound string-4"></div>
+              <div class="track-string wound string-5"></div>
+              <div class="track-string wound string-6"></div>
+            </div>
+
+            <!-- Parabolic Dotted Trajectory Canvas -->
+            <canvas class="trajectory-canvas"></canvas>
+
+            <!-- Bouncing Glowing Ball -->
+            <div class="bouncing-ball" style="left: 35%; top: 68%;"></div>
+          </div>
+        </div>
+
+        <!-- Bottom Timeline Bar -->
+        <footer class="gameplay-bottom-bar">
+          <div class="timeline-pill-container">
+            <button class="play-pause-btn" title="Pausar / Reanudar">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16" rx="1"/>
+                <rect x="14" y="4" width="4" height="16" rx="1"/>
+              </svg>
+            </button>
+
+            <div class="timeline-track-area" title="Clic: ir a ese punto. Mayús+clic: marcar tramo en bucle. Doble clic: quitar bucle.">
+              <div class="timeline-progress-green progress-fill"></div>
+              <div class="timeline-playhead"></div>
+              <div class="timeline-loop-region" hidden>
+                <button type="button" class="timeline-loop-handle is-start" title="Inicio del bucle"></button>
+                <button type="button" class="timeline-loop-handle is-end" title="Fin del bucle"></button>
+              </div>
+              <div class="timeline-beat-ticks">
+                <span class="beat-dash"></span>
+                <span class="beat-dash"></span>
+                <span class="beat-dash"></span>
+                <span class="beat-dash"></span>
+                <span class="beat-dash"></span>
+                <span class="beat-dash"></span>
+                <span class="beat-dash"></span>
+                <span class="beat-dash"></span>
+              </div>
+            </div>
+          </div>
+
+          <div class="finger-legend-icon" title="Ver código de colores de dedos">
+            <svg viewBox="0 0 100 130" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="glove-grad-notes" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ffffff"/>
+                  <stop offset="70%" stop-color="#f2f5f8"/>
+                  <stop offset="100%" stop-color="#dde2e8"/>
+                </linearGradient>
+                <linearGradient id="cuff-bottom-notes" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#adb5be"/>
+                  <stop offset="100%" stop-color="#7a828d"/>
+                </linearGradient>
+                <linearGradient id="tip-index-notes" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#f59e0b"/>
+                  <stop offset="60%" stop-color="#d97706"/>
+                  <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="tip-middle-notes" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#d916bb"/>
+                  <stop offset="60%" stop-color="#930ea3"/>
+                  <stop offset="100%" stop-color="#d916bb" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="tip-ring-notes" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#00c8f5"/>
+                  <stop offset="60%" stop-color="#0284c7"/>
+                  <stop offset="100%" stop-color="#00c8f5" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="tip-pinky-notes" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#f87157"/>
+                  <stop offset="60%" stop-color="#dc2626"/>
+                  <stop offset="100%" stop-color="#f87157" stop-opacity="0"/>
+                </linearGradient>
+                <radialGradient id="palm-shadow-notes" cx="50%" cy="65%" r="45%">
+                  <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+                  <stop offset="75%" stop-color="#4b5563" stop-opacity="0.04"/>
+                  <stop offset="100%" stop-color="#374151" stop-opacity="0.14"/>
+                </radialGradient>
+              </defs>
+
+              <g filter="drop-shadow(0 4px 6px rgba(0,0,0,0.35))">
+                <path d="
+                  M 38 116
+                  C 38 116, 36 94, 30 78
+                  C 25 66, 17 61, 19 50
+                  C 20 44, 25 43, 27 49
+                  C 29 55, 33 63, 35 68
+                  L 35 32
+                  C 35 24, 46 24, 46 32
+                  L 46 64
+                  L 48 20
+                  C 48 12, 60 12, 60 20
+                  L 60 62
+                  L 62 25
+                  C 62 17, 73 17, 73 25
+                  L 73 66
+                  L 74 38
+                  C 74 30, 84 32, 84 39
+                  L 83 72
+                  C 82 86, 76 100, 71 116
+                  Z
+                " fill="url(#glove-grad-notes)" stroke="rgba(255,255,255,0.85)" stroke-width="1.2" stroke-linejoin="round"/>
+
+                <path d="
+                  M 38 116
+                  C 38 116, 36 94, 30 78
+                  C 25 66, 17 61, 19 50
+                  C 20 44, 25 43, 27 49
+                  C 29 55, 33 63, 35 68
+                  L 35 32
+                  C 35 24, 46 24, 46 32
+                  L 46 64
+                  L 48 20
+                  C 48 12, 60 12, 60 20
+                  L 60 62
+                  L 62 25
+                  C 62 17, 73 17, 73 25
+                  L 73 66
+                  L 74 38
+                  C 74 30, 84 32, 84 39
+                  L 83 72
+                  C 82 86, 76 100, 71 116
+                  Z
+                " fill="url(#palm-shadow-notes)"/>
+
+                <path d="M 35 32 C 35 24, 46 24, 46 32 L 46 48 C 43 49, 38 49, 35 48 Z" fill="url(#tip-index-notes)"/>
+                <path d="M 48 20 C 48 12, 60 12, 60 20 L 60 38 C 57 39, 51 39, 48 38 Z" fill="url(#tip-middle-notes)"/>
+                <path d="M 62 25 C 62 17, 73 17, 73 25 L 73 42 C 70 43, 65 43, 62 42 Z" fill="url(#tip-ring-notes)"/>
+                <path d="M 74 38 C 74 30, 84 32, 84 39 L 83 54 C 80 55, 77 55, 74 54 Z" fill="url(#tip-pinky-notes)"/>
+
+                <ellipse cx="54.5" cy="116" rx="16.5" ry="5.5" fill="url(#cuff-bottom-notes)" stroke="#ffffff" stroke-width="1.2"/>
+                <ellipse cx="54.5" cy="116" rx="13" ry="3.5" fill="#58606c"/>
+              </g>
+            </svg>
+          </div>
+        </footer>
+      </section>
+
+
+      <!-- ===================================================================
+           PANTALLA 4: INTERPRETACIÓN DE CANCIÓN (ACORDES EN BLOQUE 3D)
+           =================================================================== -->
+      <section class="screen-view gameplay-view view-hidden" id="view-chords" aria-label="Canción: Acordes">
+        <div class="ambient-dust"></div>
+        <div class="flowing-waves"></div>
+
+        <header class="gameplay-hud-top">
+          <!-- Left: Salir & Reanudar -->
+          <div class="hud-left-group">
+            <button class="hud-btn hud-exit-btn btn-back-menu" data-target="menu" title="Volver al Menú Principal">
+              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+              </svg>
+              <span>Salir</span>
+            </button>
+
+            <button class="hud-btn hud-play-pause-btn play-pause-btn" title="Pausar o Reanudar (Espacio)">
+              <svg class="icon-hud-play" viewBox="0 0 24 24" width="20" height="20" fill="currentColor">
+                <polygon points="6,4 20,12 6,20"/>
+              </svg>
+              <span class="btn-play-pause-label">Reproducir</span>
+            </button>
+          </div>
+
+          <!-- Center: Mode Switcher (Práctica vs Interpretar) -->
+          <div class="hud-mode-pill" role="tablist" aria-label="Modo de ejecución">
+            <button class="mode-tab-btn mode-btn-practice" data-session-mode="practice" title="Bucle y velocidad regulable">
+              <span>Práctica</span>
+            </button>
+            <button class="mode-tab-btn mode-btn-performance active" data-session-mode="performance" title="Un intento evaluado">
+              <span>Interpretar</span>
+            </button>
+          </div>
+
+          <div class="hud-speed-controller-pill" title="Velocidad y bucle">
+            <button class="speed-step-btn speed-minus-btn" title="Reducir velocidad (-10%)">−</button>
+            <div class="speed-slider-wrap">
+              <input type="range" class="gameplay-speed-slider" min="25" max="150" step="5" value="100" title="Ajustar velocidad" />
+            </div>
+            <button class="speed-step-btn speed-plus-btn" title="Aumentar velocidad (+10%)">+</button>
+            <span class="gameplay-speed-label">100 % Velocidad</span>
+            <button class="hud-loop-toggle-btn" title="La pista se detiene al terminar">Sin bucle</button>
+          </div>
+
+          <!-- Mini HUD Chord Card -->
+          <div class="hud-chord-card" title="Acorde actual: Am">
+            <span class="hud-chord-card-title">Am</span>
+            <div class="hud-chord-mini-fretboard">
+              <svg class="hud-chord-mini-svg" viewBox="0 0 140 85">
+                <rect x="0" y="0" width="140" height="85" rx="4" fill="#1b2432"/>
+                <line x1="18" y1="0" x2="18" y2="85" stroke="#ffffff" stroke-width="2.5"/>
+                <line x1="48" y1="0" x2="48" y2="85" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                <line x1="78" y1="0" x2="78" y2="85" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                <line x1="108" y1="0" x2="108" y2="85" stroke="rgba(255,255,255,0.2)" stroke-width="1"/>
+                
+                <line x1="18" y1="14" x2="140" y2="14" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+                <line x1="18" y1="28" x2="140" y2="28" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+                <line x1="18" y1="42" x2="140" y2="42" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+                <line x1="18" y1="56" x2="140" y2="56" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+                <line x1="18" y1="70" x2="140" y2="70" stroke="rgba(255,255,255,0.25)" stroke-width="1"/>
+                <line x1="18" y1="78" x2="140" y2="78" stroke="#883333" stroke-width="1.5"/>
+
+                <circle class="hud-finger-dot" cx="33" cy="28" r="4.5" fill="#f39c12"/>
+                <circle class="hud-finger-dot" cx="63" cy="56" r="4.5" fill="#00d2ff"/>
+                <circle class="hud-finger-dot" cx="63" cy="42" r="4.5" fill="#e024c3"/>
+              </svg>
+            </div>
+          </div>
+
+          <!-- Right: Multiplier & Score -->
+          <div class="hud-right-group">
+            <div class="hud-multiplier-box">
+              <span class="hud-multiplier-text">2×</span>
+              <div class="hud-combo-dots">
+                <span class="hud-combo-dot active"></span>
+                <span class="hud-combo-dot active"></span>
+                <span class="hud-combo-dot active"></span>
+                <span class="hud-combo-dot active"></span>
+                <span class="hud-combo-dot active"></span>
+              </div>
+            </div>
+
+            <div class="hud-score-box">
+              <span class="current-score">0</span>
+              <span class="target-score">3050</span>
+            </div>
+          </div>
+        </header>
+
+        <div class="game-hit-zone-line"></div>
+        <div class="game-measure-line measure-line-1"></div>
+        <div class="game-measure-line measure-line-2"></div>
+
+        <div class="fretboard-track-wrapper">
+          <div class="fretboard-canvas-container">
+            <div class="fretboard-plane">
+              <div class="fretboard-frets-grid">
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+                <span class="fret-wire"></span>
+              </div>
+
+              <!-- 6 Strings: Thin steel on top (1, 2, 3), Thick wound at bottom (4, 5, 6) -->
+              <div class="track-string steel string-1"></div>
+              <div class="track-string steel string-2"></div>
+              <div class="track-string steel string-3"></div>
+              <div class="track-string wound string-4"></div>
+              <div class="track-string wound string-5"></div>
+              <div class="track-string wound string-6"></div>
+            </div>
+
+            <!-- Parabolic Dotted Trajectory Canvas -->
+            <canvas class="trajectory-canvas"></canvas>
+
+            <div class="bouncing-ball" style="left: 35%; top: 62%;"></div>
+          </div>
+        </div>
+
+        <footer class="gameplay-bottom-bar">
+          <div class="timeline-pill-container">
+            <button class="play-pause-btn" title="Pausar / Reanudar">
+              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+                <rect x="6" y="4" width="4" height="16" rx="1"/>
+                <rect x="14" y="4" width="4" height="16" rx="1"/>
+              </svg>
+            </button>
+
+            <div class="timeline-track-area" title="Clic: ir a ese punto. Mayús+clic: marcar tramo en bucle. Doble clic: quitar bucle.">
+              <div class="timeline-progress-green progress-fill"></div>
+              <div class="timeline-playhead"></div>
+              <div class="timeline-loop-region" hidden>
+                <button type="button" class="timeline-loop-handle is-start" title="Inicio del bucle"></button>
+                <button type="button" class="timeline-loop-handle is-end" title="Fin del bucle"></button>
+              </div>
+              <div class="timeline-segment-red"></div>
+              <div class="timeline-segment-purple seg-purp-1"></div>
+              <div class="timeline-segment-purple seg-purp-2"></div>
+              <div class="timeline-segment-purple seg-purp-3"></div>
+              <div class="timeline-segment-purple seg-purp-4"></div>
+              <div class="timeline-segment-purple seg-purp-5"></div>
+            </div>
+          </div>
+
+          <div class="finger-legend-icon" title="Ver código de colores de dedos">
+            <svg viewBox="0 0 100 130" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+              <defs>
+                <linearGradient id="glove-grad-chords" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ffffff"/>
+                  <stop offset="70%" stop-color="#f2f5f8"/>
+                  <stop offset="100%" stop-color="#dde2e8"/>
+                </linearGradient>
+                <linearGradient id="cuff-bottom-chords" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#adb5be"/>
+                  <stop offset="100%" stop-color="#7a828d"/>
+                </linearGradient>
+                <linearGradient id="tip-index-chords" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#f59e0b"/>
+                  <stop offset="60%" stop-color="#d97706"/>
+                  <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="tip-middle-chords" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#d916bb"/>
+                  <stop offset="60%" stop-color="#930ea3"/>
+                  <stop offset="100%" stop-color="#d916bb" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="tip-ring-chords" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#00c8f5"/>
+                  <stop offset="60%" stop-color="#0284c7"/>
+                  <stop offset="100%" stop-color="#00c8f5" stop-opacity="0"/>
+                </linearGradient>
+                <linearGradient id="tip-pinky-chords" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#f87157"/>
+                  <stop offset="60%" stop-color="#dc2626"/>
+                  <stop offset="100%" stop-color="#f87157" stop-opacity="0"/>
+                </linearGradient>
+                <radialGradient id="palm-shadow-chords" cx="50%" cy="65%" r="45%">
+                  <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+                  <stop offset="75%" stop-color="#4b5563" stop-opacity="0.04"/>
+                  <stop offset="100%" stop-color="#374151" stop-opacity="0.14"/>
+                </radialGradient>
+              </defs>
+
+              <g filter="drop-shadow(0 4px 6px rgba(0,0,0,0.35))">
+                <path d="
+                  M 38 116
+                  C 38 116, 36 94, 30 78
+                  C 25 66, 17 61, 19 50
+                  C 20 44, 25 43, 27 49
+                  C 29 55, 33 63, 35 68
+                  L 35 32
+                  C 35 24, 46 24, 46 32
+                  L 46 64
+                  L 48 20
+                  C 48 12, 60 12, 60 20
+                  L 60 62
+                  L 62 25
+                  C 62 17, 73 17, 73 25
+                  L 73 66
+                  L 74 38
+                  C 74 30, 84 32, 84 39
+                  L 83 72
+                  C 82 86, 76 100, 71 116
+                  Z
+                " fill="url(#glove-grad-chords)" stroke="rgba(255,255,255,0.85)" stroke-width="1.2" stroke-linejoin="round"/>
+
+                <path d="
+                  M 38 116
+                  C 38 116, 36 94, 30 78
+                  C 25 66, 17 61, 19 50
+                  C 20 44, 25 43, 27 49
+                  C 29 55, 33 63, 35 68
+                  L 35 32
+                  C 35 24, 46 24, 46 32
+                  L 46 64
+                  L 48 20
+                  C 48 12, 60 12, 60 20
+                  L 60 62
+                  L 62 25
+                  C 62 17, 73 17, 73 25
+                  L 73 66
+                  L 74 38
+                  C 74 30, 84 32, 84 39
+                  L 83 72
+                  C 82 86, 76 100, 71 116
+                  Z
+                " fill="url(#palm-shadow-chords)"/>
+
+                <path d="M 35 32 C 35 24, 46 24, 46 32 L 46 48 C 43 49, 38 49, 35 48 Z" fill="url(#tip-index-chords)"/>
+                <path d="M 48 20 C 48 12, 60 12, 60 20 L 60 38 C 57 39, 51 39, 48 38 Z" fill="url(#tip-middle-chords)"/>
+                <path d="M 62 25 C 62 17, 73 17, 73 25 L 73 42 C 70 43, 65 43, 62 42 Z" fill="url(#tip-ring-chords)"/>
+                <path d="M 74 38 C 74 30, 84 32, 84 39 L 83 54 C 80 55, 77 55, 74 54 Z" fill="url(#tip-pinky-chords)"/>
+
+                <ellipse cx="54.5" cy="116" rx="16.5" ry="5.5" fill="url(#cuff-bottom-chords)" stroke="#ffffff" stroke-width="1.2"/>
+                <ellipse cx="54.5" cy="116" rx="13" ry="3.5" fill="#58606c"/>
+              </g>
+            </svg>
+          </div>
+        </footer>
+      </section>
+
+
+      <!-- ===================================================================
+           PANTALLA 5: EDITOR DE CANCIONES (SONG EDITOR)
+           =================================================================== -->
+      <section class="screen-view view-hidden" id="view-editor" aria-label="Editor de Canciones">
+        
+        <!-- Editor Top Toolbar -->
+        <header class="editor-toolbar">
+          <div class="editor-toolbar-left">
+            <button class="btn-back-menu" data-target="menu" style="position: static; margin-right: 8px;" title="Volver al Menú Principal">
+              <svg viewBox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+              Menú
+            </button>
+
+            <div class="editor-input-group">
+              <label class="editor-input-label" for="editor-song-title">Título de Canción</label>
+              <input type="text" id="editor-song-title" class="editor-text-input" value="Mi Canción" style="width: 160px;">
+            </div>
+
+            <div class="editor-input-group">
+              <label class="editor-input-label" for="editor-section-name">Sección / Parte</label>
+              <input type="text" id="editor-section-name" class="editor-text-input" value="Canción" style="width: 110px;">
+            </div>
+
+            <div class="editor-input-group">
+              <label class="editor-input-label">Modo de Pista</label>
+              <div class="editor-mode-toggle">
+                <button class="editor-mode-btn active" data-mode="notes" id="mode-notes-btn">Notas</button>
+                <button class="editor-mode-btn" data-mode="chords" id="mode-chords-btn">Acordes</button>
+              </div>
+            </div>
+
+            <div class="editor-input-group">
+              <label class="editor-input-label">Tempo: <span id="editor-bpm-val" class="editor-bpm-value">85</span> BPM</label>
+              <div class="editor-bpm-control">
+                <input type="range" min="50" max="180" value="85" class="editor-bpm-slider" id="editor-bpm-slider">
+              </div>
+            </div>
+          </div>
+
+          <div class="editor-toolbar-right">
+            <div class="editor-input-group">
+              <label class="editor-input-label">Plantillas</label>
+              <select id="editor-preset-select" class="editor-preset-select">
+                <option value="" selected disabled>Sin plantillas</option>
+              </select>
+            </div>
+
+            <button class="editor-btn editor-btn-clear" id="editor-clear-all-btn" title="Vaciar notas y acordes colocados">
+              Limpiar todo
+            </button>
+
+            <button class="editor-btn editor-btn-extract" id="editor-audio-extract-btn" title="Cargar pista de video o audio">
+              Cargar audio
+            </button>
+            <input type="file" id="editor-audio-extract-file" accept="video/mp4,video/*,audio/*,.mp4,.mp3,.wav,.ogg" style="display: none;">
+
+            <button class="editor-btn" id="editor-play-seq-btn" title="Reproducir notas del secuenciador">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" id="editor-play-seq-icon">
+                <polygon points="6,4 20,12 6,20"/>
+              </svg>
+              <span id="editor-play-seq-text">Pista</span>
+            </button>
+
+            <button class="editor-btn" id="editor-play-both-btn" title="Audio original y guitarra a la vez">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" id="editor-play-both-icon">
+                <polygon points="6,4 20,12 6,20"/>
+              </svg>
+              <span id="editor-play-both-text">Ambas</span>
+            </button>
+
+            <button class="editor-btn editor-btn-play-game" id="editor-play-game-btn" title="Probar la lección en el mástil rítmico">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
+                <polygon points="6,4 20,12 6,20"/>
+              </svg>
+              Probar
+            </button>
+
+            <button class="editor-btn" id="editor-export-btn" title="Descargar como archivo JSON">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="7 10 12 15 17 10"/>
+                <line x1="12" y1="15" x2="12" y2="3"/>
+              </svg>
+              Exportar
+            </button>
+
+            <button class="editor-btn" id="editor-import-btn" title="Cargar archivo JSON">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+              Importar
+            </button>
+            <input type="file" id="editor-import-file" accept=".json" style="display: none;">
+          </div>
+        </header>
+
+        <!-- Audio Player Reference Bar (when audio/video is loaded) -->
+        <div class="editor-reference-audio-bar" id="editor-audio-player-bar" style="display: none;">
+          <div class="audio-bar-left">
+            <button class="audio-play-toggle-btn" id="audio-ref-play-btn" title="Reproducir audio extraído">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" id="audio-ref-play-icon">
+                <polygon points="6,4 20,12 6,20"/>
+              </svg>
+            </button>
+            <div class="audio-track-info">
+              <span class="audio-track-name" id="audio-ref-track-name">Pista de referencia: Coco - Remember Me</span>
+              <span class="audio-track-time" id="audio-ref-track-time">0:00 / 0:00</span>
+            </div>
+          </div>
+
+          <!-- Real-Time Audio Note Inspector / Mini-Tuner -->
+          <div class="audio-note-inspector" id="audio-note-inspector" title="Afinador en tiempo real del audio que está sonando">
+            <div class="inspector-badge">Nota del audio</div>
+            <div class="inspector-note-readout" id="inspector-note-readout">--</div>
+            <div class="inspector-freq-readout" id="inspector-freq-readout">-- Hz</div>
+            <button class="inspector-add-btn" id="inspector-add-btn" title="Insertar esta nota detectada en el pulso actual del editor" disabled>
+              + Insertar en Pulso
+            </button>
+          </div>
+
+          <div class="audio-bar-center">
+            <input type="range" class="audio-seeker" id="audio-ref-seeker" min="0" max="100" value="0" step="0.1">
+          </div>
+          <div class="audio-bar-right">
+            <span class="audio-sync-badge" id="audio-sync-badge" title="Sincronización activa con las notas del editor">🔗 Modo Dual Sincronizado</span>
+            <label class="audio-volume-label">Volumen</label>
+            <input type="range" class="audio-volume" id="audio-ref-volume" min="0" max="1" value="0.75" step="0.05">
+            <button class="audio-remove-btn" id="audio-ref-remove-btn" title="Quitar audio de referencia">&times;</button>
+          </div>
+        </div>
+
+        <!-- Sequencer Grid Timeline Area -->
+        <div class="editor-sequencer-wrapper">
+          <!-- Measures Header -->
+          <div class="editor-timeline-header">
+            <div class="timeline-measures-row" id="timeline-measures-row">
+              <!-- Rendered via JS -->
+            </div>
+          </div>
+
+          <!-- Sequencer Body -->
+          <div class="editor-grid-scroll-area">
+            <!-- Strings Legend Column (Left) -->
+            <div class="editor-strings-legend">
+              <div class="string-legend-cell"><span class="string-dot steel"></span> 1ª Mi (E4)</div>
+              <div class="string-legend-cell"><span class="string-dot steel"></span> 2ª Si (B3)</div>
+              <div class="string-legend-cell"><span class="string-dot steel"></span> 3ª Sol (G3)</div>
+              <div class="string-legend-cell"><span class="string-dot bronze"></span> 4ª Re (D3)</div>
+              <div class="string-legend-cell"><span class="string-dot bronze"></span> 5ª La (A2)</div>
+              <div class="string-legend-cell"><span class="string-dot bronze"></span> 6ª Mi (E2)</div>
+            </div>
+
+            <!-- Beat Matrix Grid -->
+            <div class="editor-matrix-grid" id="editor-matrix-grid">
+              <!-- Rendered via JS -->
+              <div class="editor-playhead-line" id="editor-playhead-line" style="display: none;"></div>
+            </div>
+
+            <!-- Chord Lane (Shown in Chord Mode) -->
+            <div class="editor-chord-lane" id="editor-chord-lane">
+              <div class="chord-lane-track" id="chord-lane-track"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Editor Bottom Stats Bar -->
+        <footer class="editor-bottom-bar">
+          <div class="editor-hint">
+            <span>Haz clic en un pulso (cada celda es una semicorchea). En la nota elegí 1/16, 1/8, 1/4 o 1/2. Notas en la misma columna = a la vez.</span>
+          </div>
+
+          <div class="editor-stats-info">
+            <span>Notas: <span class="editor-stat-badge" id="editor-notes-count">0</span></span>
+            <span>Acordes: <span class="editor-stat-badge" id="editor-chords-count">0</span></span>
+            <span>Duración: <span class="editor-stat-badge" id="editor-duration-count">0.0s</span></span>
+          </div>
+        </footer>
+
+        <!-- Note Selector Popover Modal -->
+        <div class="note-selector-modal" id="note-selector-modal">
+          <div class="selector-header">
+            <span>Configurar Nota</span>
+            <button class="selector-close-btn" id="selector-close-btn">&times;</button>
+          </div>
+
+          <div class="editor-input-group">
+            <span class="selector-section-title">Número de Traste</span>
+            <div class="fret-buttons-grid">
+              <button class="fret-select-btn" data-fret="0">0</button>
+              <button class="fret-select-btn" data-fret="1">1</button>
+              <button class="fret-select-btn" data-fret="2">2</button>
+              <button class="fret-select-btn active" data-fret="3">3</button>
+              <button class="fret-select-btn" data-fret="4">4</button>
+              <button class="fret-select-btn" data-fret="5">5</button>
+              <button class="fret-select-btn" data-fret="6">6</button>
+              <button class="fret-select-btn" data-fret="7">7</button>
+              <button class="fret-select-btn" data-fret="8">8</button>
+              <button class="fret-select-btn" data-fret="9">9</button>
+            </div>
+          </div>
+
+          <div class="editor-input-group">
+            <span class="selector-section-title">Dedo / Código de Color</span>
+            <div class="finger-buttons-row">
+              <button class="finger-select-btn" data-finger="0" style="background: #6c757d;" title="0 - Al aire (Gris)">0</button>
+              <button class="finger-select-btn active" data-finger="1" style="background: #f39c12;" title="1 - Índice (Naranja)">1</button>
+              <button class="finger-select-btn" data-finger="2" style="background: #00d2ff;" title="2 - Medio (Celeste)">2</button>
+              <button class="finger-select-btn" data-finger="3" style="background: #e024c3;" title="3 - Anular (Magenta)">3</button>
+              <button class="finger-select-btn" data-finger="4" style="background: #8e44ad;" title="4 - Meñique (Violeta)">4</button>
+            </div>
+          </div>
+
+          <div class="editor-input-group">
+            <span class="selector-section-title">Duración</span>
+            <div class="duration-buttons-row">
+              <button class="duration-select-btn active" data-duration="1" title="Semicorchea">1/16</button>
+              <button class="duration-select-btn" data-duration="2" title="Corchea">1/8</button>
+              <button class="duration-select-btn" data-duration="4" title="Negra">1/4</button>
+              <button class="duration-select-btn" data-duration="8" title="Blanca">1/2</button>
+            </div>
+          </div>
+
+          <div class="selector-action-row">
+            <button class="selector-delete-btn" id="selector-delete-btn">Eliminar</button>
+            <button class="selector-apply-btn" id="selector-apply-btn">Colocar Nota</button>
+          </div>
+        </div>
+
+        <div class="audio-extract-modal-overlay" id="editor-clear-confirm-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="editor-clear-confirm-title">
+          <div class="audio-extract-card editor-clear-confirm-card">
+            <div class="extract-card-header">
+              <h3 class="extract-card-title" id="editor-clear-confirm-title">¿Vaciar la pista?</h3>
+              <button class="extract-close-btn" id="editor-clear-confirm-close" type="button" aria-label="Cerrar">&times;</button>
+            </div>
+            <div class="extract-card-body">
+              <p class="editor-clear-confirm-text">Se van a borrar todas las notas y acordes colocados. Esta acción no se puede deshacer.</p>
+            </div>
+            <div class="extract-card-footer">
+              <button class="extract-btn-cancel" id="editor-clear-confirm-cancel" type="button">Cancelar</button>
+              <button class="editor-clear-confirm-action" id="editor-clear-confirm-ok" type="button">Sí, limpiar todo</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Audio/Video Extraction Modal -->
+        <div class="audio-extract-modal-overlay" id="audio-extract-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="extract-card-title">
+          <div class="audio-extract-card">
+            <div class="extract-card-header">
+              <div class="extract-header-title-wrap">
+                <h3 class="extract-card-title" id="extract-card-title">Cargar audio</h3>
+                <p class="extract-card-subtitle">Detecta notas y tempo desde un video o una pista.</p>
+              </div>
+              <button class="extract-close-btn" id="extract-modal-close-btn" type="button" aria-label="Cerrar">&times;</button>
+            </div>
+
+            <div class="extract-card-body">
+              <div class="extract-dropzone" id="extract-dropzone">
+                <span class="extract-drop-icon-wrap" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                  </svg>
+                </span>
+                <div class="extract-drop-text">
+                  <strong id="extract-drop-main-text">Arrastrá un archivo o hacé clic para elegir</strong>
+                  <span>MP4, MP3, WAV u OGG</span>
+                </div>
+              </div>
+
+              <div class="extract-options-grid">
+                <div class="extract-option-item">
+                  <label class="extract-label" for="extract-sensitivity">Sensibilidad</label>
+                  <select id="extract-sensitivity" class="extract-select">
+                    <option value="0.012" selected>Alta (fingerstyle / arpegios)</option>
+                    <option value="0.022">Media (melodía estándar)</option>
+                    <option value="0.04">Baja (púa fuerte)</option>
+                    <option value="0.07">Muy baja (ataques marcados)</option>
+                  </select>
+                </div>
+
+                <div class="extract-option-item">
+                  <label class="extract-label" for="extract-bpm-mode">Tempo</label>
+                  <select id="extract-bpm-mode" class="extract-select">
+                    <option value="auto" selected>Detectar automáticamente</option>
+                    <option value="custom">Usar BPM del editor</option>
+                    <option value="80">Fijo: 80 BPM</option>
+                    <option value="85">Fijo: 85 BPM</option>
+                    <option value="90">Fijo: 90 BPM</option>
+                    <option value="120">Fijo: 120 BPM</option>
+                  </select>
+                </div>
+              </div>
+
+              <div class="extract-progress-wrap" id="extract-progress-wrap" style="display: none;">
+                <div class="extract-progress-bar-bg">
+                  <div class="extract-progress-bar-fill" id="extract-progress-fill" style="width: 0%;"></div>
+                </div>
+                <div class="extract-status-text" id="extract-status-text">Extrayendo pista de audio...</div>
+              </div>
+            </div>
+
+            <div class="extract-card-footer">
+              <button class="extract-btn-cancel" id="extract-btn-cancel" type="button">Cancelar</button>
+              <button class="extract-btn-action" id="extract-btn-confirm" type="button" disabled>
+                Procesar
+              </button>
+            </div>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+
+    <!-- Global Finger Code Tooltip Modal -->
+    <aside class="hand-legend-modal" id="hand-legend-modal" role="dialog" aria-label="Código de color por dedo">
+      <h4>Dedos de la Mano Izquierda</h4>
+      <div class="finger-item">
+        <span class="finger-color-circle" style="background: #ffffff; border: 1px solid #999;"></span>
+        <span>Pulgar (Apoyo detrás del mástil)</span>
+      </div>
+      <div class="finger-item">
+        <span class="finger-color-circle" style="background: #f39c12;"></span>
+        <span>Dedo 1 - Índice (Naranja)</span>
+      </div>
+      <div class="finger-item">
+        <span class="finger-color-circle" style="background: #00d2ff;"></span>
+        <span>Dedo 2 - Medio (Celeste)</span>
+      </div>
+      <div class="finger-item">
+        <span class="finger-color-circle" style="background: #e024c3;"></span>
+        <span>Dedo 3 - Anular (Magenta)</span>
+      </div>
+      <div class="finger-item">
+        <span class="finger-color-circle" style="background: #8e44ad;"></span>
+        <span>Dedo 4 - Meñique (Azul/Violeta)</span>
+      </div>
+    </aside>
+
+    <!-- Modal de Calificación 3 Estrellas (Modo Interpretación) -->
+    <div class="performance-modal-overlay" id="performance-results-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="perf-song-title">
+      <div class="performance-modal-card">
+        <div class="performance-modal-ambient-glow"></div>
+        
+        <!-- Header -->
+        <div class="performance-modal-header">
+          <span class="performance-eyebrow">Resultados</span>
+          <h2 class="performance-song-title" id="perf-song-title">Recuérdame (Coco)</h2>
+          <p class="performance-subtitle" id="perf-verdict-text">¡Interpretación completada!</p>
+        </div>
+
+        <!-- 3 Glowing Golden Stars -->
+        <div class="performance-stars-container" id="perf-stars-container">
+          <div class="perf-star-item" data-star="1">
+            <svg class="perf-star-svg" viewBox="0 0 24 24">
+              <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+            </svg>
+          </div>
+          <div class="perf-star-item" data-star="2">
+            <svg class="perf-star-svg" viewBox="0 0 24 24">
+              <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+            </svg>
+          </div>
+          <div class="perf-star-item" data-star="3">
+            <svg class="perf-star-svg" viewBox="0 0 24 24">
+              <polygon points="12,2 15.09,8.26 22,9.27 17,14.14 18.18,21.02 12,17.77 5.82,21.02 7,14.14 2,9.27 8.91,8.26"/>
+            </svg>
+          </div>
+        </div>
+
+        <!-- Star Badge Text -->
+        <div class="perf-star-badge" id="perf-star-badge">¡3 ESTRELLAS! PERFECTO</div>
+
+        <!-- Stats Grid -->
+        <div class="perf-stats-grid">
+          <div class="perf-stat-card">
+            <span class="perf-stat-label">Precisión</span>
+            <span class="perf-stat-value" id="perf-stat-accuracy">100%</span>
+          </div>
+          <div class="perf-stat-card">
+            <span class="perf-stat-label">Acertadas</span>
+            <span class="perf-stat-value" id="perf-stat-hits">24 / 24</span>
+          </div>
+          <div class="perf-stat-card">
+            <span class="perf-stat-label">Racha</span>
+            <span class="perf-stat-value" id="perf-stat-combo">24</span>
+          </div>
+          <div class="perf-stat-card">
+            <span class="perf-stat-label">Puntuación</span>
+            <span class="perf-stat-value" id="perf-stat-score">10,800</span>
+          </div>
+        </div>
+
+        <!-- Action Buttons -->
+        <div class="perf-actions-row">
+          <button class="perf-btn perf-btn-retry" id="perf-btn-retry" title="Intentar de nuevo en modo interpretación">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+              <path d="M1 4v6h6M23 20v-6h-6"/>
+              <path d="M20.49 9A9 9 0 0 0 5.64 5.64L1 10m22 4l-4.64 4.36A9 9 0 0 1 3.51 15"/>
+            </svg>
+            <span>Reintentar</span>
+          </button>
+
+          <button class="perf-btn perf-btn-practice" id="perf-btn-practice" title="Ir a modo práctica con bucle continuo y velocidad regulable">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+              <circle cx="12" cy="12" r="10"/>
+              <circle cx="12" cy="12" r="6"/>
+              <circle cx="12" cy="12" r="2"/>
+            </svg>
+            <span>Modo Práctica</span>
+          </button>
+
+          <button class="perf-btn perf-btn-exit" id="perf-btn-exit" title="Volver al Editor o Menú Principal">
+            <span>Salir</span>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="tuner-mic-overlay hidden" id="tuner-mic-overlay">
+      <div class="tuner-mic-modal">
+        <div class="tuner-mic-icon-pulse">
+          <svg viewBox="0 0 24 24" width="38" height="38" fill="currentColor">
+            <path d="M12 14c1.66 0 3-1.34 3-3V5c0-1.66-1.34-3-3-3S9 3.34 9 5v6c0 1.66 1.34 3 3 3z"/>
+            <path d="M17 11c0 2.76-2.24 5-5 5s-5-2.24-5-5H5c0 3.53 2.61 6.43 6 6.92V21h2v-3.08c3.39-.49 6-3.39 6-6.92h-2z"/>
+          </svg>
+        </div>
+        <h2 class="tuner-mic-title">Hace falta el micrófono</h2>
+        <p class="tuner-mic-description">
+          El afinador, la práctica y las lecciones escuchan tu guitarra. Permití el micrófono para seguir.
+        </p>
+        <p class="tuner-mic-error" id="tuner-mic-error" hidden></p>
+        <div class="tuner-mic-actions">
+          <button class="tuner-btn-enable-mic" id="tuner-btn-enable-mic">
+            Permitir micrófono y empezar
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <div class="gameplay-countdown-overlay" id="gameplay-countdown-overlay" hidden>
+      <p class="gameplay-countdown-number" id="gameplay-countdown-number">3</p>
+    </div>
+
+    <div class="gameplay-pause-overlay" id="gameplay-pause-overlay" hidden>
+      <div class="gameplay-pause-card">
+        <p class="gameplay-pause-title">Pausa</p>
+        <p class="gameplay-pause-hint">Pausa con Esc, P, Espacio o al cambiar de pestaña.</p>
+        <div class="gameplay-pause-actions">
+          <button type="button" class="hud-btn hud-play-pause-btn" id="pause-resume-btn">Reanudar</button>
+          <button type="button" class="hud-btn hud-exit-btn" id="pause-exit-btn">Salir</button>
+        </div>
+      </div>
+    </div>
+
+  <template id="tpl-tuner-pitch-label">
+    <strong data-slot="name"></strong>
+    <span> (<span data-slot="spanish"></span>) • <span data-slot="freq"></span> Hz</span>
+  </template>
+
+  <template id="tpl-game-chord-block">
+    <div class="game-chord-block">
+      <div class="chord-strum-chevrons"></div>
+      <span class="chord-block-label" data-slot="label"></span>
+    </div>
+  </template>
+
+  <template id="tpl-icon-pause">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+      <rect x="6" y="4" width="4" height="16" rx="1"/>
+      <rect x="14" y="4" width="4" height="16" rx="1"/>
+    </svg>
+  </template>
+
+  <template id="tpl-icon-play">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+      <polygon points="6,4 20,12 6,20"/>
+    </svg>
+  </template>
+
+  <template id="tpl-svg-play">
+    <svg xmlns="http://www.w3.org/2000/svg">
+      <polygon points="6,4 20,12 6,20"/>
+    </svg>
+  </template>
+
+  <template id="tpl-svg-pause">
+    <svg xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="4" width="4" height="16"/>
+      <rect x="14" y="4" width="4" height="16"/>
+    </svg>
+  </template>
+
+  <template id="tpl-svg-pause-filled">
+    <svg xmlns="http://www.w3.org/2000/svg">
+      <rect x="6" y="4" width="4" height="16" fill="currentColor"/>
+      <rect x="14" y="4" width="4" height="16" fill="currentColor"/>
+    </svg>
+  </template>
+
+  <template id="tpl-svg-upload">
+    <svg xmlns="http://www.w3.org/2000/svg">
+      <path d="M4 12v6a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-6"/>
+      <polyline points="16 6 12 2 8 6"/>
+      <line x1="12" y1="2" x2="12" y2="15"/>
+    </svg>
+  </template>
+
+  <!-- Vite TypeScript Entry Point -->
+  <script type="module" src="/src/main.ts"></script>
+</body>
+</html>
