@@ -570,6 +570,8 @@ export class GuitarApp {
   private detachAllMicListeners(): void {
     guitarAudio.detachPitchListener(this.onTunerPitch);
     guitarAudio.detachPitchListener(this.onGameplayPitch);
+    guitarAudio.setWaveformListener(null);
+    this.stopTunerDebug();
     this.isMicActive = false;
     this.isGameplayMicActive = false;
   }
@@ -615,6 +617,7 @@ export class GuitarApp {
 
     if (started) {
       this.isMicActive = true;
+      this.startTunerDebug();
       this.rememberMicGranted();
       const micOverlay = document.getElementById('tuner-mic-overlay');
       if (micOverlay) micOverlay.classList.add('hidden');
@@ -633,7 +636,74 @@ export class GuitarApp {
     return false;
   }
 
+  private tunerDebugFrame: Float32Array | null = null;
+  private tunerDebugRms = 0;
+  private tunerDebugFreq: number | null = null;
+  private tunerDebugRaf = 0;
+
+  private startTunerDebug(): void {
+    guitarAudio.setWaveformListener((samples) => {
+      this.tunerDebugFrame = samples;
+    });
+    if (this.tunerDebugRaf) cancelAnimationFrame(this.tunerDebugRaf);
+    const draw = () => {
+      this.drawTunerDebug();
+      this.tunerDebugRaf = requestAnimationFrame(draw);
+    };
+    this.tunerDebugRaf = requestAnimationFrame(draw);
+  }
+
+  private stopTunerDebug(): void {
+    if (this.tunerDebugRaf) cancelAnimationFrame(this.tunerDebugRaf);
+    this.tunerDebugRaf = 0;
+    this.tunerDebugFrame = null;
+  }
+
+  private drawTunerDebug(): void {
+    const canvas = document.getElementById('tuner-debug-canvas') as HTMLCanvasElement | null;
+    const label = document.getElementById('tuner-debug-label');
+    if (!canvas) return;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+    const size = canvas.width;
+    ctx.clearRect(0, 0, size, size);
+
+    const frame = this.tunerDebugFrame;
+    const cx = size / 2;
+    const cy = size / 2;
+    const radius = size * 0.42;
+    ctx.beginPath();
+    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
+    ctx.clip();
+
+    ctx.strokeStyle = 'rgba(46, 229, 154, 0.95)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    const count = frame?.length ?? 0;
+    if (count > 1 && frame) {
+      for (let i = 0; i < count; i++) {
+        const x = (i / (count - 1)) * size;
+        const y = cy - frame[i] * radius * 3.2;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+    } else {
+      ctx.moveTo(0, cy);
+      ctx.lineTo(size, cy);
+    }
+    ctx.stroke();
+
+    if (label) {
+      const rms = this.tunerDebugRms;
+      const hz = this.tunerDebugFreq;
+      const level = rms < 0.002 ? 'silencio' : rms.toFixed(3);
+      label.textContent = hz ? `${hz.toFixed(0)} Hz · ${level}` : `mic ${level}`;
+    }
+  }
+
   private onTunerPitch = (data: PitchMatchResult): void => {
+    this.tunerDebugRms = data.rms;
+    this.tunerDebugFreq = data.freq;
     if (!data) return;
     const now = performance.now();
 

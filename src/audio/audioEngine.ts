@@ -22,6 +22,7 @@ export class GuitarAudioEngine {
   public isTrackingPitch: boolean = false;
   public hasMicPermission: boolean = false;
   private pitchListeners = new Set<OnPitchDetectedCallback>();
+  private waveformListener: ((samples: Float32Array) => void) | null = null;
 
   // Onset detection (spectral flux) and chroma state
   private specDb: Float32Array<ArrayBuffer> | null = null;
@@ -365,6 +366,7 @@ export class GuitarAudioEngine {
       this.workletNode.port.onmessage = (event: MessageEvent<Float32Array>) => {
         if (!this.pitchWorker || !this.isTrackingPitch) return;
         const hop = event.data;
+        this.emitWaveform(hop);
         this.pitchWorker.postMessage({ type: 'hop', samples: hop, nowMs: performance.now() }, [hop.buffer]);
       };
 
@@ -394,6 +396,7 @@ export class GuitarAudioEngine {
     const trackLoop = () => {
       if (!this.isTrackingPitch || !this.analyser || !this.pitchBuffer || !this.ctx) return;
       this.analyser.getFloatTimeDomainData(this.pitchBuffer);
+      this.emitWaveform(this.pitchBuffer);
 
       const spectral = this.analyseSpectrum(this.ctx.sampleRate);
 
@@ -416,6 +419,20 @@ export class GuitarAudioEngine {
       cancelAnimationFrame(this.pitchAnimId);
     }
     trackLoop();
+  }
+
+  public setWaveformListener(listener: ((samples: Float32Array) => void) | null): void {
+    this.waveformListener = listener;
+  }
+
+  private emitWaveform(samples: Float32Array): void {
+    if (!this.waveformListener) return;
+    const step = 8;
+    const preview = new Float32Array(Math.ceil(samples.length / step));
+    for (let i = 0, j = 0; i < samples.length; i += step, j++) {
+      preview[j] = samples[i];
+    }
+    this.waveformListener(preview);
   }
 
   public detachPitchListener(onPitchDetected: OnPitchDetectedCallback): void {
