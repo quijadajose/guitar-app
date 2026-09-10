@@ -567,6 +567,52 @@
   transform: translateY(0);
 }
 
+@media (max-height: 520px), (orientation: landscape) and (max-height: 700px) {
+  #view-tuner {
+    padding: 8px 0 6px;
+  }
+
+  .tuner-top-section {
+    margin-top: 0;
+  }
+
+  .tuner-meter-container {
+    width: min(420px, 70vw);
+    height: 40px;
+  }
+
+  .meter-tick.tall { height: 32px; }
+  .meter-tick.medium { height: 22px; }
+  .meter-tick.short { height: 14px; }
+
+  .tuner-pitch-indicator {
+    width: 28px;
+    height: 34px;
+  }
+
+  .tuner-feedback-panel {
+    margin-top: 4px;
+    font-size: 13px;
+  }
+
+  .headstock-canvas-container {
+    grid-template-columns: 48px minmax(120px, 180px) 48px;
+    height: min(280px, 58vh);
+    width: min(320px, 70vw);
+  }
+
+  .tuner-note-col {
+    gap: 8px;
+    padding-top: 10px;
+  }
+
+  .tuner-peg-badge {
+    width: 36px;
+    height: 36px;
+    font-size: 14px;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   #view-tuner::before,
   #view-tuner::after,

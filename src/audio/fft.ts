@@ -60,6 +60,17 @@ export function fft(re: Float32Array, im: Float32Array): void {
   }
 }
 
+/** In-place inverse FFT. Length must be a power of two. */
+export function ifft(re: Float32Array, im: Float32Array): void {
+  const n = re.length;
+  for (let i = 0; i < n; i++) im[i] = -im[i];
+  fft(re, im);
+  for (let i = 0; i < n; i++) {
+    re[i] /= n;
+    im[i] = -im[i] / n;
+  }
+}
+
 /** Hann window coefficients of the given length. */
 export function hannWindow(size: number): Float32Array {
   const w = new Float32Array(size);

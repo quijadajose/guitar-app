@@ -1,6 +1,6 @@
 import type { PitchMatchResult } from '../types/audio.types';
 import { chromaFromMagnitudes } from './chords';
-import { fft, hannWindow } from './fft';
+import { fft, hannWindow, ifft } from './fft';
 import { detectPitchAutocorrelation } from './pitchMatch';
 
 const RING = 8192;
@@ -26,6 +26,11 @@ export class LivePitchAnalyzer {
   private sampleRate: number;
   private rmsGate = 0.005;
   private fluxMultiplier = 2.4;
+  private noiseMag = new Float32Array(FFT_SIZE / 2);
+  private noiseReady = false;
+  private quietFrames = 0;
+  private hpPrevX = 0;
+  private hpPrevY = 0;
 
   constructor(sampleRate: number) {
     this.sampleRate = sampleRate;
@@ -41,8 +46,13 @@ export class LivePitchAnalyzer {
   }
 
   public pushHop(hop: Float32Array, nowMs: number): PitchMatchResult {
+    const hpR = Math.exp((-2 * Math.PI * 70) / this.sampleRate);
     for (let i = 0; i < hop.length; i++) {
-      this.ring[this.write] = hop[i];
+      const x = hop[i];
+      const y = hpR * (this.hpPrevY + x - this.hpPrevX);
+      this.hpPrevX = x;
+      this.hpPrevY = y;
+      this.ring[this.write] = y;
       this.write = (this.write + 1) % RING;
       if (this.filled < RING) this.filled++;
     }
@@ -52,7 +62,8 @@ export class LivePitchAnalyzer {
     if (!this.lastPitch || nowMs - this.lastPitchAt >= 30) {
       this.lastPitchAt = nowMs;
       const window = this.snapshot(Math.min(this.filled, 4096));
-      this.lastPitch = detectPitchAutocorrelation(window, this.sampleRate, this.rmsGate);
+      const cleaned = this.suppressStationaryNoise(window);
+      this.lastPitch = detectPitchAutocorrelation(cleaned, this.sampleRate, this.rmsGate);
     }
 
     return {
@@ -69,6 +80,72 @@ export class LivePitchAnalyzer {
       out[i] = this.ring[idx];
       idx = (idx + 1) % RING;
     }
+    return out;
+  }
+
+  /**
+   * Learns the room spectrum while the guitar is quiet, then subtracts that floor
+   * from later frames so a steady air conditioner does not bury the string.
+   */
+  private suppressStationaryNoise(frame: Float32Array): Float32Array {
+    const n = FFT_SIZE;
+    if (frame.length < n) return frame;
+
+    let sumSquares = 0;
+    for (let i = 0; i < n; i++) sumSquares += frame[i] * frame[i];
+    const rms = Math.sqrt(sumSquares / n);
+
+    const re = new Float32Array(n);
+    const im = new Float32Array(n);
+    re.set(frame.subarray(frame.length - n));
+    fft(re, im);
+
+    const bins = n / 2;
+    const mags = new Float32Array(bins);
+    for (let k = 0; k < bins; k++) {
+      mags[k] = Math.hypot(re[k], im[k]);
+    }
+
+    this.quietFrames++;
+    for (let k = 0; k < bins; k++) {
+      if (!this.noiseReady) {
+        this.noiseMag[k] = mags[k];
+      } else if (mags[k] < this.noiseMag[k]) {
+        this.noiseMag[k] = this.noiseMag[k] * 0.5 + mags[k] * 0.5;
+      } else {
+        this.noiseMag[k] = this.noiseMag[k] * 0.995 + mags[k] * 0.005;
+      }
+    }
+    if (this.quietFrames < 6) {
+      this.noiseReady = this.quietFrames >= 6;
+      return frame;
+    }
+    this.noiseReady = true;
+
+    if (rms < this.rmsGate) return frame;
+
+    for (let k = 1; k < bins; k++) {
+      const floor = this.noiseMag[k] * 1.5;
+      if (mags[k] <= floor) {
+        re[k] = 0;
+        im[k] = 0;
+        re[n - k] = 0;
+        im[n - k] = 0;
+        continue;
+      }
+      const gain = 1 - floor / mags[k];
+      re[k] *= gain;
+      im[k] *= gain;
+      re[n - k] *= gain;
+      im[n - k] *= gain;
+    }
+    re[0] = 0;
+    im[0] = 0;
+
+    ifft(re, im);
+    const out = new Float32Array(frame.length);
+    out.set(frame.subarray(0, frame.length - n), 0);
+    out.set(re, frame.length - n);
     return out;
   }
 
