@@ -641,7 +641,6 @@ export class GuitarApp {
   private tunerDebugFreq: number | null = null;
   private tunerDebugRaf = 0;
 
-  private tunerDebugLines: string[] = [];
   private tunerDebugCapture: { sampleRate: number; samples: Float32Array } | null = null;
   private tunerDebugReadings: string[] = [];
 
@@ -740,9 +739,9 @@ export class GuitarApp {
     }
     ctx.stroke();
 
+    const hz = this.tunerDebugFreq;
     if (label) {
       const rms = this.tunerDebugRms;
-      const hz = this.tunerDebugFreq;
       const level = rms < 0.002 ? 'silencio' : rms.toFixed(3);
       label.textContent = hz ? `${hz.toFixed(0)} Hz · ${level}` : `mic ${level}`;
     }
