@@ -31,6 +31,7 @@ export class LivePitchAnalyzer {
   private quietFrames = 0;
   private hpPrevX = 0;
   private hpPrevY = 0;
+  private noiseRms = 0;
 
   constructor(sampleRate: number) {
     this.sampleRate = sampleRate;
@@ -63,7 +64,8 @@ export class LivePitchAnalyzer {
       this.lastPitchAt = nowMs;
       const window = this.snapshot(Math.min(this.filled, 4096));
       const cleaned = this.suppressStationaryNoise(window);
-      this.lastPitch = detectPitchAutocorrelation(cleaned, this.sampleRate, this.rmsGate);
+      const gate = Math.max(this.rmsGate, this.noiseRms * 2.2);
+      this.lastPitch = detectPitchAutocorrelation(cleaned, this.sampleRate, gate);
     }
 
     return {
@@ -94,6 +96,9 @@ export class LivePitchAnalyzer {
     let sumSquares = 0;
     for (let i = 0; i < n; i++) sumSquares += frame[i] * frame[i];
     const rms = Math.sqrt(sumSquares / n);
+    if (this.noiseRms === 0) this.noiseRms = rms;
+    else if (rms <= this.noiseRms) this.noiseRms = this.noiseRms * 0.5 + rms * 0.5;
+    else this.noiseRms = this.noiseRms * 0.998 + rms * 0.002;
 
     const re = new Float32Array(n);
     const im = new Float32Array(n);

@@ -420,6 +420,27 @@ html, body {
   z-index: 10;
 }
 
+.btn-fullscreen {
+  position: absolute;
+  top: 22px;
+  right: 132px;
+  z-index: 100;
+  background: rgba(18, 24, 36, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 600;
+  font-family: inherit;
+  padding: 8px 14px;
+  border-radius: 24px;
+  cursor: pointer;
+}
+
+.btn-fullscreen.is-active {
+  border-color: #2ee59a;
+  color: #2ee59a;
+}
+
 /* Generic Omitir (Skip) Button in top right */
 .btn-skip {
   position: absolute;
