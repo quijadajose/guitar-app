@@ -24,6 +24,7 @@ const securityHeaders = {
 };
 
 export default defineConfig({
+  base: '/guitar-app/',
   preview: {
     headers: securityHeaders
   },
