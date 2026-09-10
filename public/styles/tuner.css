@@ -577,7 +577,63 @@
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  pointer-events: none;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+
+.tuner-debug-panel {
+  position: absolute;
+  left: 14px;
+  bottom: 132px;
+  z-index: 90;
+  width: min(360px, calc(100vw - 28px));
+  max-height: min(420px, 60vh);
+  overflow: auto;
+  padding: 14px;
+  border-radius: 16px;
+  background: rgba(10, 14, 20, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.45);
+}
+
+.tuner-debug-title {
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.tuner-debug-panel pre {
+  margin: 8px 0;
+  font-size: 11px;
+  line-height: 1.4;
+  white-space: pre-wrap;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+.tuner-debug-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tuner-debug-actions button {
+  border: none;
+  border-radius: 999px;
+  padding: 8px 12px;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  color: #04140e;
+  background: #2ee59a;
+  cursor: pointer;
+}
+
+.tuner-debug-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 .tuner-debug-orb canvas {

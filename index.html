@@ -121,9 +121,19 @@
         <button class="btn-fullscreen" id="btn-fullscreen" type="button">Pantalla completa</button>
         <button class="btn-skip" id="tuner-skip-btn">Omitir</button>
 
-        <div class="tuner-debug-orb" id="tuner-debug-orb" aria-hidden="true">
+        <button class="tuner-debug-orb" id="tuner-debug-orb" type="button" aria-label="Abrir diagnóstico del micrófono">
           <canvas id="tuner-debug-canvas" width="128" height="128"></canvas>
           <span id="tuner-debug-label">mic —</span>
+        </button>
+        <div class="tuner-debug-panel" id="tuner-debug-panel" hidden>
+          <p class="tuner-debug-title">Micrófono</p>
+          <p id="tuner-debug-live">Sin datos</p>
+          <pre id="tuner-debug-log"></pre>
+          <div class="tuner-debug-actions">
+            <button type="button" id="tuner-debug-record">Grabar 6 s</button>
+            <button type="button" id="tuner-debug-download" disabled>Descargar</button>
+            <button type="button" id="tuner-debug-close">Cerrar</button>
+          </div>
         </div>
 
         <!-- Top Section: Pitch Scale Meter -->

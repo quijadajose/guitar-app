@@ -641,10 +641,15 @@ export class GuitarApp {
   private tunerDebugFreq: number | null = null;
   private tunerDebugRaf = 0;
 
+  private tunerDebugLines: string[] = [];
+  private tunerDebugCapture: { sampleRate: number; samples: Float32Array } | null = null;
+  private tunerDebugReadings: string[] = [];
+
   private startTunerDebug(): void {
     guitarAudio.setWaveformListener((samples) => {
       this.tunerDebugFrame = samples;
     });
+    this.bindTunerDebugPanel();
     if (this.tunerDebugRaf) cancelAnimationFrame(this.tunerDebugRaf);
     const draw = () => {
       this.drawTunerDebug();
@@ -657,6 +662,48 @@ export class GuitarApp {
     if (this.tunerDebugRaf) cancelAnimationFrame(this.tunerDebugRaf);
     this.tunerDebugRaf = 0;
     this.tunerDebugFrame = null;
+  }
+
+  private bindTunerDebugPanel(): void {
+    const orb = document.getElementById('tuner-debug-orb');
+    const panel = document.getElementById('tuner-debug-panel');
+    const recordBtn = document.getElementById('tuner-debug-record') as HTMLButtonElement | null;
+    const downloadBtn = document.getElementById('tuner-debug-download') as HTMLButtonElement | null;
+    const closeBtn = document.getElementById('tuner-debug-close');
+    if (!orb || !panel || orb.dataset.bound === '1') return;
+    orb.dataset.bound = '1';
+    orb.addEventListener('click', () => {
+      panel.hidden = !panel.hidden;
+    });
+    closeBtn?.addEventListener('click', () => {
+      panel.hidden = true;
+    });
+    recordBtn?.addEventListener('click', () => {
+      this.tunerDebugReadings = [];
+      this.tunerDebugCapture = null;
+      if (downloadBtn) downloadBtn.disabled = true;
+      guitarAudio.beginCapture(6);
+      if (recordBtn) recordBtn.disabled = true;
+    });
+    downloadBtn?.addEventListener('click', () => {
+      if (!this.tunerDebugCapture) return;
+      this.downloadCapture(this.tunerDebugCapture, this.tunerDebugReadings);
+    });
+  }
+
+  private downloadCapture(
+    capture: { sampleRate: number; samples: Float32Array },
+    readings: string[]
+  ): void {
+    const wav = encodeWav(capture.samples, capture.sampleRate);
+    const stamp = new Date().toISOString().replace(/[:.]/g, '-');
+    triggerDownload(wav, `microfono-${stamp}.wav`);
+    const report = {
+      sampleRate: capture.sampleRate,
+      samples: capture.samples.length,
+      readings
+    };
+    triggerDownload(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }), `microfono-${stamp}.json`);
   }
 
   private drawTunerDebug(): void {
@@ -699,11 +746,41 @@ export class GuitarApp {
       const level = rms < 0.002 ? 'silencio' : rms.toFixed(3);
       label.textContent = hz ? `${hz.toFixed(0)} Hz · ${level}` : `mic ${level}`;
     }
+
+    const live = document.getElementById('tuner-debug-live');
+    const log = document.getElementById('tuner-debug-log');
+    const recordBtn = document.getElementById('tuner-debug-record') as HTMLButtonElement | null;
+    const downloadBtn = document.getElementById('tuner-debug-download') as HTMLButtonElement | null;
+    if (guitarAudio.capturing && recordBtn) {
+      recordBtn.textContent = `Grabando ${Math.round(guitarAudio.captureProgress() * 100)}%`;
+    }
+    if (!guitarAudio.capturing && recordBtn?.disabled && this.tunerDebugCapture === null) {
+      const done = guitarAudio.finishCapture();
+      if (done) {
+        this.tunerDebugCapture = done;
+        if (downloadBtn) downloadBtn.disabled = false;
+        if (recordBtn) {
+          recordBtn.disabled = false;
+          recordBtn.textContent = 'Grabar 6 s';
+        }
+      }
+    }
+    if (live) {
+      live.textContent = hz
+        ? `${hz.toFixed(1)} Hz · rms ${this.tunerDebugRms.toFixed(4)}`
+        : `sin nota · rms ${this.tunerDebugRms.toFixed(4)}`;
+    }
+    if (log) log.textContent = this.tunerDebugReadings.slice(-12).join('\n');
   }
 
   private onTunerPitch = (data: PitchMatchResult): void => {
     this.tunerDebugRms = data.rms;
     this.tunerDebugFreq = data.freq;
+    if (guitarAudio.capturing) {
+      const note = data.stringMatch ? `${data.stringMatch.name} ${data.stringMatch.cents}c` : '—';
+      this.tunerDebugReadings.push(`${data.rms.toFixed(4)} ${data.freq ? data.freq.toFixed(1) : '—'}Hz ${note}`);
+      if (this.tunerDebugReadings.length > 400) this.tunerDebugReadings.shift();
+    }
     if (!data) return;
     const now = performance.now();
 
@@ -876,3 +953,40 @@ export class GuitarApp {
 }
 
 export const guitarApp = new GuitarApp();
+
+function encodeWav(samples: Float32Array, sampleRate: number): Blob {
+  const buffer = new ArrayBuffer(44 + samples.length * 2);
+  const view = new DataView(buffer);
+  const write = (offset: number, text: string) => {
+    for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
+  };
+  write(0, 'RIFF');
+  view.setUint32(4, 36 + samples.length * 2, true);
+  write(8, 'WAVE');
+  write(12, 'fmt ');
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, sampleRate, true);
+  view.setUint32(28, sampleRate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  write(36, 'data');
+  view.setUint32(40, samples.length * 2, true);
+  let offset = 44;
+  for (let i = 0; i < samples.length; i++) {
+    const clamped = Math.max(-1, Math.min(1, samples[i]));
+    view.setInt16(offset, clamped * 0x7fff, true);
+    offset += 2;
+  }
+  return new Blob([buffer], { type: 'audio/wav' });
+}
+
+function triggerDownload(blob: Blob, name: string): void {
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = name;
+  link.click();
+  URL.revokeObjectURL(url);
+}

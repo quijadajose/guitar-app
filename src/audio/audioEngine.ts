@@ -23,6 +23,9 @@ export class GuitarAudioEngine {
   public hasMicPermission: boolean = false;
   private pitchListeners = new Set<OnPitchDetectedCallback>();
   private waveformListener: ((samples: Float32Array) => void) | null = null;
+  private captureBuffer: Float32Array | null = null;
+  private captureWrite = 0;
+  public capturing = false;
 
   // Onset detection (spectral flux) and chroma state
   private specDb: Float32Array<ArrayBuffer> | null = null;
@@ -366,6 +369,7 @@ export class GuitarAudioEngine {
       this.workletNode.port.onmessage = (event: MessageEvent<Float32Array>) => {
         if (!this.pitchWorker || !this.isTrackingPitch) return;
         const hop = event.data;
+        this.storeCapture(hop);
         this.emitWaveform(hop);
         this.pitchWorker.postMessage({ type: 'hop', samples: hop, nowMs: performance.now() }, [hop.buffer]);
       };
@@ -396,6 +400,7 @@ export class GuitarAudioEngine {
     const trackLoop = () => {
       if (!this.isTrackingPitch || !this.analyser || !this.pitchBuffer || !this.ctx) return;
       this.analyser.getFloatTimeDomainData(this.pitchBuffer);
+      this.storeCapture(this.pitchBuffer);
       this.emitWaveform(this.pitchBuffer);
 
       const spectral = this.analyseSpectrum(this.ctx.sampleRate);
@@ -419,6 +424,41 @@ export class GuitarAudioEngine {
       cancelAnimationFrame(this.pitchAnimId);
     }
     trackLoop();
+  }
+
+  public beginCapture(seconds = 6): void {
+    const rate = this.ctx?.sampleRate ?? 48000;
+    this.captureBuffer = new Float32Array(Math.floor(rate * seconds));
+    this.captureWrite = 0;
+    this.capturing = true;
+  }
+
+  public captureProgress(): number {
+    if (!this.captureBuffer || this.captureBuffer.length === 0) return 0;
+    return this.captureWrite / this.captureBuffer.length;
+  }
+
+  public finishCapture(): { sampleRate: number; samples: Float32Array } | null {
+    this.capturing = false;
+    if (!this.captureBuffer || this.captureWrite === 0) return null;
+    const samples = this.captureBuffer.slice(0, this.captureWrite);
+    const sampleRate = this.ctx?.sampleRate ?? 48000;
+    this.captureBuffer = null;
+    this.captureWrite = 0;
+    return { sampleRate, samples };
+  }
+
+  private storeCapture(hop: Float32Array): void {
+    if (!this.capturing || !this.captureBuffer) return;
+    const room = this.captureBuffer.length - this.captureWrite;
+    if (room <= 0) {
+      this.capturing = false;
+      return;
+    }
+    const n = Math.min(room, hop.length);
+    this.captureBuffer.set(hop.subarray(0, n), this.captureWrite);
+    this.captureWrite += n;
+    if (this.captureWrite >= this.captureBuffer.length) this.capturing = false;
   }
 
   public setWaveformListener(listener: ((samples: Float32Array) => void) | null): void {
