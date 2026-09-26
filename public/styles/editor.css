@@ -229,6 +229,39 @@
 /* --------------------------------------------------------------------------
    Timeline Sequencer Container
    -------------------------------------------------------------------------- */
+#editor-sheet-host .at-cursor-bar {
+  background: rgba(46, 229, 154, 0.28);
+}
+
+#editor-sheet-host .at-cursor-beat {
+  background: #2ee59a;
+  width: 3px;
+}
+
+.editor-sheet {
+  position: relative;
+  display: none;
+  height: min(34vh, 320px);
+  margin-top: 12px;
+  overflow: auto;
+  background: #141820;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+}
+
+.editor-sheet.is-open {
+  display: block;
+}
+
+#editor-sheet-host {
+  min-height: 180px;
+}
+
+#editor-sheet-toggle.is-on {
+  border-color: #2ee59a;
+  color: #2ee59a;
+}
+
 .editor-sequencer-wrapper {
   flex: 1;
   background: #141720;

@@ -18,6 +18,8 @@ import {
 } from '../songSafety';
 import { getEditorSongId, newSongId, setEditorSongId, upsertLibrarySong } from '../songLibrary';
 import { furEliseSong } from '../songs/furElise';
+import { getCurrentUserId, publishCommunitySong, signInWithEmail, signUpWithEmail } from '../services/supabase';
+import { followEditorSheet, scheduleEditorSheet } from '../notation/sheetView';
 
 export class SongEditor {
   public currentSong: SongProject = {
@@ -140,118 +142,6 @@ export class SongEditor {
       ],
       chords: []
     },
-    nothing_else_matters: {
-      title: 'Nothing Else Matters (Completa)',
-      section: 'Intro Acústico',
-      bpm: 92,
-      mode: 'notes',
-      measures: 8,
-      notes: [
-        { id: 1, measure: 1, beat: 1, string: 6, fret: 0, finger: 0 },
-        { id: 2, measure: 1, beat: 2, string: 3, fret: 0, finger: 0 },
-        { id: 3, measure: 1, beat: 3, string: 2, fret: 0, finger: 0 },
-        { id: 4, measure: 1, beat: 4, string: 1, fret: 0, finger: 0 },
-        { id: 5, measure: 2, beat: 1, string: 2, fret: 0, finger: 0 },
-        { id: 6, measure: 2, beat: 2, string: 3, fret: 0, finger: 0 },
-        { id: 7, measure: 2, beat: 3, string: 1, fret: 7, finger: 3 },
-        { id: 8, measure: 2, beat: 4, string: 2, fret: 0, finger: 0 },
-        { id: 9, measure: 3, beat: 1, string: 1, fret: 7, finger: 3 },
-        { id: 10, measure: 3, beat: 2, string: 1, fret: 0, finger: 0 },
-        { id: 11, measure: 3, beat: 3, string: 2, fret: 0, finger: 0 },
-        { id: 12, measure: 3, beat: 4, string: 3, fret: 0, finger: 0 },
-        { id: 13, measure: 4, beat: 1, string: 1, fret: 7, finger: 3 },
-        { id: 14, measure: 4, beat: 2, string: 1, fret: 8, finger: 4 },
-        { id: 15, measure: 4, beat: 3, string: 1, fret: 7, finger: 3 },
-        { id: 16, measure: 4, beat: 4, string: 1, fret: 0, finger: 0 },
-        { id: 17, measure: 5, beat: 1, string: 1, fret: 5, finger: 2 },
-        { id: 18, measure: 5, beat: 2, string: 1, fret: 3, finger: 1 },
-        { id: 19, measure: 5, beat: 3, string: 1, fret: 2, finger: 1 },
-        { id: 20, measure: 5, beat: 4, string: 1, fret: 0, finger: 0 },
-        { id: 21, measure: 6, beat: 1, string: 2, fret: 3, finger: 2 },
-        { id: 22, measure: 6, beat: 2, string: 2, fret: 0, finger: 0 },
-        { id: 23, measure: 6, beat: 3, string: 3, fret: 0, finger: 0 },
-        { id: 24, measure: 6, beat: 4, string: 4, fret: 2, finger: 1 },
-        { id: 25, measure: 7, beat: 1, string: 6, fret: 0, finger: 0 },
-        { id: 26, measure: 7, beat: 2, string: 3, fret: 0, finger: 0 },
-        { id: 27, measure: 7, beat: 3, string: 2, fret: 0, finger: 0 },
-        { id: 28, measure: 7, beat: 4, string: 1, fret: 0, finger: 0 },
-        { id: 29, measure: 8, beat: 1, string: 6, fret: 0, finger: 0 },
-        { id: 30, measure: 8, beat: 2, string: 4, fret: 2, finger: 2 },
-        { id: 31, measure: 8, beat: 3, string: 3, fret: 2, finger: 3 },
-        { id: 32, measure: 8, beat: 4, string: 1, fret: 0, finger: 0 }
-      ],
-      chords: []
-    },
-    hotel_california: {
-      title: 'Hotel California (Completa)',
-      section: 'Progresión Estrofa',
-      bpm: 75,
-      mode: 'chords',
-      measures: 8,
-      notes: [],
-      chords: [
-        { id: 1, measure: 1, beat: 1, chord: 'Am', duration: 4, durationBeats: 4, color: '#ea5b57' },
-        { id: 2, measure: 2, beat: 1, chord: 'Em', duration: 4, durationBeats: 4, color: '#e67e22' },
-        { id: 3, measure: 3, beat: 1, chord: 'G',  duration: 4, durationBeats: 4, color: '#27ae60' },
-        { id: 4, measure: 4, beat: 1, chord: 'D',  duration: 4, durationBeats: 4, color: '#00d2ff' },
-        { id: 5, measure: 5, beat: 1, chord: 'F',  duration: 4, durationBeats: 4, color: '#aa22e6' },
-        { id: 6, measure: 6, beat: 1, chord: 'C',  duration: 4, durationBeats: 4, color: '#2ecc71' },
-        { id: 7, measure: 7, beat: 1, chord: 'Dm', duration: 4, durationBeats: 4, color: '#e024c3' },
-        { id: 8, measure: 8, beat: 1, chord: 'E',  duration: 4, durationBeats: 4, color: '#f39c12' }
-      ]
-    },
-    basic_notes: {
-      title: 'Canción básica',
-      section: 'Canción',
-      bpm: 85,
-      mode: 'notes',
-      measures: 8,
-      notes: [
-        { id: 1, measure: 1, beat: 3, string: 2, fret: 3, finger: 1 },
-        { id: 2, measure: 2, beat: 3, string: 2, fret: 0, finger: 0 },
-        { id: 3, measure: 3, beat: 3, string: 3, fret: 2, finger: 2 },
-        { id: 4, measure: 4, beat: 3, string: 1, fret: 1, finger: 1 },
-        { id: 5, measure: 5, beat: 3, string: 2, fret: 3, finger: 1 },
-        { id: 6, measure: 6, beat: 3, string: 3, fret: 0, finger: 0 }
-      ],
-      chords: []
-    },
-    smoke_riff: {
-      title: 'Smoke on the Water (Riff)',
-      section: 'Intro Riff',
-      bpm: 110,
-      mode: 'notes',
-      measures: 8,
-      notes: [
-        { id: 1, measure: 1, beat: 1, string: 4, fret: 0, finger: 0 },
-        { id: 2, measure: 1, beat: 3, string: 4, fret: 3, finger: 1 },
-        { id: 3, measure: 2, beat: 1, string: 4, fret: 5, finger: 3 },
-        { id: 4, measure: 3, beat: 1, string: 4, fret: 0, finger: 0 },
-        { id: 5, measure: 3, beat: 3, string: 4, fret: 3, finger: 1 },
-        { id: 6, measure: 4, beat: 1, string: 4, fret: 6, finger: 4 },
-        { id: 7, measure: 4, beat: 2, string: 4, fret: 5, finger: 3 },
-        { id: 8, measure: 5, beat: 1, string: 4, fret: 0, finger: 0 },
-        { id: 9, measure: 5, beat: 3, string: 4, fret: 3, finger: 1 },
-        { id: 10, measure: 6, beat: 1, string: 4, fret: 5, finger: 3 },
-        { id: 11, measure: 7, beat: 1, string: 4, fret: 3, finger: 1 },
-        { id: 12, measure: 7, beat: 3, string: 4, fret: 0, finger: 0 }
-      ],
-      chords: []
-    },
-    chords_am_c: {
-      title: 'Balada en Am',
-      section: 'Parte 2',
-      bpm: 80,
-      mode: 'chords',
-      measures: 8,
-      notes: [],
-      chords: [
-        { id: 1, measure: 1, beat: 1, chord: 'Am', duration: 4, durationBeats: 4, color: '#ea5b57' },
-        { id: 2, measure: 3, beat: 1, chord: 'Am', duration: 4, durationBeats: 4, color: '#aa22e6' },
-        { id: 3, measure: 5, beat: 1, chord: 'C',  duration: 4, durationBeats: 4, color: '#27ae60' },
-        { id: 4, measure: 7, beat: 1, chord: 'Em', duration: 4, durationBeats: 4, color: '#e67e22' }
-      ]
-    },
     empty_notes: {
       title: 'Nueva Melodía',
       section: 'Sección 1',
@@ -324,7 +214,7 @@ export class SongEditor {
   }
 
   public loadPreset(presetKey: string): void {
-    const key = presetKey === 'yousician_notes' ? 'basic_notes' : presetKey;
+    const key = presetKey === 'yousician_notes' ? 'fur_elise' : presetKey;
     const p = this.presets[key];
     if (!p) return;
     this.currentSong = sanitizeSongProject(JSON.parse(JSON.stringify(p))) ?? this.currentSong;
@@ -363,6 +253,7 @@ export class SongEditor {
       titleInput.addEventListener('input', (e) => {
         this.currentSong.title = sanitizePlainText((e.target as HTMLInputElement).value, SONG_LIMITS.titleMax, 'Canción');
         this.saveToStorage();
+        scheduleEditorSheet(this.currentSong);
       });
     }
 
@@ -383,6 +274,7 @@ export class SongEditor {
         if (bpmVal) bpmVal.textContent = val.toString();
         this.updateStats();
         this.saveToStorage();
+        scheduleEditorSheet(this.currentSong);
 
         // If currently playing, restart with new BPM interval smoothly
         if (this.isSequencerPlaying) {
@@ -462,6 +354,22 @@ export class SongEditor {
       });
     }
 
+    const sheetToggle = document.getElementById('editor-sheet-toggle');
+    const sheetPanel = document.getElementById('editor-sheet');
+    if (sheetToggle && sheetPanel) {
+      const paintToggle = (): void => {
+        const open = sheetPanel.classList.contains('is-open');
+        sheetToggle.classList.toggle('is-on', open);
+        sheetToggle.setAttribute('aria-pressed', open ? 'true' : 'false');
+      };
+      paintToggle();
+      sheetToggle.addEventListener('click', () => {
+        sheetPanel.classList.toggle('is-open');
+        paintToggle();
+        if (sheetPanel.classList.contains('is-open')) scheduleEditorSheet(this.currentSong);
+      });
+    }
+
     const exportBtn = document.getElementById('editor-export-btn');
     if (exportBtn) {
       exportBtn.addEventListener('click', () => {
@@ -477,6 +385,133 @@ export class SongEditor {
       });
       fileInput.addEventListener('change', (e) => {
         this.importSongJSON(e);
+      });
+    }
+
+    const publishBtn = document.getElementById('editor-publish-btn');
+    const publishModal = document.getElementById('community-publish-modal');
+    const publishClose = document.getElementById('comm-publish-close');
+    const publishCancel = document.getElementById('comm-publish-cancel');
+    const publishSubmit = document.getElementById('comm-publish-submit') as HTMLButtonElement | null;
+    const publishStatus = document.getElementById('comm-publish-status');
+
+    const hidePublishModal = (): void => {
+      if (publishModal) publishModal.style.display = 'none';
+      if (publishStatus) {
+        publishStatus.style.display = 'none';
+        publishStatus.textContent = '';
+      }
+    };
+
+    const accountGate = document.getElementById('comm-account-gate');
+    const publishFields = document.getElementById('comm-publish-fields');
+    const accountEmail = document.getElementById('comm-account-email') as HTMLInputElement | null;
+    const accountPassword = document.getElementById('comm-account-password') as HTMLInputElement | null;
+
+    const showPublishStatus = (text: string, ok: boolean): void => {
+      if (!publishStatus) return;
+      publishStatus.style.display = 'block';
+      publishStatus.style.background = ok ? 'rgba(34, 197, 94, 0.2)' : 'rgba(239, 68, 68, 0.2)';
+      publishStatus.style.color = ok ? '#86efac' : '#fca5a5';
+      publishStatus.textContent = text;
+    };
+
+    const refreshAccountGate = async (): Promise<boolean> => {
+      const userId = await getCurrentUserId();
+      const signedIn = Boolean(userId);
+      if (accountGate) accountGate.hidden = signedIn;
+      if (publishFields) publishFields.style.display = signedIn ? 'flex' : 'none';
+      if (publishSubmit) publishSubmit.disabled = !signedIn;
+      return signedIn;
+    };
+
+    if (publishBtn && publishModal) {
+      publishBtn.addEventListener('click', () => {
+        publishModal.style.display = 'flex';
+        void refreshAccountGate();
+      });
+    }
+
+    const submitAccount = async (mode: 'signup' | 'signin'): Promise<void> => {
+      const email = accountEmail?.value.trim() || '';
+      const password = accountPassword?.value || '';
+      if (!email || password.length < 6) {
+        showPublishStatus('Ingresá un email y una contraseña de al menos 6 caracteres.', false);
+        return;
+      }
+      const result = mode === 'signup'
+        ? await signUpWithEmail(email, password)
+        : await signInWithEmail(email, password);
+      if (!result.ok) {
+        showPublishStatus(result.error || 'No se pudo entrar.', false);
+        return;
+      }
+      if (mode === 'signup' && 'needsConfirmation' in result && result.needsConfirmation) {
+        showPublishStatus('Cuenta creada. Confirmá el email y volvé a entrar para cargar la canción.', true);
+        return;
+      }
+      showPublishStatus('Cuenta lista. Ya podés cargar la canción.', true);
+      await refreshAccountGate();
+    };
+
+    document.getElementById('comm-account-signup')?.addEventListener('click', () => {
+      void submitAccount('signup');
+    });
+    document.getElementById('comm-account-signin')?.addEventListener('click', () => {
+      void submitAccount('signin');
+    });
+
+    if (publishClose) publishClose.addEventListener('click', hidePublishModal);
+    if (publishCancel) publishCancel.addEventListener('click', hidePublishModal);
+    if (publishModal) {
+      publishModal.addEventListener('click', (e) => {
+        if (e.target === publishModal) hidePublishModal();
+      });
+    }
+
+    if (publishSubmit) {
+      publishSubmit.addEventListener('click', async () => {
+        const nameInput = document.getElementById('comm-creator-name') as HTMLInputElement | null;
+        const diffSelect = document.getElementById('comm-song-difficulty') as HTMLSelectElement | null;
+        const publicCheckbox = document.getElementById('comm-song-is-public') as HTMLInputElement | null;
+
+        const creatorName = nameInput?.value.trim() || 'Comunidad';
+        const difficulty = (diffSelect?.value as 'easy' | 'medium' | 'hard' | 'expert') || 'medium';
+        const isPublic = publicCheckbox ? publicCheckbox.checked : true;
+
+        if (publishStatus) {
+          publishStatus.style.display = 'block';
+          publishStatus.style.background = 'rgba(59, 130, 246, 0.2)';
+          publishStatus.style.color = '#93c5fd';
+          publishStatus.textContent = 'Subiendo partitura a Supabase…';
+        }
+        publishSubmit.disabled = true;
+
+        const res = await publishCommunitySong({
+          song: this.currentSong,
+          creatorName,
+          difficulty,
+          isPublic
+        });
+
+        publishSubmit.disabled = false;
+
+        if (res.success) {
+          if (publishStatus) {
+            publishStatus.style.background = 'rgba(34, 197, 94, 0.2)';
+            publishStatus.style.color = '#86efac';
+            publishStatus.textContent = '¡Canción publicada exitosamente en la comunidad!';
+          }
+          setTimeout(() => {
+            hidePublishModal();
+          }, 1500);
+        } else {
+          if (publishStatus) {
+            publishStatus.style.background = 'rgba(239, 68, 68, 0.2)';
+            publishStatus.style.color = '#fca5a5';
+            publishStatus.textContent = `Error al publicar: ${res.error || 'Verifica tu conexión'}`;
+          }
+        }
       });
     }
 
@@ -1067,6 +1102,8 @@ export class SongEditor {
         guitarAudio.playChord(c.chord);
       });
     }
+
+    followEditorSheet(this.currentSequencerBeat);
   }
 
   public stopSequencerPlayback(): void {
@@ -1084,6 +1121,7 @@ export class SongEditor {
     document.querySelectorAll('.matrix-beat-cell').forEach(cell => {
       cell.classList.remove('playhead-active');
     });
+    followEditorSheet(0);
   }
 
   // =========================================================================
@@ -1194,6 +1232,7 @@ export class SongEditor {
     if (syncBadge) {
       syncBadge.style.display = 'none';
     }
+    followEditorSheet(0);
 
     document.querySelectorAll('.matrix-beat-cell').forEach(cell => {
       cell.classList.remove('playhead-active');
@@ -1266,6 +1305,7 @@ export class SongEditor {
 
   public renderGrid(): void {
     const matrix = document.getElementById('editor-matrix-grid');
+    scheduleEditorSheet(this.currentSong);
     if (!matrix) return;
 
     matrix.replaceChildren();

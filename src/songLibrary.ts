@@ -94,18 +94,23 @@ export function clearLibrary(): void {
   writeLibrary([]);
 }
 
-export function listNotePickerItems(builtinByKey: Record<string, LegacySongProject>): NotePickerItem[] {
+export function listNotePickerItems(
+  builtinByKey: Record<string, LegacySongProject>,
+  mode: 'notes' | 'chords' = 'notes'
+): NotePickerItem[] {
   const lessons: NotePickerItem[] = [];
   for (const [key, preset] of Object.entries(builtinByKey)) {
-    if (key === 'empty_notes' || preset.mode !== 'notes' || !preset.notes.length) continue;
+    if (key === 'empty_notes' || preset.mode !== mode) continue;
+    if (mode === 'notes' && !preset.notes.length) continue;
+    if (mode === 'chords' && !preset.chords.length) continue;
     const song = sanitizeSongProject(JSON.parse(JSON.stringify(preset)));
     if (!song) continue;
     lessons.push({ id: `builtin:${key}`, source: 'leccion', song });
   }
 
   const yours = loadLibrary()
-    .filter(item => item.song.mode === 'notes' && item.song.notes.length > 0)
-    .filter(item => !lessons.some(lesson => lesson.song.title === item.song.title && lesson.song.notes.length === item.song.notes.length))
+    .filter(item => item.song.mode === mode && (mode === 'chords' ? item.song.chords.length > 0 : item.song.notes.length > 0))
+    .filter(item => !lessons.some(lesson => lesson.song.title === item.song.title && lesson.song.notes.length === item.song.notes.length && lesson.song.chords.length === item.song.chords.length))
     .map(item => ({ id: item.id, source: 'tuya' as const, song: item.song }));
 
   return [...lessons, ...yours];

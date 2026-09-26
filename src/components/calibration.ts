@@ -137,11 +137,12 @@ export class SessionCalibrator {
       return;
     }
 
-    if (!data.isOnset) return;
-    if (prompt.kind === 'chord') {
+    if (prompt.kind === 'note') {
+      const floor = this.noiseFloor();
+      if (data.rms < Math.max(floor * 2.2, floor + 0.025)) return;
+    } else {
+      if (!data.isOnset) return;
       if (!chordMatchesChroma(prompt.name, data.freq ?? 0, data.chroma)) return;
-    } else if (!(data.freq && data.freq > 0)) {
-      return;
     }
 
     this.capturing = true;
@@ -260,9 +261,17 @@ export class SessionCalibrator {
     this.svgEl?.querySelectorAll('.calib-finger-dot').forEach(dot => dot.remove());
   }
 
+  private noiseFloor(): number {
+    if (this.noiseSamples.length === 0) return 0.02;
+    const sorted = this.noiseSamples.slice().sort((a, b) => a - b);
+    return sorted[Math.floor(sorted.length / 2)] ?? 0.02;
+  }
+
   private updateMeter(rms: number): void {
-    const scale = Math.max(this.strumSamples.length ? 0.08 : 0.03, 0.02);
-    const lit = Math.max(0, Math.min(this.dots.length, Math.round((rms / scale) * this.dots.length)));
+    const floor = this.noiseFloor();
+    const above = Math.max(0, rms - floor);
+    const span = Math.max(0.06, floor * 3);
+    const lit = Math.max(0, Math.min(this.dots.length, Math.round((above / span) * this.dots.length)));
     this.dots.forEach((dot, i) => {
       dot.classList.toggle('active', i < lit);
     });

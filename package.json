@@ -14,5 +14,9 @@
     "typescript": "~6.0.2",
     "vite": "^8.2.2",
     "vitest": "^5.0.0"
+  },
+  "dependencies": {
+    "@coderline/alphatab": "^1.8.4",
+    "@supabase/supabase-js": "^2.117.2"
   }
 }

@@ -613,6 +613,30 @@
   color: rgba(255, 255, 255, 0.82);
 }
 
+.tuner-debug-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.tuner-debug-tags button {
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  background: transparent;
+  color: #fff;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.tuner-debug-tags button.is-active {
+  background: #2ee59a;
+  color: #04140e;
+  border-color: #2ee59a;
+}
+
 .tuner-debug-actions {
   display: flex;
   flex-wrap: wrap;

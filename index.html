@@ -7,13 +7,13 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <link rel="manifest" href="%BASE_URL%manifest.webmanifest">
+  <link rel="manifest" href="/manifest.webmanifest">
   <title>App de guitarra</title>
   <meta name="description" content="App de guitarra: afina, practica acordes, toca lecciones y crea las tuyas para exportar.">
-  <link rel="icon" type="image/png" sizes="32x32" href="%BASE_URL%favicon-32x32.png">
-  <link rel="icon" type="image/png" sizes="16x16" href="%BASE_URL%favicon-16x16.png">
-  <link rel="icon" href="%BASE_URL%favicon.ico" sizes="any">
-  <link rel="apple-touch-icon" href="%BASE_URL%apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+  <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+  <link rel="icon" href="/favicon.ico" sizes="any">
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
   <!-- Google Font: Outfit -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -21,15 +21,20 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="%BASE_URL%styles/main.css">
-  <link rel="stylesheet" href="%BASE_URL%styles/tuner.css">
-  <link rel="stylesheet" href="%BASE_URL%styles/gameplay.css">
-  <link rel="stylesheet" href="%BASE_URL%styles/editor.css">
+  <link rel="stylesheet" href="/styles/main.css">
+  <link rel="stylesheet" href="/styles/tuner.css">
+  <link rel="stylesheet" href="/styles/gameplay.css">
+  <link rel="stylesheet" href="/styles/editor.css">
 </head>
 <body>
 
   <!-- Master Application Container -->
   <main class="app-container" id="guitar-app">
+    <button class="btn-fullscreen" id="btn-fullscreen" type="button">Pantalla completa</button>
+    <div class="hub-account" id="hub-account">
+      <p id="hub-account-status">Iniciaste como anónimo.</p>
+      <button type="button" id="hub-account-btn" class="hub-account-btn">Iniciar sesión</button>
+    </div>
 
     <!-- Main Viewport for Screens -->
     <div class="views-viewport" id="viewport">
@@ -56,17 +61,8 @@
                 <button class="hub-step" data-nav="songs" type="button">
                   <span class="hub-step-num">2</span>
                   <span class="hub-step-copy">
-                    <span class="hub-step-title">Tocar notas</span>
-                    <span class="hub-step-desc">Lección rítmica cuerda a cuerda. Pulsa reproducir cuando estés listo.</span>
-                  </span>
-                </button>
-              </li>
-              <li>
-                <button class="hub-step" data-nav="chords" type="button">
-                  <span class="hub-step-num">3</span>
-                  <span class="hub-step-copy">
-                    <span class="hub-step-title">Tocar acordes</span>
-                    <span class="hub-step-desc">Rasgueos en bloque con el diagrama de la mano izquierda.</span>
+                    <span class="hub-step-title">Tocar</span>
+                    <span class="hub-step-desc">Cuerdas o acordes. Elegí la canción y pulsá reproducir cuando estés listo.</span>
                   </span>
                 </button>
               </li>
@@ -82,12 +78,20 @@
               </button>
             </section>
 
-            <section class="hub-soon" aria-labelledby="hub-soon-title">
+            <section class="hub-create" aria-labelledby="hub-config-title">
+              <h2 id="hub-config-title" class="hub-kicker">Configuración</h2>
+              <button class="hub-create-btn" id="btn-notation-settings" type="button">
+                <span class="hub-step-title">Vista al tocar</span>
+                <span class="hub-step-desc">Mástil o partitura. Se usa al abrir una lección de notas.</span>
+              </button>
+            </section>
+
+            <section class="hub-create" id="hub-multiplayer" data-multiplayer aria-labelledby="hub-soon-title" hidden>
               <h2 id="hub-soon-title" class="hub-kicker">Jugar con otros</h2>
-              <p class="hub-soon-body">
-                <strong>Multiplayer</strong>
-                <span>Próximamente. Primero dejamos el toque a solas bien resuelto.</span>
-              </p>
+              <button class="hub-create-btn" data-nav="vs" type="button">
+                <span class="hub-step-title">Modo versus</span>
+                <span class="hub-step-desc">Duelo en tiempo real. Creá una sala o entrá con el enlace.</span>
+              </button>
             </section>
           </div>
         </div>
@@ -102,11 +106,151 @@
         </button>
         <div class="song-picker">
           <header class="song-picker-header">
-            <p class="hub-kicker">Tocar notas</p>
+            <p class="hub-kicker">Tocar</p>
             <h1 class="song-picker-title">Elegí una canción</h1>
-            <p class="hub-lead">Lecciones incluidas y las que guardaste en el editor.</p>
+            <p class="hub-lead">Lecciones oficiales, tus creaciones locales y canciones de la comunidad.</p>
           </header>
+
+          <div class="song-picker-tabs" id="play-kind-tabs" role="tablist" aria-label="Tipo de lección">
+            <button type="button" class="song-tab-btn active" data-kind="notes">Cuerdas</button>
+            <button type="button" class="song-tab-btn" data-kind="chords">Acordes</button>
+          </div>
+
+          <div class="song-picker-tabs" id="song-category-tabs" role="tablist">
+            <button type="button" class="song-tab-btn active" data-tab="lessons">Lecciones</button>
+            <button type="button" class="song-tab-btn" data-tab="yours">Tus Canciones</button>
+            <button type="button" class="song-tab-btn" data-tab="community" data-supabase>Comunidad 🌐</button>
+          </div>
+
+          <button type="button" class="song-create-btn" data-nav="editor">Crear o subir canción</button>
+
+          <!-- Barra de Filtros y Búsqueda para Comunidad (oculta por defecto) -->
+          <div class="community-filter-bar" id="community-filter-bar" hidden>
+            <div class="community-search-wrap">
+              <input type="text" id="community-search-input" class="community-search-input" placeholder="Buscar por título o artista...">
+            </div>
+            <div class="community-difficulty-chips" id="community-difficulty-chips">
+              <button type="button" class="diff-chip active" data-diff="all">Todas</button>
+              <button type="button" class="diff-chip" data-diff="easy">Fácil 🟢</button>
+              <button type="button" class="diff-chip" data-diff="medium">Media 🟡</button>
+              <button type="button" class="diff-chip" data-diff="hard">Difícil 🔴</button>
+              <button type="button" class="diff-chip" data-diff="expert">Experto 🟣</button>
+            </div>
+          </div>
+
+          <!-- Lista de Canciones -->
           <div class="song-picker-list" id="song-picker-list"></div>
+
+          <!-- Paginador para la Comunidad -->
+          <div class="community-pagination" id="community-pagination" hidden>
+            <button type="button" id="comm-prev-page" class="comm-page-btn" disabled>&larr; Anterior</button>
+            <span id="comm-page-info" class="comm-page-info">Página 1 de 1</span>
+            <button type="button" id="comm-next-page" class="comm-page-btn" disabled>Siguiente &rarr;</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- ===================================================================
+           PANTALLA: LOBBY VERSUS (MULTIPLAYER ONLINE ESTILO LICHESS)
+           =================================================================== -->
+      <section class="screen-view view-hidden" id="view-vs" aria-label="Modo Versus Online">
+        <button class="btn-back-menu" data-target="menu" type="button" title="Volver al menú">
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
+          </svg>
+          <span>Menú</span>
+        </button>
+
+        <div class="vs-container">
+          <header class="vs-header">
+            <p class="hub-kicker" style="color: #7eb6ff;">Multijugador en tiempo real</p>
+            <h1 class="vs-title">Modo Versus ⚡</h1>
+            <p class="hub-lead">Partidas directas sin registro estilo Lichess. Comparte el código o enlace para jugar.</p>
+          </header>
+
+          <div id="vs-status-msg" class="vs-status-box" hidden></div>
+
+          <!-- Formulario de Configuración y Búsqueda -->
+          <div id="vs-room-creation" class="vs-grid">
+            <div class="vs-card">
+              <h2>Tu Perfil</h2>
+              <label for="vs-player-name">Tu apodo:</label>
+              <input type="text" id="vs-player-name" class="vs-input" maxlength="20" placeholder="Guitarrista_123">
+
+              <h2 style="margin-top: 20px;">Modo de Duelo</h2>
+              <div class="vs-mode-options">
+                <button type="button" class="vs-mode-btn active" data-mode="classic">
+                  <strong>Clásico</strong>
+                  <span>Gana quien obtenga más puntos.</span>
+                </button>
+                <button type="button" class="vs-mode-btn" data-mode="sudden_death">
+                  <strong>Muerte Súbita</strong>
+                  <span>3 fallos seguidos o &lt; 70% = Knockout.</span>
+                </button>
+                <button type="button" class="vs-mode-btn" data-mode="face_off">
+                  <strong>Ataques (Face-Off)</strong>
+                  <span>Rachas desbloquean trampas al rival.</span>
+                </button>
+              </div>
+
+              <label class="vs-public-toggle" for="vs-room-public">
+                <input type="checkbox" id="vs-room-public">
+                Mostrar la sala en la lista pública
+              </label>
+              <button type="button" id="vs-btn-create-room" class="vs-btn-primary" style="margin-top: 16px;">
+                Crear sala
+              </button>
+            </div>
+
+            <div class="vs-card">
+              <h2>Unirse a una Sala</h2>
+              <p style="color: #9aa3ab; font-size: 14px;">Ingresa el código de 5 caracteres que te compartió tu rival:</p>
+              <div class="vs-join-group">
+                <input type="text" id="vs-room-code-input" class="vs-input vs-code-input" maxlength="5" placeholder="EJ: X8K9Q">
+                <button type="button" id="vs-btn-join-room" class="vs-btn-secondary">Unirme</button>
+              </div>
+
+              <div class="vs-public-rooms">
+                <div class="vs-public-head">
+                  <h2>Salas públicas</h2>
+                  <button type="button" id="vs-btn-refresh-rooms" class="vs-btn-ghost">Actualizar</button>
+                </div>
+                <ul id="vs-public-rooms" class="vs-public-list"></ul>
+              </div>
+
+              <div class="vs-card-tip" style="margin-top: 32px;">
+                <strong>🎮 ¿Cómo funciona?</strong>
+                <p>El audio de la guitarra se procesa 100% en tu navegador. El servidor en Rust sincroniza el inicio de la canción al milisegundo y transmite los puntajes en tiempo real con latencia mínima.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Sala Activa (Lobby de Espera) -->
+          <div id="vs-active-room" class="vs-card vs-room-active-box" hidden>
+            <div class="vs-room-header">
+              <div>
+                <span class="hub-kicker">Código de Sala:</span>
+                <span id="vs-display-room-code" class="vs-badge-code">-----</span>
+              </div>
+              <button type="button" id="vs-btn-leave-room" class="vs-btn-ghost">Salir de la sala</button>
+            </div>
+
+            <div class="vs-link-share">
+              <label for="vs-room-link-copy">Enlace de invitación:</label>
+              <div class="vs-join-group">
+                <input type="text" id="vs-room-link-copy" class="vs-input" readonly>
+                <button type="button" id="vs-btn-copy-link" class="vs-btn-secondary">Copiar</button>
+              </div>
+            </div>
+
+            <h3 style="margin-top: 24px;">Jugadores en la sala</h3>
+            <div id="vs-players-list" class="vs-players-grid"></div>
+
+            <div class="vs-room-actions">
+              <button type="button" id="vs-btn-ready" class="vs-btn-ready">Listo para tocar</button>
+              <button type="button" id="vs-btn-start" class="vs-btn-primary" disabled hidden>Iniciar Partida</button>
+            </div>
+          </div>
         </div>
       </section>
 
@@ -118,17 +262,21 @@
           <svg viewBox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Menú
         </button>
-        <button class="btn-fullscreen" id="btn-fullscreen" type="button">Pantalla completa</button>
         <button class="btn-skip" id="tuner-skip-btn">Omitir</button>
 
-        <button class="tuner-debug-orb" id="tuner-debug-orb" type="button" aria-label="Abrir diagnóstico del micrófono">
-          <canvas id="tuner-debug-canvas" width="128" height="128"></canvas>
-          <span id="tuner-debug-label">mic —</span>
-        </button>
         <div class="tuner-debug-panel" id="tuner-debug-panel" hidden>
           <p class="tuner-debug-title">Micrófono</p>
           <p id="tuner-debug-live">Sin datos</p>
           <pre id="tuner-debug-log"></pre>
+          <div class="tuner-debug-tags" id="tuner-debug-tags">
+            <button type="button" data-tag="ruido">Ruido</button>
+            <button type="button" data-tag="1">1ra</button>
+            <button type="button" data-tag="2">2da</button>
+            <button type="button" data-tag="3">3ra</button>
+            <button type="button" data-tag="4">4ta</button>
+            <button type="button" data-tag="5">5ta</button>
+            <button type="button" data-tag="6">6ta</button>
+          </div>
           <div class="tuner-debug-actions">
             <button type="button" id="tuner-debug-record">Grabar 6 s</button>
             <button type="button" id="tuner-debug-download" disabled>Descargar</button>
@@ -197,7 +345,7 @@
             <img
               class="headstock-photo"
               id="tuner-headstock-photo"
-              src="%BASE_URL%images/tuner-headstock.png"
+              src="/images/tuner-headstock.png"
               alt=""
               width="941"
               height="1672"
@@ -214,7 +362,7 @@
                 <div class="tuner-peg-check" id="tuner-check-2" title="Cuerda 2 afinada">
                   <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
                 </div>
-                <button class="tuner-peg-badge active" data-peg="2" aria-label="Cuerda 2, Si">B</button>
+                <button class="tuner-peg-badge" data-peg="2" aria-label="Cuerda 2, Si">B</button>
               </div>
               <div class="tuner-note-slot">
                 <div class="tuner-peg-check" id="tuner-check-1" title="Cuerda 1 afinada">
@@ -278,8 +426,18 @@
             <button class="hud-loop-toggle-btn" title="La pista se detiene al terminar">Sin bucle</button>
           </div>
 
-          <!-- Right: Multiplier & Score -->
+          <!-- Right: Multiplier & Score & Versus Rival HUD -->
           <div class="hud-right-group">
+            <!-- Rival HUD (Visible solo en Modo Versus) -->
+            <div class="hud-vs-rival" id="hud-vs-rival" hidden>
+              <div class="hud-vs-rival-badge">VS RIVAL</div>
+              <div class="hud-vs-rival-info">
+                <span id="vs-rival-name" class="vs-rival-name">Rival</span>
+                <span id="vs-score-diff" class="vs-score-diff">+0</span>
+              </div>
+              <div class="hud-vs-rival-score" id="vs-rival-score">0 pts</div>
+            </div>
+
             <div class="hud-multiplier-box">
               <span class="hud-multiplier-text">1×</span>
               <div class="hud-combo-dots">
@@ -299,9 +457,28 @@
         </header>
 
         <!-- Center Ambient Section Markers -->
+        <div class="game-hit-window" aria-hidden="true"></div>
         <div class="game-hit-zone-line"></div>
         <div class="game-measure-line measure-line-1"></div>
         <div class="game-measure-line measure-line-2"></div>
+
+        <div class="sheet-stage" id="sheet-stage">
+          <ul class="sheet-string-legend" aria-label="Color de cada cuerda">
+            <li><i style="background:#f39c12"></i>1 <span data-string-name="1">Mi</span></li>
+            <li><i style="background:#00b4d8"></i>2 <span data-string-name="2">Si</span></li>
+            <li><i style="background:#d81b60"></i>3 <span data-string-name="3">Sol</span></li>
+            <li><i style="background:#8e44ad"></i>4 <span data-string-name="4">Re</span></li>
+            <li><i style="background:#12a36a"></i>5 <span data-string-name="5">La</span></li>
+            <li><i style="background:#e07a3d"></i>6 <span data-string-name="6">Mi</span></li>
+          </ul>
+          <div id="sheet-host"></div>
+          <div class="sheet-transport">
+            <button type="button" id="sheet-play">Reproducir</button>
+            <span id="sheet-time">0:00</span>
+            <input id="sheet-progress" type="range" min="0" max="1000" value="0" aria-label="Progreso de la partitura">
+            <span id="sheet-duration">0:00</span>
+          </div>
+        </div>
 
         <!-- Center: 2.5D Fretboard Track Runway -->
         <div class="fretboard-track-wrapper">
@@ -345,12 +522,12 @@
               </svg>
             </button>
 
-            <div class="timeline-track-area" title="Clic: ir a ese punto. Mayús+clic: marcar tramo en bucle. Doble clic: quitar bucle.">
+            <div class="timeline-track-area" title="Clic: ir a ese punto. Arrastra los paréntesis ( ) para repetir un tramo. Doble clic: quitar bucle.">
               <div class="timeline-progress-green progress-fill"></div>
               <div class="timeline-playhead"></div>
               <div class="timeline-loop-region" hidden>
-                <button type="button" class="timeline-loop-handle is-start" title="Inicio del bucle"></button>
-                <button type="button" class="timeline-loop-handle is-end" title="Fin del bucle"></button>
+                <button type="button" class="timeline-loop-handle is-start" title="Inicio del tramo en bucle (arrastrar)"></button>
+                <button type="button" class="timeline-loop-handle is-end" title="Fin del tramo en bucle (arrastrar)"></button>
               </div>
               <div class="timeline-beat-ticks">
                 <span class="beat-dash"></span>
@@ -553,6 +730,7 @@
           </div>
         </header>
 
+        <div class="game-hit-window" aria-hidden="true"></div>
         <div class="game-hit-zone-line"></div>
         <div class="game-measure-line measure-line-1"></div>
         <div class="game-measure-line measure-line-2"></div>
@@ -596,12 +774,12 @@
               </svg>
             </button>
 
-            <div class="timeline-track-area" title="Clic: ir a ese punto. Mayús+clic: marcar tramo en bucle. Doble clic: quitar bucle.">
+            <div class="timeline-track-area" title="Clic: ir a ese punto. Arrastra los paréntesis ( ) para repetir un tramo. Doble clic: quitar bucle.">
               <div class="timeline-progress-green progress-fill"></div>
               <div class="timeline-playhead"></div>
               <div class="timeline-loop-region" hidden>
-                <button type="button" class="timeline-loop-handle is-start" title="Inicio del bucle"></button>
-                <button type="button" class="timeline-loop-handle is-end" title="Fin del bucle"></button>
+                <button type="button" class="timeline-loop-handle is-start" title="Inicio del tramo en bucle (arrastrar)"></button>
+                <button type="button" class="timeline-loop-handle is-end" title="Fin del tramo en bucle (arrastrar)"></button>
               </div>
               <div class="timeline-segment-red"></div>
               <div class="timeline-segment-purple seg-purp-1"></div>
@@ -780,6 +958,7 @@
               <span id="editor-play-both-text">Ambas</span>
             </button>
 
+            <button class="editor-btn" id="editor-sheet-toggle" type="button" title="Mostrar la partitura de esta lección">Partitura</button>
             <button class="editor-btn editor-btn-play-game" id="editor-play-game-btn" title="Probar la lección en el mástil rítmico">
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor">
                 <polygon points="6,4 20,12 6,20"/>
@@ -803,6 +982,14 @@
                 <line x1="12" y1="3" x2="12" y2="15"/>
               </svg>
               Importar
+            </button>
+            <button class="editor-btn editor-btn-publish" id="editor-publish-btn" data-supabase title="Publicar esta partitura en la comunidad (Supabase)">
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="12" r="10"/>
+                <line x1="2" y1="12" x2="22" y2="12"/>
+                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
+              </svg>
+              Publicar
             </button>
             <input type="file" id="editor-import-file" accept=".json" style="display: none;">
           </div>
@@ -876,6 +1063,10 @@
             </div>
           </div>
         </div>
+
+        <section class="editor-sheet is-open" id="editor-sheet" aria-label="Partitura de la lección">
+          <div id="editor-sheet-host"></div>
+        </section>
 
         <!-- Editor Bottom Stats Bar -->
         <footer class="editor-bottom-bar">
@@ -1115,8 +1306,34 @@
           </div>
         </div>
 
+        <!-- Versus Rival Comparison & Quick Rematch (Modo VS) -->
+        <div id="perf-vs-comparison" class="perf-vs-box" hidden>
+          <div class="perf-vs-banner" id="perf-vs-banner">¡VICTORIA! 🏆</div>
+          <div class="perf-vs-players-row">
+            <div class="perf-vs-col player-local">
+              <span class="perf-vs-badge">TÚ</span>
+              <strong id="perf-vs-my-score">0 pts</strong>
+              <small id="perf-vs-my-acc">100% Precisión</small>
+            </div>
+            <div class="perf-vs-vs">VS</div>
+            <div class="perf-vs-col player-rival">
+              <span class="perf-vs-badge" id="perf-vs-rival-label">RIVAL</span>
+              <strong id="perf-vs-rival-score">0 pts</strong>
+              <small id="perf-vs-rival-acc">--% Precisión</small>
+            </div>
+          </div>
+          <p id="perf-vs-rematch-status" class="perf-vs-rematch-status" hidden>Esperando al rival para la revancha...</p>
+        </div>
+
         <!-- Action Buttons -->
         <div class="perf-actions-row">
+          <button class="perf-btn perf-btn-rematch" id="perf-btn-rematch" hidden title="Pedir revancha instantánea">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            <span>Revancha Rápida ⚡</span>
+          </button>
+
           <button class="perf-btn perf-btn-retry" id="perf-btn-retry" title="Intentar de nuevo en modo interpretación">
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
               <path d="M1 4v6h6M23 20v-6h-6"/>
@@ -1209,6 +1426,49 @@
       <p class="gameplay-countdown-number" id="gameplay-countdown-number">3</p>
     </div>
 
+    <dialog class="notation-settings" id="notation-settings">
+      <form method="dialog">
+        <h2>Vista al tocar</h2>
+        <p>Vale para las lecciones de notas. Los acordes siguen en el mástil.</p>
+        <fieldset>
+          <label>
+            <input type="radio" name="notation" value="fretboard">
+            <span>
+              <span class="notation-choice-title">Mástil</span>
+              <span class="notation-choice-desc">Las notas avanzan por las cuerdas. El micrófono puntúa.</span>
+            </span>
+          </label>
+          <label>
+            <input type="radio" name="notation" value="sheet">
+            <span>
+              <span class="notation-choice-title">Partitura</span>
+              <span class="notation-choice-desc">Pentagrama y tablatura de la misma lección.</span>
+            </span>
+          </label>
+        </fieldset>
+        <fieldset>
+          <legend class="notation-choice-title">Nombre de las notas</legend>
+          <label>
+            <input type="radio" name="naming" value="solfege">
+            <span>
+              <span class="notation-choice-title">Europea</span>
+              <span class="notation-choice-desc">Do, Re, Mi. En las cuerdas: Mi, Si, Sol, Re, La, Mi.</span>
+            </span>
+          </label>
+          <label>
+            <input type="radio" name="naming" value="letters">
+            <span>
+              <span class="notation-choice-title">Americana</span>
+              <span class="notation-choice-desc">C, D, E. En las cuerdas: E, B, G, D, A, E.</span>
+            </span>
+          </label>
+        </fieldset>
+        <div class="notation-settings-actions">
+          <button type="submit" value="close">Listo</button>
+        </div>
+      </form>
+    </dialog>
+
     <div class="gameplay-pause-overlay" id="gameplay-pause-overlay" hidden>
       <div class="gameplay-pause-card">
         <p class="gameplay-pause-title">Pausa</p>
@@ -1220,6 +1480,53 @@
       </div>
     </div>
 
+    <!-- Modal de Publicación en la Comunidad (Supabase) -->
+    <div class="modal-overlay" id="community-publish-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="comm-publish-title">
+      <div class="modal-card" style="max-width: 480px;">
+        <div class="modal-header">
+          <h3 id="comm-publish-title" style="margin: 0; font-size: 18px; color: #fff;">🌐 Publicar en la Comunidad</h3>
+          <button type="button" id="comm-publish-close" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px; padding: 18px 0;">
+          <div id="comm-account-gate" hidden>
+            <p style="margin: 0 0 10px; font-size: 13px; color: #fca5a5;">Tenés que crear una cuenta para cargar una canción.</p>
+            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #cbd5e1;">Email</label>
+            <input type="email" id="comm-account-email" class="vs-input" autocomplete="email" style="width: 100%; box-sizing: border-box; margin-bottom: 8px;">
+            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #cbd5e1;">Contraseña</label>
+            <input type="password" id="comm-account-password" class="vs-input" autocomplete="current-password" minlength="6" style="width: 100%; box-sizing: border-box; margin-bottom: 8px;">
+            <div style="display: flex; gap: 8px;">
+              <button type="button" id="comm-account-signup" class="vs-btn-primary" data-multiplayer hidden>Crear cuenta</button>
+              <button type="button" id="comm-account-signin" class="vs-btn-ghost">Ya tengo cuenta</button>
+            </div>
+          </div>
+          <div id="comm-publish-fields" style="display: flex; flex-direction: column; gap: 14px;">
+            <div>
+              <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #cbd5e1;">Tu Nombre o Apodo:</label>
+              <input type="text" id="comm-creator-name" class="vs-input" maxlength="30" placeholder="Ej: JimmyPage_99" style="width: 100%; box-sizing: border-box;">
+            </div>
+            <div>
+              <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #cbd5e1;">Dificultad estimada:</label>
+              <select id="comm-song-difficulty" class="vs-input" style="width: 100%; box-sizing: border-box; background: #171a21;">
+                <option value="easy">Fácil 🟢</option>
+                <option value="medium" selected>Media 🟡</option>
+                <option value="hard">Difícil 🔴</option>
+                <option value="expert">Experto 🟣</option>
+              </select>
+            </div>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="checkbox" id="comm-song-is-public" checked style="width: 18px; height: 18px; cursor: pointer;">
+              <label for="comm-song-is-public" style="font-size: 13px; color: #cbd5e1; cursor: pointer;">Hacer pública en el catálogo global de canciones</label>
+            </div>
+          </div>
+          <div id="comm-publish-status" style="font-size: 13px; display: none; padding: 8px 12px; border-radius: 8px;"></div>
+        </div>
+        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px;">
+          <button type="button" id="comm-publish-cancel" class="vs-btn-ghost">Cancelar</button>
+          <button type="button" id="comm-publish-submit" class="vs-btn-primary">Publicar Canción</button>
+        </div>
+      </div>
+    </div>
+
   <template id="tpl-tuner-pitch-label">
     <strong data-slot="name"></strong>
     <span> (<span data-slot="spanish"></span>) • <span data-slot="freq"></span> Hz</span>
@@ -1227,8 +1534,13 @@
 
   <template id="tpl-game-chord-block">
     <div class="game-chord-block">
-      <div class="chord-strum-chevrons"></div>
-      <span class="chord-block-label" data-slot="label"></span>
+      <div class="chord-block-top">
+        <div class="chord-strum-chevrons"></div>
+        <span class="chord-section-badge" data-slot="section"></span>
+      </div>
+      <div class="chord-block-front">
+        <span class="chord-block-label" data-slot="label"></span>
+      </div>
     </div>
   </template>
 

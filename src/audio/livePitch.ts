@@ -32,6 +32,11 @@ export class LivePitchAnalyzer {
   private hpPrevX = 0;
   private hpPrevY = 0;
   private noiseRms = 0;
+  private notchZ = [
+    { x1: 0, x2: 0, y1: 0, y2: 0 },
+    { x1: 0, x2: 0, y1: 0, y2: 0 },
+    { x1: 0, x2: 0, y1: 0, y2: 0 }
+  ];
 
   constructor(sampleRate: number) {
     this.sampleRate = sampleRate;
@@ -46,14 +51,39 @@ export class LivePitchAnalyzer {
     this.fluxMultiplier = fluxMultiplier;
   }
 
+  /** Narrow notch so 60 Hz mains hum and its first harmonics are not read as a string. */
+  private notchCoeffs(freq: number): { b0: number; b1: number; b2: number; a1: number; a2: number } {
+    const w0 = (2 * Math.PI * freq) / this.sampleRate;
+    const alpha = Math.sin(w0) / (2 * 35);
+    const a0 = 1 + alpha;
+    return {
+      b0: 1 / a0,
+      b1: (-2 * Math.cos(w0)) / a0,
+      b2: 1 / a0,
+      a1: (-2 * Math.cos(w0)) / a0,
+      a2: (1 - alpha) / a0
+    };
+  }
+
   public pushHop(hop: Float32Array, nowMs: number): PitchMatchResult {
     const hpR = Math.exp((-2 * Math.PI * 70) / this.sampleRate);
+    const notches = [60, 120, 180].map(freq => this.notchCoeffs(freq));
     for (let i = 0; i < hop.length; i++) {
-      const x = hop[i];
-      const y = hpR * (this.hpPrevY + x - this.hpPrevX);
-      this.hpPrevX = x;
-      this.hpPrevY = y;
-      this.ring[this.write] = y;
+      let y = hop[i];
+      for (let n = 0; n < notches.length; n++) {
+        const c = notches[n];
+        const z = this.notchZ[n];
+        const out = c.b0 * y + c.b1 * z.x1 + c.b2 * z.x2 - c.a1 * z.y1 - c.a2 * z.y2;
+        z.x2 = z.x1;
+        z.x1 = y;
+        z.y2 = z.y1;
+        z.y1 = out;
+        y = out;
+      }
+      const high = hpR * (this.hpPrevY + y - this.hpPrevX);
+      this.hpPrevX = y;
+      this.hpPrevY = high;
+      this.ring[this.write] = high;
       this.write = (this.write + 1) % RING;
       if (this.filled < RING) this.filled++;
     }
@@ -64,7 +94,7 @@ export class LivePitchAnalyzer {
       this.lastPitchAt = nowMs;
       const window = this.snapshot(Math.min(this.filled, 4096));
       const cleaned = this.suppressStationaryNoise(window);
-      const gate = Math.max(this.rmsGate, this.noiseRms * 2.2);
+      const gate = Math.max(this.rmsGate, this.noiseRms * 2.4);
       this.lastPitch = detectPitchAutocorrelation(cleaned, this.sampleRate, gate);
     }
 
@@ -96,9 +126,9 @@ export class LivePitchAnalyzer {
     let sumSquares = 0;
     for (let i = 0; i < n; i++) sumSquares += frame[i] * frame[i];
     const rms = Math.sqrt(sumSquares / n);
-    if (this.noiseRms === 0) this.noiseRms = rms;
-    else if (rms <= this.noiseRms) this.noiseRms = this.noiseRms * 0.5 + rms * 0.5;
-    else this.noiseRms = this.noiseRms * 0.998 + rms * 0.002;
+    if (rms < 0.05) {
+      this.noiseRms = this.noiseRms === 0 ? rms : this.noiseRms * 0.85 + rms * 0.15;
+    }
 
     const re = new Float32Array(n);
     const im = new Float32Array(n);

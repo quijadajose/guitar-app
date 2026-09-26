@@ -5,9 +5,53 @@ import { sessionCalibrator } from './components/calibration';
 import { tunerMotion } from './components/tunerMotion';
 import type { PitchMatchResult } from './types/audio.types';
 import { cloneTemplate, slot } from './dom';
-import { registerScreenSwitcher, takeQueuedGameplaySong, queueGameplaySong } from './screens';
+import { registerScreenSwitcher, takeQueuedGameplaySong, queueGameplaySong, recallSong } from './screens';
 import { listNotePickerItems, removeLibrarySong, clearLibrary } from './songLibrary';
 import { soundProbeSong } from './songs/soundProbe';
+import { publishLiveFrame } from './audio/liveFeed';
+import { versusLobby } from './components/versusLobby';
+import { probeMultiplayerServer } from './services/network/serverStatus';
+import {
+  fetchCommunitySongs,
+  communityRecordToSongProject,
+  cancelScheduledDeletion,
+  currentAccountEmail,
+  currentAccountProfile,
+  scheduleAccountDeletion,
+  scheduledDeletionDue,
+  probeSupabase,
+  requestMagicLink,
+  requestPasswordRecovery,
+  signInWithEmail,
+  signUpWithEmail,
+  signOut,
+  supabase,
+  type DifficultyLevel
+} from './services/supabase';
+import { applyNoteNaming, readNoteNaming, readNotationView, writeNoteNaming, writeNotationView, type NoteNaming, type NotationView } from './notation/notationPreference';
+import { clearSheet, renderSheet } from './notation/sheetView';
+import type { SongProject } from './types/editor.types';
+
+function demoSheetProject(notes: Array<{ string: number; fret: number }>, title: string): SongProject {
+  return {
+    title: title || 'Demostración',
+    section: '',
+    bpm: 90,
+    mode: 'notes',
+    measures: Math.max(1, Math.ceil(notes.length / 4)),
+    notes: notes.map((note, index) => ({
+      id: index + 1,
+      measure: Math.floor(index / 4) + 1,
+      beat: (index % 4) + 1,
+      step: (index % 4) * 4 + 1,
+      duration: 4,
+      string: note.string,
+      fret: note.fret,
+      finger: 0
+    })),
+    chords: []
+  };
+}
 
 export class GuitarApp {
   public screens: Record<string, HTMLElement | null> = {};
@@ -17,6 +61,8 @@ export class GuitarApp {
   public backBtns: NodeListOf<HTMLElement>;
 
   public currentScreenId: string = 'menu';
+  public multiplayerOnline = false;
+  public supabaseOnline = false;
   public readonly flowOrder: string[] = ['tuner', 'songs', 'chords', 'menu'];
 
   // Tuner state
@@ -49,6 +95,15 @@ export class GuitarApp {
   // Practice state
   public isGameplayMicActive: boolean = false;
 
+  // Song Picker State
+  public activeSongTab: 'lessons' | 'yours' | 'community' = 'lessons';
+  public playKind: 'notes' | 'chords' = 'notes';
+  public communityPage: number = 1;
+  public communityDifficulty: DifficultyLevel = 'all';
+  public communitySearch: string = '';
+  public communityTotalPages: number = 1;
+  private communityDebounceTimer: number | null = null;
+
   constructor() {
     this.screens = {
       menu: document.getElementById('view-menu'),
@@ -56,7 +111,8 @@ export class GuitarApp {
       tuner: document.getElementById('view-tuner'),
       notes: document.getElementById('view-notes'),
       chords: document.getElementById('view-chords'),
-      editor: document.getElementById('view-editor')
+      editor: document.getElementById('view-editor'),
+      vs: document.getElementById('view-vs')
     };
 
     this.navBtns = document.querySelectorAll<HTMLElement>('.view-tab-btn');
@@ -68,13 +124,16 @@ export class GuitarApp {
   public init(): void {
     this.setupNavigation();
     this.setupTuner();
-    this.fillTunerPitchLabel('E4', 'Mi agudo', '329.6');
     this.setupGameplay();
     this.setupHotkeys();
     sessionCalibrator.bind();
 
     songEditor.init();
+    versusLobby.init();
     gameplayEngine.setupScrubbingListeners();
+    this.setupNotationSettings();
+    this.setupAccount();
+    void this.refreshBackends();
 
     this.hasGrantedMicPermission =
       guitarAudio.hasMicPermission || sessionStorage.getItem('guitar_mic_granted') === '1';
@@ -82,13 +141,14 @@ export class GuitarApp {
     registerScreenSwitcher((id: string) => this.switchScreen(id));
 
     this.checkHash();
-    this.activePeg = 2;
-    document.querySelectorAll<HTMLElement>('.tuner-peg-badge').forEach(b => {
-      b.classList.toggle('active', parseInt(b.getAttribute('data-peg') || '0') === 2);
-    });
+    this.activePeg = 0;
   }
 
   public switchScreen(targetId: string): void {
+    if (targetId === 'vs' && !this.multiplayerOnline) {
+      targetId = 'menu';
+    }
+
     if (!this.screens[targetId]) {
       console.warn(`Screen ${targetId} not found`);
       return;
@@ -103,6 +163,8 @@ export class GuitarApp {
     }
 
     this.currentScreenId = targetId;
+    const account = document.getElementById('hub-account');
+    if (account) account.hidden = targetId === 'notes' || targetId === 'chords';
     if (window.location.hash !== `#${targetId}`) {
       window.location.hash = targetId;
     }
@@ -129,20 +191,37 @@ export class GuitarApp {
       this.renderSongPicker();
     }
 
+    const notesView = this.screens.notes;
+    const useSheet = targetId === 'notes' && readNotationView() === 'sheet';
+    notesView?.classList.toggle('is-sheet', useSheet);
+
     if (targetId === 'notes' || targetId === 'chords') {
       if (queued) {
         gameplayEngine.loadCustomSong(queued);
       } else if (fromId === 'editor') {
         gameplayEngine.loadCustomSong(songEditor.currentSong);
       } else if (!gameplayEngine.isCustomSongLoaded) {
-        gameplayEngine.setMode(targetId === 'chords' ? 'chords' : 'notes');
+        const saved = recallSong(targetId === 'chords' ? 'chords' : 'notes');
+        if (saved) gameplayEngine.loadCustomSong(saved);
+        else gameplayEngine.setMode(targetId === 'chords' ? 'chords' : 'notes');
       }
-      requestAnimationFrame(() => {
-        if (gameplayEngine.mode === 'notes') gameplayEngine.buildDOMNotes();
-        else gameplayEngine.buildDOMChords();
-        gameplayEngine.renderFrame();
-        sessionCalibrator.start(() => gameplayEngine.beginWithCountdown());
-      });
+      applyNoteNaming();
+      if (useSheet) {
+        gameplayEngine.cancelCountdown();
+        gameplayEngine.pausePlaying();
+        renderSheet(gameplayEngine.loadedProject ?? demoSheetProject(gameplayEngine.notesTrack, gameplayEngine.songTitle));
+        requestAnimationFrame(() => {
+          sessionCalibrator.start(() => gameplayEngine.beginWithCountdown());
+        });
+      } else {
+        clearSheet();
+        requestAnimationFrame(() => {
+          if (gameplayEngine.mode === 'notes') gameplayEngine.buildDOMNotes();
+          else gameplayEngine.buildDOMChords();
+          gameplayEngine.renderFrame();
+          sessionCalibrator.start(() => gameplayEngine.beginWithCountdown());
+        });
+      }
     } else {
       sessionCalibrator.abort();
       gameplayEngine.cancelCountdown();
@@ -151,6 +230,7 @@ export class GuitarApp {
       if (targetId === 'editor') {
         songEditor.renderGrid();
       }
+      if (targetId !== 'notes') clearSheet();
     }
 
     setTimeout(() => this.resizeCanvases(), 50);
@@ -167,6 +247,294 @@ export class GuitarApp {
     }
 
     void this.syncMicForScreen(targetId);
+  }
+
+  private async refreshBackends(): Promise<void> {
+    const [multiplayer, supabaseUp] = await Promise.all([
+      probeMultiplayerServer(),
+      probeSupabase()
+    ]);
+    this.multiplayerOnline = multiplayer;
+    this.supabaseOnline = supabaseUp;
+    document.querySelectorAll<HTMLElement>('[data-multiplayer]').forEach(el => {
+      el.hidden = !multiplayer;
+    });
+    document.querySelectorAll<HTMLElement>('[data-supabase]').forEach(el => {
+      el.hidden = !supabaseUp;
+    });
+    if (!multiplayer && this.currentScreenId === 'vs') this.switchScreen('menu');
+    if (!supabaseUp && this.activeSongTab === 'community') {
+      document.querySelector<HTMLButtonElement>('.song-tab-btn[data-tab="lessons"]')?.click();
+    }
+  }
+
+  private setupAccount(): void {
+    const status = document.getElementById('hub-account-status');
+    const button = document.getElementById('hub-account-btn');
+    if (!status || !button) return;
+
+    const paint = async (): Promise<void> => {
+      const email = await currentAccountEmail();
+      if (email) {
+        status.textContent = `Sesión iniciada como ${email}`;
+        button.textContent = 'Tu cuenta';
+      } else {
+        status.textContent = 'Iniciaste como anónimo.';
+        button.textContent = 'Iniciar sesión';
+      }
+    };
+
+    const profile = document.createElement('dialog');
+    profile.className = 'account-dialog';
+    profile.innerHTML = `
+      <form method="dialog">
+        <header class="account-dialog-head">
+          <h2>Tu cuenta</h2>
+          <button type="button" class="account-dialog-close" data-profile-close aria-label="Cerrar">×</button>
+        </header>
+        <p class="account-dialog-lead" data-profile-email></p>
+        <p class="account-dialog-lead" data-profile-since hidden></p>
+        <p class="account-dialog-msg is-info" data-profile-msg hidden></p>
+        <div class="account-dialog-actions">
+          <button type="button" class="account-btn-ghost" data-profile-signout>Cerrar sesión</button>
+          <button type="button" class="account-btn-danger" data-profile-delete>Eliminar cuenta</button>
+        </div>
+      </form>`;
+    document.body.appendChild(profile);
+
+    const dialog = document.createElement('dialog');
+    dialog.className = 'account-dialog';
+    dialog.innerHTML = `
+      <form method="dialog">
+        <header class="account-dialog-head">
+          <h2>Iniciar sesión</h2>
+          <button type="button" class="account-dialog-close" data-account-close aria-label="Cerrar">×</button>
+        </header>
+        <p class="account-dialog-lead">Hace falta una cuenta para cargar una canción. Podés practicar igual como anónimo.</p>
+        <label class="account-field">Email
+          <input type="email" name="email" required autocomplete="email" placeholder="tu@email.com" class="vs-input">
+        </label>
+        <label class="account-field">Contraseña
+          <input type="password" name="password" minlength="6" autocomplete="current-password" placeholder="Mínimo 6 caracteres" class="vs-input">
+        </label>
+        <p class="account-dialog-msg" data-account-msg hidden></p>
+        <div class="account-dialog-actions">
+          <button type="submit" class="account-btn-primary" value="signin">Entrar</button>
+          <button type="button" class="account-btn-ghost" value="signup" data-multiplayer hidden>Crear cuenta</button>
+          <button type="button" class="account-btn-ghost" data-account-magic data-multiplayer hidden>Entrar con enlace al email</button>
+          <button type="button" class="account-link" data-account-recover data-multiplayer hidden>Olvidé mi contraseña</button>
+        </div>
+      </form>`;
+    document.body.appendChild(dialog);
+    const form = dialog.querySelector('form');
+    const msg = dialog.querySelector<HTMLElement>('[data-account-msg]');
+    if (!form || !msg) return;
+
+    const showMsg = (text: string): void => {
+      msg.hidden = false;
+      msg.textContent = text;
+    };
+
+    const emailValue = (): string | null => {
+      const email = String(new FormData(form).get('email') || '').trim();
+      if (!email) {
+        showMsg('Ingresá un email.');
+        return null;
+      }
+      return email;
+    };
+
+    const credentials = (): { email: string; password: string } | null => {
+      const data = new FormData(form);
+      const email = String(data.get('email') || '').trim();
+      const password = String(data.get('password') || '');
+      if (!email || password.length < 6) {
+        showMsg('Ingresá un email y una contraseña de al menos 6 caracteres.');
+        return null;
+      }
+      return { email, password };
+    };
+
+    form.querySelector<HTMLButtonElement>('button[value="signup"]')?.addEventListener('click', async () => {
+      const creds = credentials();
+      if (!creds) return;
+      const result = await signUpWithEmail(creds.email, creds.password);
+      msg.hidden = false;
+      if (!result.ok) {
+        msg.textContent = result.error || 'No se pudo crear la cuenta.';
+        return;
+      }
+      if (result.needsConfirmation) {
+        msg.textContent = 'Cuenta creada. Confirmá el email y volvé a entrar.';
+        return;
+      }
+      dialog.close();
+      await paint();
+    });
+
+    form.addEventListener('submit', async (event) => {
+      event.preventDefault();
+      const creds = credentials();
+      if (!creds) return;
+      const result = await signInWithEmail(creds.email, creds.password);
+      msg.hidden = false;
+      if (!result.ok) {
+        msg.textContent = result.error || 'No se pudo entrar.';
+        return;
+      }
+      dialog.close();
+      await paint();
+    });
+
+    dialog.querySelector('[data-account-magic]')?.addEventListener('click', async () => {
+      const email = emailValue();
+      if (!email) return;
+      const result = await requestMagicLink(email);
+      showMsg(result.ok ? 'Te mandamos un enlace para entrar. Abrilo desde el email.' : (result.error || 'No se pudo enviar el enlace.'));
+    });
+
+    dialog.querySelector('[data-account-recover]')?.addEventListener('click', async () => {
+      const email = emailValue();
+      if (!email) return;
+      const result = await requestPasswordRecovery(email);
+      showMsg(result.ok ? 'Te mandamos un email para cambiar la contraseña.' : (result.error || 'No se pudo enviar el email.'));
+    });
+
+    button.addEventListener('click', async () => {
+      const account = await currentAccountProfile();
+      if (account) {
+        const emailLine = profile.querySelector<HTMLElement>('[data-profile-email]');
+        const sinceLine = profile.querySelector<HTMLElement>('[data-profile-since]');
+        const profileMsg = profile.querySelector<HTMLElement>('[data-profile-msg]');
+        if (emailLine) emailLine.textContent = account.email;
+        if (sinceLine) {
+          const created = account.createdAt ? new Date(account.createdAt) : null;
+          if (created && !Number.isNaN(created.getTime())) {
+            sinceLine.hidden = false;
+            sinceLine.textContent = `Cuenta creada el ${created.toLocaleDateString('es')}.`;
+          } else {
+            sinceLine.hidden = true;
+          }
+        }
+        if (profileMsg) profileMsg.hidden = true;
+        profile.showModal();
+        return;
+      }
+      msg.hidden = true;
+      dialog.showModal();
+    });
+
+    profile.querySelector('[data-profile-close]')?.addEventListener('click', () => profile.close());
+    profile.querySelector('[data-profile-signout]')?.addEventListener('click', async () => {
+      await signOut();
+      profile.close();
+      await paint();
+    });
+    profile.querySelector('[data-profile-delete]')?.addEventListener('click', async () => {
+      const profileMsg = profile.querySelector<HTMLElement>('[data-profile-msg]');
+      const accepted = window.confirm('Tu cuenta se eliminará en 14 días si no volvés a iniciar sesión. ¿Seguir?');
+      if (!accepted) return;
+      const result = await scheduleAccountDeletion();
+      profile.close();
+      await paint();
+      msg.hidden = false;
+      msg.classList.toggle('is-info', result.ok);
+      msg.textContent = result.ok
+        ? 'Sesión cerrada. Tu cuenta se eliminará en 14 días. Si volvés a entrar, vas a poder restaurarla o dejar que se borre.'
+        : (result.error || 'No se pudo programar la eliminación.');
+      dialog.showModal();
+    });
+    dialog.querySelector('[data-account-close]')?.addEventListener('click', () => dialog.close());
+
+    const restore = document.createElement('dialog');
+    restore.className = 'account-dialog';
+    restore.innerHTML = `
+      <form method="dialog">
+        <header class="account-dialog-head">
+          <h2>Cuenta por borrarse</h2>
+        </header>
+        <p class="account-dialog-lead" data-restore-lead></p>
+        <p class="account-dialog-msg" data-restore-msg hidden></p>
+        <div class="account-dialog-actions">
+          <button type="button" class="account-btn-primary" data-restore-keep>Restaurar cuenta</button>
+          <button type="button" class="account-btn-ghost" data-restore-back>Volver atrás</button>
+        </div>
+      </form>`;
+    document.body.appendChild(restore);
+    const restoreLead = restore.querySelector<HTMLElement>('[data-restore-lead]');
+    const restoreMsg = restore.querySelector<HTMLElement>('[data-restore-msg]');
+
+    const offerRestore = async (): Promise<void> => {
+      const due = await scheduledDeletionDue();
+      if (!due || !restoreLead) return;
+      const when = new Date(due);
+      const label = Number.isNaN(when.getTime()) ? due : when.toLocaleString('es');
+      restoreLead.textContent = `Tu cuenta está programada para borrarse el ${label}. Restaurala para seguir usándola, o volvé atrás y se borrará en esa fecha.`;
+      if (restoreMsg) restoreMsg.hidden = true;
+      if (!restore.open) restore.showModal();
+    };
+
+    restore.querySelector('[data-restore-keep]')?.addEventListener('click', async () => {
+      const kept = await cancelScheduledDeletion();
+      if (!kept) {
+        if (restoreMsg) {
+          restoreMsg.hidden = false;
+          restoreMsg.textContent = 'No se pudo restaurar la cuenta.';
+        }
+        return;
+      }
+      restore.close();
+      await paint();
+    });
+    restore.querySelector('[data-restore-back]')?.addEventListener('click', async () => {
+      await signOut();
+      restore.close();
+      await paint();
+    });
+
+    supabase.auth.onAuthStateChange((event) => {
+      void paint();
+      if (event === 'SIGNED_IN') void offerRestore();
+    });
+    void offerRestore();
+
+    void paint();
+  }
+
+  private setupNotationSettings(): void {
+    const dialog = document.getElementById('notation-settings') as HTMLDialogElement | null;
+    const open = document.getElementById('btn-notation-settings');
+    const form = dialog?.querySelector('form');
+    if (!dialog || !open || !form) return;
+
+    const apply = (view: NotationView, naming: NoteNaming) => {
+      form.querySelectorAll<HTMLInputElement>('input[name="notation"]').forEach(input => {
+        input.checked = input.value === view;
+      });
+      form.querySelectorAll<HTMLInputElement>('input[name="naming"]').forEach(input => {
+        input.checked = input.value === naming;
+      });
+    };
+    apply(readNotationView(), readNoteNaming());
+    applyNoteNaming();
+
+    open.addEventListener('click', () => {
+      apply(readNotationView(), readNoteNaming());
+      dialog.showModal();
+    });
+    const commit = () => {
+      const selected = form.querySelector<HTMLInputElement>('input[name="notation"]:checked');
+      if (selected?.value === 'sheet' || selected?.value === 'fretboard') {
+        writeNotationView(selected.value);
+      }
+      const naming = form.querySelector<HTMLInputElement>('input[name="naming"]:checked');
+      if (naming?.value === 'solfege' || naming?.value === 'letters') {
+        writeNoteNaming(naming.value);
+        applyNoteNaming(naming.value);
+      }
+    };
+    form.addEventListener('change', commit);
+    form.addEventListener('submit', commit);
   }
 
   private setupNavigation(): void {
@@ -211,18 +579,159 @@ export class GuitarApp {
     });
 
     window.addEventListener('hashchange', () => this.checkHash());
+    this.setupSongPickerTabs();
   }
 
-  private renderSongPicker(): void {
+  private setupSongPickerTabs(): void {
+    document.querySelectorAll<HTMLButtonElement>('#play-kind-tabs .song-tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('#play-kind-tabs .song-tab-btn').forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.playKind = btn.dataset.kind === 'chords' ? 'chords' : 'notes';
+        this.renderSongPicker();
+      });
+    });
+
+    const tabBtns = document.querySelectorAll<HTMLButtonElement>('#song-category-tabs .song-tab-btn');
+    const filterBar = document.getElementById('community-filter-bar');
+    const pagination = document.getElementById('community-pagination');
+    const searchInput = document.getElementById('community-search-input') as HTMLInputElement | null;
+    const diffChips = document.querySelectorAll<HTMLButtonElement>('.diff-chip');
+    const prevBtn = document.getElementById('comm-prev-page') as HTMLButtonElement | null;
+    const nextBtn = document.getElementById('comm-next-page') as HTMLButtonElement | null;
+
+    tabBtns.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabBtns.forEach(b => b.classList.remove('active'));
+        btn.classList.add('active');
+        const tab = (btn.dataset.tab as 'lessons' | 'yours' | 'community') || 'lessons';
+        this.activeSongTab = tab;
+
+        if (filterBar) filterBar.hidden = tab !== 'community';
+        if (pagination) pagination.hidden = tab !== 'community';
+
+        this.renderSongPicker();
+      });
+    });
+
+    if (searchInput) {
+      searchInput.addEventListener('input', (e) => {
+        this.communitySearch = (e.target as HTMLInputElement).value;
+        this.communityPage = 1;
+        if (this.communityDebounceTimer) clearTimeout(this.communityDebounceTimer);
+        this.communityDebounceTimer = window.setTimeout(() => {
+          this.renderSongPicker();
+        }, 300);
+      });
+    }
+
+    diffChips.forEach(chip => {
+      chip.addEventListener('click', () => {
+        diffChips.forEach(c => c.classList.remove('active'));
+        chip.classList.add('active');
+        this.communityDifficulty = (chip.dataset.diff as DifficultyLevel) || 'all';
+        this.communityPage = 1;
+        this.renderSongPicker();
+      });
+    });
+
+    if (prevBtn) {
+      prevBtn.addEventListener('click', () => {
+        if (this.communityPage > 1) {
+          this.communityPage--;
+          this.renderSongPicker();
+        }
+      });
+    }
+
+    if (nextBtn) {
+      nextBtn.addEventListener('click', () => {
+        if (this.communityPage < this.communityTotalPages) {
+          this.communityPage++;
+          this.renderSongPicker();
+        }
+      });
+    }
+  }
+
+  private async renderSongPicker(): Promise<void> {
     const list = document.getElementById('song-picker-list');
     if (!list) return;
     list.replaceChildren();
 
-    const items = listNotePickerItems(songEditor.presets);
-    const lessons = [
-      { id: 'builtin:sound_probe', source: 'leccion' as const, song: soundProbeSong },
-      ...items.filter(item => item.source === 'leccion')
-    ];
+    if (this.activeSongTab === 'community') {
+      const loading = document.createElement('p');
+      loading.className = 'song-picker-empty';
+      loading.textContent = 'Cargando canciones de la comunidad…';
+      list.appendChild(loading);
+
+      const res = await fetchCommunitySongs({
+        page: this.communityPage,
+        pageSize: 6,
+        difficulty: this.communityDifficulty,
+        searchQuery: this.communitySearch
+      });
+
+      list.replaceChildren();
+
+      this.communityTotalPages = res.totalPages;
+      const pageInfo = document.getElementById('comm-page-info');
+      const prevBtn = document.getElementById('comm-prev-page') as HTMLButtonElement | null;
+      const nextBtn = document.getElementById('comm-next-page') as HTMLButtonElement | null;
+      if (pageInfo) pageInfo.textContent = `Página ${res.currentPage} de ${res.totalPages} (${res.totalCount} canciones)`;
+      if (prevBtn) prevBtn.disabled = res.currentPage <= 1;
+      if (nextBtn) nextBtn.disabled = res.currentPage >= res.totalPages;
+
+      if (!res.songs.length) {
+        const empty = document.createElement('p');
+        empty.className = 'song-picker-empty';
+        empty.textContent = 'No se encontraron canciones en la comunidad con esos filtros. ¡Sé el primero en publicar una desde el editor!';
+        list.appendChild(empty);
+        return;
+      }
+
+      res.songs.forEach(item => {
+        const row = document.createElement('div');
+        row.className = 'song-picker-row';
+
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'song-picker-item';
+
+        const textWrap = document.createElement('span');
+        const title = document.createElement('span');
+        title.className = 'song-picker-item-title';
+        title.textContent = item.title;
+
+        const meta = document.createElement('span');
+        meta.className = 'song-picker-item-meta';
+        if (item.mode !== this.playKind) return;
+        const diffEmoji = item.difficulty === 'easy' ? '🟢 Fácil' : item.difficulty === 'medium' ? '🟡 Media' : item.difficulty === 'hard' ? '🔴 Difícil' : '🟣 Experto';
+        const count = this.playKind === 'chords' ? `${item.chords.length} acordes` : `${item.notes.length} notas`;
+        meta.textContent = `Por ${item.creator_name} · ${diffEmoji} · ${count}`;
+        textWrap.append(title, meta);
+
+        const bpm = document.createElement('span');
+        bpm.className = 'song-picker-item-bpm';
+        bpm.textContent = `${item.bpm} BPM`;
+
+        btn.append(textWrap, bpm);
+        btn.addEventListener('click', () => {
+          const songProject = communityRecordToSongProject(item);
+          queueGameplaySong(songProject);
+          this.switchScreen(this.playKind === 'chords' ? 'chords' : 'notes');
+        });
+
+        row.appendChild(btn);
+        list.appendChild(row);
+      });
+      return;
+    }
+
+    const items = listNotePickerItems(songEditor.presets, this.playKind);
+    const lessons = this.playKind === 'notes'
+      ? [{ id: 'builtin:sound_probe', source: 'leccion' as const, song: soundProbeSong }, ...items.filter(item => item.source === 'leccion')]
+      : items.filter(item => item.source === 'leccion');
     const yours = items.filter(item => item.source === 'tuya');
 
     const addGroup = (label: string, rows: typeof items, emptyText?: string, yoursGroup = false): void => {
@@ -268,7 +777,8 @@ export class GuitarApp {
         title.textContent = item.song.title;
         const meta = document.createElement('span');
         meta.className = 'song-picker-item-meta';
-        meta.textContent = `${item.song.section} · ${item.song.notes.length} notas`;
+        const count = item.song.mode === 'chords' ? `${item.song.chords.length} acordes` : `${item.song.notes.length} notas`;
+        meta.textContent = `${item.song.section} · ${count}`;
         textWrap.append(title, meta);
         const bpm = document.createElement('span');
         bpm.className = 'song-picker-item-bpm';
@@ -276,7 +786,7 @@ export class GuitarApp {
         btn.append(textWrap, bpm);
         btn.addEventListener('click', () => {
           queueGameplaySong(item.song);
-          this.switchScreen('notes');
+          this.switchScreen(item.song.mode === 'chords' ? 'chords' : 'notes');
         });
         row.appendChild(btn);
 
@@ -299,8 +809,11 @@ export class GuitarApp {
       });
     };
 
-    addGroup('Lecciones', lessons);
-    addGroup('Tus canciones', yours, 'Todavía no hay nada del editor. Guardá una melodía ahí y aparece acá.', true);
+    if (this.activeSongTab === 'lessons') {
+      addGroup('Lecciones', lessons);
+    } else if (this.activeSongTab === 'yours') {
+      addGroup('Tus canciones', yours, 'Todavía no hay nada del editor. Guardá una melodía ahí y aparece acá.', true);
+    }
   }
 
   private checkHash(): void {
@@ -380,7 +893,7 @@ export class GuitarApp {
     const hasReading = manualCents !== undefined;
     const effectiveCents = hasReading ? manualCents : 0;
     const pxOffset = hasReading ? (Math.max(-40, Math.min(40, effectiveCents)) / 40) * 90 : 0;
-    const isInTune = hasReading && Math.abs(effectiveCents) <= 5;
+    const isInTune = hasReading && Math.abs(effectiveCents) <= 15;
 
     const pitchIndicator = document.getElementById('tuner-pitch-indicator');
     if (pitchIndicator) {
@@ -643,6 +1156,7 @@ export class GuitarApp {
 
   private tunerDebugCapture: { sampleRate: number; samples: Float32Array } | null = null;
   private tunerDebugReadings: string[] = [];
+  private tunerDebugTag = 'ruido';
 
   private startTunerDebug(): void {
     guitarAudio.setWaveformListener((samples) => {
@@ -688,6 +1202,15 @@ export class GuitarApp {
       if (!this.tunerDebugCapture) return;
       this.downloadCapture(this.tunerDebugCapture, this.tunerDebugReadings);
     });
+    document.getElementById('tuner-debug-tags')?.addEventListener('click', (event) => {
+      const button = (event.target as HTMLElement).closest('button');
+      const tag = button?.getAttribute('data-tag');
+      if (!tag) return;
+      this.tunerDebugTag = tag;
+      document.querySelectorAll('#tuner-debug-tags button').forEach(el => {
+        el.classList.toggle('is-active', el === button);
+      });
+    });
   }
 
   private downloadCapture(
@@ -706,46 +1229,7 @@ export class GuitarApp {
   }
 
   private drawTunerDebug(): void {
-    const canvas = document.getElementById('tuner-debug-canvas') as HTMLCanvasElement | null;
-    const label = document.getElementById('tuner-debug-label');
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-    const size = canvas.width;
-    ctx.clearRect(0, 0, size, size);
-
-    const frame = this.tunerDebugFrame;
-    const cx = size / 2;
-    const cy = size / 2;
-    const radius = size * 0.42;
-    ctx.beginPath();
-    ctx.arc(cx, cy, radius, 0, Math.PI * 2);
-    ctx.clip();
-
-    ctx.strokeStyle = 'rgba(46, 229, 154, 0.95)';
-    ctx.lineWidth = 2;
-    ctx.beginPath();
-    const count = frame?.length ?? 0;
-    if (count > 1 && frame) {
-      for (let i = 0; i < count; i++) {
-        const x = (i / (count - 1)) * size;
-        const y = cy - frame[i] * radius * 3.2;
-        if (i === 0) ctx.moveTo(x, y);
-        else ctx.lineTo(x, y);
-      }
-    } else {
-      ctx.moveTo(0, cy);
-      ctx.lineTo(size, cy);
-    }
-    ctx.stroke();
-
     const hz = this.tunerDebugFreq;
-    if (label) {
-      const rms = this.tunerDebugRms;
-      const level = rms < 0.002 ? 'silencio' : rms.toFixed(3);
-      label.textContent = hz ? `${hz.toFixed(0)} Hz · ${level}` : `mic ${level}`;
-    }
-
     const live = document.getElementById('tuner-debug-live');
     const log = document.getElementById('tuner-debug-log');
     const recordBtn = document.getElementById('tuner-debug-record') as HTMLButtonElement | null;
@@ -775,6 +1259,14 @@ export class GuitarApp {
   private onTunerPitch = (data: PitchMatchResult): void => {
     this.tunerDebugRms = data.rms;
     this.tunerDebugFreq = data.freq;
+    publishLiveFrame({
+      tag: this.tunerDebugTag,
+      rms: data.rms,
+      freq: data.freq,
+      note: data.stringMatch?.name ?? null,
+      cents: data.stringMatch?.cents ?? null,
+      wave: this.tunerDebugFrame ? Array.from(this.tunerDebugFrame).slice(0, 128) : []
+    });
     if (guitarAudio.capturing) {
       const note = data.stringMatch ? `${data.stringMatch.name} ${data.stringMatch.cents}c` : '—';
       this.tunerDebugReadings.push(`${data.rms.toFixed(4)} ${data.freq ? data.freq.toFixed(1) : '—'}Hz ${note}`);
@@ -808,7 +1300,7 @@ export class GuitarApp {
       }
 
       const rounded = Math.round(this.tunerSmoothedCents);
-      const inTune = Math.abs(rounded) <= 5;
+      const inTune = Math.abs(rounded) <= 15;
       const dt = this.tunerMicLastFrameAt ? now - this.tunerMicLastFrameAt : 16;
       this.tunerMicLastFrameAt = now;
       this.tunerMicInTuneMs = inTune ? this.tunerMicInTuneMs + dt : 0;
@@ -822,7 +1314,7 @@ export class GuitarApp {
       this.tunerMicCandidate = null;
       this.tunerMicStableFrames = 0;
       this.tunerMicInTuneMs = 0;
-    } else {
+    } else if (!this.tunerMicLastFrameAt || now - this.tunerMicLastFrameAt > 400) {
       this.tunerSmoothedCents = null;
       this.tunerMicCandidate = null;
       this.tunerMicStableFrames = 0;
@@ -892,6 +1384,14 @@ export class GuitarApp {
       sessionCalibrator.feed(data);
       return;
     }
+    publishLiveFrame({
+      tag: gameplayEngine.expectedLiveLabel(),
+      rms: data.rms,
+      freq: data.freq,
+      note: data.stringMatch?.name ?? (data.fretMatch ? `s${data.fretMatch.string}f${data.fretMatch.fret}` : null),
+      cents: data.stringMatch?.cents ?? data.fretMatch?.cents ?? null,
+      wave: []
+    });
     if (!data.freq) return;
     if (!gameplayEngine.isPlaying) return;
 
@@ -941,9 +1441,18 @@ export class GuitarApp {
         if (keyMap[e.key]) {
           gameplayEngine.userPlayString(keyMap[e.key]);
         } else if (e.key === 'Enter') {
-          const upcoming = gameplayEngine.notesTrack.find(n => !n.hit && !n.missed && Math.abs(gameplayEngine.currentTime - n.time) <= 0.4);
-          if (upcoming) {
-            gameplayEngine.userPlayString(upcoming.string, upcoming.fret);
+          if (gameplayEngine.mode === 'notes') {
+            const upcoming = gameplayEngine.notesTrack.find(n => !n.hit && !n.missed && Math.abs(gameplayEngine.currentTime - n.time) <= 0.4);
+            if (upcoming) {
+              gameplayEngine.userPlayString(upcoming.string, upcoming.fret);
+            }
+          } else if (gameplayEngine.mode === 'chords') {
+            const upcoming = gameplayEngine.chordsTrack.find(c => !c.hit && !c.missed && Math.abs(gameplayEngine.currentTime - c.time) <= 0.5);
+            if (upcoming) {
+              gameplayEngine.userPlayChord(upcoming.chord);
+            } else if (gameplayEngine.currentActiveChordName) {
+              gameplayEngine.userPlayChord(gameplayEngine.currentActiveChordName);
+            }
           }
         }
       }

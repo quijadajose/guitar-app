@@ -7,7 +7,7 @@ export function detectFreqYin(buffer: Float32Array, sampleRate: number): number 
   const size = buffer.length;
   const half = Math.floor(size / 2);
   const minTau = Math.max(2, Math.floor(sampleRate / 900));
-  const maxTau = Math.min(half, Math.floor(sampleRate / 65));
+  const maxTau = Math.min(half, Math.floor(sampleRate / 75));
   if (maxTau <= minTau) return null;
 
   const diff = new Float32Array(maxTau + 1);
@@ -87,7 +87,8 @@ export function detectPitchAutocorrelation(
     : buffer;
 
   const freq = detectFreqYin(window, sampleRate);
-  if (freq === null) {
+  const mainsHum = freq !== null && [60, 120, 180].some(hum => Math.abs(freq - hum) < 3.5);
+  if (freq === null || freq < 75 || mainsHum) {
     return { freq: null, rms, isOnset: false, chroma: null, stringMatch: null, fretMatch: null };
   }
 
@@ -100,24 +101,29 @@ export function detectPitchAutocorrelation(
     { string: 6, name: 'E2', freq: 82.41, midi: 40 }
   ];
 
-  const measuredMidi = 69 + 12 * Math.log2(freq / 440);
-
-  let matchedString: (typeof guitarStrings)[0] | null = null;
-  let minMidiDiff = Infinity;
-  for (const gs of guitarStrings) {
-    const diff = Math.abs(measuredMidi - gs.midi);
-    if (diff < minMidiDiff) {
-      minMidiDiff = diff;
-      matchedString = gs;
+  const nearestOpen = (candidate: number) => {
+    const measuredMidi = 69 + 12 * Math.log2(candidate / 440);
+    let best = guitarStrings[0];
+    let bestDiff = Infinity;
+    for (const gs of guitarStrings) {
+      const diff = Math.abs(measuredMidi - gs.midi);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = gs;
+      }
     }
+    return { string: best, diff: bestDiff, heard: candidate };
+  };
+  let pick = nearestOpen(freq);
+  if (pick.diff > 0.85 && freq * 2 <= 700) {
+    const octave = nearestOpen(freq * 2);
+    if (octave.diff < pick.diff) pick = octave;
   }
+  const openString = pick.diff <= 0.85 ? pick.string : null;
+  const heard = openString ? pick.heard : freq;
 
-  if (!matchedString || minMidiDiff > 1.35) {
-    matchedString = null;
-  }
-
-  const computedCents = matchedString
-    ? Math.round(1200 * Math.log2(freq / matchedString.freq))
+  const computedCents = openString
+    ? Math.round(1200 * Math.log2(heard / openString.freq))
     : 0;
 
   let matchedFret: { string: number; fret: number; expectedFreq: number; cents: number } | null = null;
@@ -127,7 +133,7 @@ export function detectPitchAutocorrelation(
   for (let s = 1; s <= 6; s++) {
     for (let f = 0; f <= 15; f++) {
       const expectedF = baseFreqs[s] * Math.pow(2, f / 12);
-      const cents = 1200 * Math.log2(freq / expectedF);
+      const cents = 1200 * Math.log2(heard / expectedF);
       if (Math.abs(cents) >= 45) continue;
       const score = Math.abs(cents) + f * 0.01;
       if (score < bestFretScore) {
@@ -138,14 +144,14 @@ export function detectPitchAutocorrelation(
   }
 
   return {
-    freq: Math.round(freq * 10) / 10,
+    freq: Math.round(heard * 10) / 10,
     rms,
     isOnset: false,
     chroma: null,
-    stringMatch: matchedString ? {
-      string: matchedString.string,
-      name: matchedString.name,
-      targetFreq: matchedString.freq,
+    stringMatch: openString ? {
+      string: openString.string,
+      name: openString.name,
+      targetFreq: openString.freq,
       cents: computedCents,
       inTune: Math.abs(computedCents) <= 5
     } : null,

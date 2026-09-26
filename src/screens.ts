@@ -22,3 +22,25 @@ export function takeQueuedGameplaySong(): SongProject | null {
 export function goToScreen(id: ScreenId): void {
   switcher?.(id);
 }
+
+const LAST_SONG_KEY = 'guitar.lastSong';
+
+export function rememberSong(song: SongProject): void {
+  try {
+    localStorage.setItem(LAST_SONG_KEY, JSON.stringify(song));
+  } catch {
+    // The song still plays; it just will not survive a reload.
+  }
+}
+
+export function recallSong(mode: SongProject['mode']): SongProject | null {
+  try {
+    const raw = localStorage.getItem(LAST_SONG_KEY);
+    if (!raw) return null;
+    const song = JSON.parse(raw) as SongProject;
+    if (!song || song.mode !== mode || !Array.isArray(song.notes)) return null;
+    return song;
+  } catch {
+    return null;
+  }
+}

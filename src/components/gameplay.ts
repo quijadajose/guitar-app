@@ -3,17 +3,20 @@ import { chordMatchesChroma } from '../audio/chords';
 import { cloneTemplate, firstElement, setSlotText, fillFromTemplate, fillSvgFromTemplate } from '../dom';
 import type { NoteTrackItem, ChordTrackItem, GameplayMode, GameplaySessionMode } from '../types/gameplay.types';
 import type { SongProject } from '../types/editor.types';
-import { goToScreen } from '../screens';
+import { goToScreen, rememberSong } from '../screens';
 import { noteDurationSteps, noteStartStepIndex, noteStep, STEPS_PER_BEAT } from '../rhythm';
 import { fingerCapsuleClass, sanitizeCssColor, sanitizeFinger, sanitizeSongProject } from '../songSafety';
 import { SOUND_PROBE_TITLE } from '../songs/soundProbe';
 
 interface TrackNoteWithDOM extends NoteTrackItem {
   el?: HTMLElement;
+  /** Seconds the colored block stays on the hit line and can still be played. */
+  hold: number;
 }
 
 interface TrackChordWithDOM extends ChordTrackItem {
   el?: HTMLElement;
+  hold: number;
 }
 
 interface ChordDiagramDot {
@@ -38,6 +41,11 @@ export class GameplayEngine {
   public loopEndRatio: number | null = null;
   private loopHandleDrag: 'start' | 'end' | null = null;
   public isCustomSongLoaded: boolean = false;
+  /** When set, playback is the sheet cursor instead of the fretboard loop. */
+  public sheetClock: { play(): void; pause(): void } | null = null;
+  /** Moves the sheet cursor from the gameplay clock. */
+  public sheetFrame: (() => void) | null = null;
+  public loadedProject: SongProject | null = null;
   public score: number = 0;
   public targetScore: number = 3450;
   public multiplier: number = 1;
@@ -53,6 +61,92 @@ export class GameplayEngine {
   public isCountingDown: boolean = false;
   public isCalibrating: boolean = false;
   private countdownTimer: number | null = null;
+  private wakeLockSentinel: any = null;
+
+  // Hooks para Modo Multijugador Versus
+  public isVersusActive: boolean = false;
+  public rivalLastScore: number = 0;
+  public rivalLastAccuracy: number = 0;
+  public onProgressUpdate: ((score: number, combo: number, accuracy: number, measure: number) => void) | null = null;
+  public onNoteHitCallback: ((noteId: number, rating: string, centsOffset: number) => void) | null = null;
+  private lastProgressEmitTime: number = 0;
+
+  public updateRivalHUD(rivalName: string, rivalScore: number, accuracy: number = 100): void {
+    this.rivalLastScore = rivalScore;
+    this.rivalLastAccuracy = accuracy;
+
+    const rivalEl = document.getElementById('hud-vs-rival');
+    const nameEl = document.getElementById('vs-rival-name');
+    const scoreEl = document.getElementById('vs-rival-score');
+    const diffEl = document.getElementById('vs-score-diff');
+    if (!rivalEl || !nameEl || !scoreEl || !diffEl) return;
+
+    rivalEl.hidden = false;
+    nameEl.textContent = rivalName;
+    scoreEl.textContent = `${rivalScore} pts`;
+
+    const diff = this.score - rivalScore;
+    if (diff >= 0) {
+      diffEl.textContent = `+${diff}`;
+      diffEl.className = 'vs-score-diff ahead';
+    } else {
+      diffEl.textContent = `${diff}`;
+      diffEl.className = 'vs-score-diff behind';
+    }
+
+    const perfRivalScore = document.getElementById('perf-vs-rival-score');
+    const perfRivalAcc = document.getElementById('perf-vs-rival-acc');
+    if (perfRivalScore) perfRivalScore.textContent = `${rivalScore} pts`;
+    if (perfRivalAcc) perfRivalAcc.textContent = `${Math.round(accuracy)}% Precisión`;
+  }
+
+  /**
+   * Aplicar efectos de ataque en modo Face-Off (trampas)
+   */
+  public applyAttackEffect(attackType: 'invert_screen' | 'blind_strings' | 'turbo_speed', durationMs: number = 3000): void {
+    const trackWrapper = document.querySelector('.fretboard-canvas-container');
+    if (!trackWrapper) return;
+
+    if (attackType === 'invert_screen') {
+      trackWrapper.classList.add('vs-attack-invert');
+      setTimeout(() => trackWrapper.classList.remove('vs-attack-invert'), durationMs);
+    } else if (attackType === 'blind_strings') {
+      trackWrapper.classList.add('vs-attack-blind');
+      setTimeout(() => trackWrapper.classList.remove('vs-attack-blind'), durationMs);
+    } else if (attackType === 'turbo_speed') {
+      const origSpeed = this.speedMultiplier;
+      this.speedMultiplier = origSpeed * 1.35;
+      setTimeout(() => {
+        this.speedMultiplier = origSpeed;
+      }, durationMs);
+    }
+  }
+
+  private async requestScreenWakeLock(): Promise<void> {
+    if ('wakeLock' in navigator && (navigator as any).wakeLock?.request) {
+      try {
+        if (!this.wakeLockSentinel || this.wakeLockSentinel.released) {
+          this.wakeLockSentinel = await (navigator as any).wakeLock.request('screen');
+          this.wakeLockSentinel.addEventListener('release', () => {
+            this.wakeLockSentinel = null;
+          });
+        }
+      } catch {
+        // Ignorar si el usuario deniega permisos o no se admite en el contexto actual
+      }
+    }
+  }
+
+  private releaseScreenWakeLock(): void {
+    if (this.wakeLockSentinel) {
+      try {
+        this.wakeLockSentinel.release();
+      } catch {
+        // Ignorar
+      }
+      this.wakeLockSentinel = null;
+    }
+  }
 
   public defaultNotes: NoteTrackItem[] = [
     { id: 1, string: 2, fret: 3, time: 2.0, finger: 1, label: '3', hit: false },
@@ -148,8 +242,8 @@ export class GameplayEngine {
     }
   };
 
-  /** How far before or after a note the mic may score it, in seconds. */
-  private static readonly MIC_TIMING_WINDOW = 0.45;
+  /** How early a note still counts, before its colored block reaches the line. */
+  private static readonly HIT_EARLY = 0.2;
   /** Shortest gap between two mic-scored attacks, in milliseconds (~7 notes per second). */
   private static readonly MIC_REFRACTORY_MS = 140;
   /** How long after an attack to wait before reading its pitch, in milliseconds. */
@@ -176,11 +270,27 @@ export class GameplayEngine {
     this.setSpeed(nextPercent / 100);
   }
 
+  private noteIsOpen(time: number, hold: number): boolean {
+    // Allows hitting the note anywhere across its full colored block (from arrival until it ends)
+    // plus a comfortable leeway before arrival
+    return this.currentTime >= time - GameplayEngine.HIT_EARLY && this.currentTime <= time + hold + 0.15;
+  }
+
+  public expectedLiveLabel(): string {
+    if (!this.isPlaying) return 'pausa';
+    if (this.mode === 'notes') {
+      const note = this.notesTrack.find(item => !item.hit && !item.missed && this.noteIsOpen(item.time, item.hold));
+      return note ? `s${note.string}f${note.fret}` : 'fin';
+    }
+    const chord = this.chordsTrack.find(item => !item.hit && !item.missed && this.noteIsOpen(item.time, item.hold));
+    return chord ? chord.chord : 'fin';
+  }
+
   public setSessionMode(mode: GameplaySessionMode): void {
     this.sessionMode = mode;
     if (mode === 'performance') {
       this.isLooping = false;
-      this.setSpeed(1.0);
+      document.documentElement.requestFullscreen?.().catch(() => {});
     }
     this.updateSessionModeUI();
     this.updateSpeedUI();
@@ -271,7 +381,15 @@ export class GameplayEngine {
       this.setSessionMode('practice');
     }
     this.isLooping = !this.isLooping;
+
+    // If enabling loop and no section is set yet, default to an initial 20%-80% section
+    if (this.isLooping && this.loopStartRatio === null) {
+      this.loopStartRatio = 0.2;
+      this.loopEndRatio = 0.8;
+    }
+
     this.updateSessionModeUI();
+    this.updateLoopRegionUI();
   }
 
   public updateSpeedUI(): void {
@@ -298,13 +416,8 @@ export class GameplayEngine {
       btn.title = this.isLooping ? 'La pista se repetirá al terminar' : 'La pista se detiene al terminar';
     });
 
-    const speedControls = document.querySelectorAll<HTMLElement>('.hud-speed-controller-pill');
-    speedControls.forEach(pill => {
-      if (this.sessionMode === 'performance') {
-        pill.classList.add('performance-locked');
-      } else {
-        pill.classList.remove('performance-locked');
-      }
+    document.querySelectorAll('.hud-speed-controller-pill').forEach(pill => {
+      pill.classList.remove('performance-locked');
     });
     this.updateLoopRegionUI();
   }
@@ -336,6 +449,7 @@ export class GameplayEngine {
   public init(mode: GameplayMode = 'notes'): void {
     this.mode = mode;
     this.isCustomSongLoaded = false;
+    this.loadedProject = null;
     this.score = 0;
     this.multiplier = 1;
     this.combo = 0;
@@ -349,12 +463,14 @@ export class GameplayEngine {
     if (mode === 'notes') {
       this.targetScore = 3450;
       this.songDuration = 22.0;
-      this.notesTrack = JSON.parse(JSON.stringify(this.defaultNotes));
+      this.notesTrack = (JSON.parse(JSON.stringify(this.defaultNotes)) as TrackNoteWithDOM[])
+        .map(note => ({ ...note, hold: note.hold || 1.2 }));
       this.buildDOMNotes();
     } else {
       this.targetScore = 3050;
       this.songDuration = 22.0;
-      this.chordsTrack = JSON.parse(JSON.stringify(this.defaultChords));
+      this.chordsTrack = (JSON.parse(JSON.stringify(this.defaultChords)) as TrackChordWithDOM[])
+        .map(chord => ({ ...chord, hold: chord.hold || chord.width / this.scrollSpeed }));
       this.buildDOMChords();
     }
 
@@ -373,6 +489,8 @@ export class GameplayEngine {
     const song = sanitizeSongProject(songData);
     if (!song) return;
     this.isCustomSongLoaded = true;
+    this.loadedProject = song;
+    rememberSong(song);
     this.mode = song.mode;
     this.songTitle = song.title || song.section || 'Canción';
     this.probeLog = [];
@@ -394,6 +512,7 @@ export class GameplayEngine {
         const stepIndex = noteStartStepIndex(n.measure, noteStep(n));
         const stepSeconds = beatSeconds / STEPS_PER_BEAT;
         const dur = noteDurationSteps(n);
+        const hold = Math.max(stepSeconds, dur * stepSeconds);
         return {
           id: n.id || idx,
           string: n.string,
@@ -402,7 +521,8 @@ export class GameplayEngine {
           finger: sanitizeFinger(n.finger),
           label: `${n.fret}`,
           hit: false,
-          duration: dur
+          duration: dur,
+          hold
         };
       });
       this.notesTrack.sort((a, b) => a.time - b.time);
@@ -412,14 +532,16 @@ export class GameplayEngine {
       this.chordsTrack = song.chords.map((c, idx) => {
         const beatIndex = (c.measure - 1) * 4 + (c.beat - 1);
         const dur = c.duration || 4;
+        const hold = Math.max(beatSeconds, dur * beatSeconds);
         return {
           id: c.id || idx,
           chord: c.chord,
           time: beatIndex * beatSeconds + 1.5,
-          width: dur * 70,
+          width: hold * this.scrollSpeed,
           color: sanitizeCssColor(c.color),
           label: c.chord,
-          hit: false
+          hit: false,
+          hold
         };
       });
       this.chordsTrack.sort((a, b) => a.time - b.time);
@@ -461,7 +583,7 @@ export class GameplayEngine {
       if (fill) {
         capsule.style.background = fill;
       }
-      capsule.style.width = `${Math.max(70, (note.duration ?? 4) * 44)}px`;
+      capsule.style.width = `${Math.max(36, note.hold * this.scrollSpeed)}px`;
       capsule.style.left = '0px';
       capsule.style.top = '0px';
       capsule.style.willChange = 'transform';
@@ -481,16 +603,30 @@ export class GameplayEngine {
 
     container.querySelectorAll('.game-chord-block').forEach(el => el.remove());
 
-    this.chordsTrack.forEach(chord => {
+    this.chordsTrack.forEach((chord, idx) => {
       const blockFrag = cloneTemplate('tpl-game-chord-block');
       const block = firstElement<HTMLElement>(blockFrag);
       if (!block) return;
       block.dataset.chord = chord.chord;
-      block.style.background = sanitizeCssColor(chord.color);
+
+      // Themed CSS classes matching Screenshot 2
+      if (chord.color === '#ea5b57' || chord.chord === 'Am' && idx === 0) {
+        block.classList.add('chord-block-coral');
+      } else if (chord.color === '#aa22e6' || chord.chord === 'Am') {
+        block.classList.add('chord-block-purple');
+      } else if (chord.color === '#27ae60' || chord.chord === 'C') {
+        block.classList.add('chord-block-green');
+      } else if (chord.color === '#e67e22' || chord.chord === 'Em') {
+        block.classList.add('chord-block-orange');
+      } else {
+        block.style.background = sanitizeCssColor(chord.color);
+      }
+
       block.style.width = `${chord.width}px`;
       block.style.left = '0px';
       block.style.willChange = 'transform';
       setSlotText(block, 'label', chord.label);
+      setSlotText(block, 'section', idx === 0 ? 'Parte 1' : `Parte ${idx + 1}`);
 
       block.addEventListener('click', () => {
         this.userPlayChord(chord.chord);
@@ -501,6 +637,19 @@ export class GameplayEngine {
     });
   }
 
+  /** Sheet playback reports time from the first note. Gameplay notes include a 1.5s lead-in. */
+  public adoptSheetClock(secondsFromStart: number, playing: boolean): void {
+    this.currentTime = secondsFromStart + 1.5;
+    this.isPlaying = playing;
+    if (!playing || this.mode !== 'notes') return;
+    for (const note of this.notesTrack) {
+      if (!note.hit && !note.missed && this.currentTime > note.time + note.hold + 0.12) {
+        note.missed = true;
+        this.triggerNoteMiss(note);
+      }
+    }
+  }
+
   public startPlaying(): void {
     if (this.isCountingDown) return;
     if (!this.isPlaying) {
@@ -508,12 +657,19 @@ export class GameplayEngine {
       this.wasPlayingThisSession = true;
       this.lastTime = performance.now();
       this.updatePlayPauseIcons();
+      this.requestScreenWakeLock();
+      if (this.sheetClock) {
+        this.sheetClock.play();
+        return;
+      }
       this.loop(this.lastTime);
     }
   }
 
   public pausePlaying(): void {
+    this.sheetClock?.pause();
     this.isPlaying = false;
+    this.releaseScreenWakeLock();
     this.updatePlayPauseIcons();
     if (this.animationFrame !== null) {
       cancelAnimationFrame(this.animationFrame);
@@ -638,8 +794,16 @@ export class GameplayEngine {
 
     this.progress = this.currentTime / this.songDuration;
 
+    // Emisión periódica de telemetría si está en modo Versus (7 Hz / cada 150 ms)
+    if (this.isVersusActive && this.onProgressUpdate && now - this.lastProgressEmitTime > 150) {
+      this.lastProgressEmitTime = now;
+      const accuracy = this.targetScore > 0 ? (this.score / this.targetScore) * 100 : 100;
+      this.onProgressUpdate(this.score, this.combo, accuracy, Math.floor(this.currentTime / 2));
+    }
+
     this.renderFrame();
     this.updateUI();
+    this.sheetFrame?.();
 
     this.animationFrame = requestAnimationFrame((t) => this.loop(t));
   }
@@ -732,6 +896,37 @@ export class GameplayEngine {
       if (showProbe) probeText.textContent = this.formatProbeLog();
     }
 
+    // Resultados específicos del Modo Versus
+    const vsBox = document.getElementById('perf-vs-comparison');
+    const rematchBtn = document.getElementById('perf-btn-rematch');
+    if (vsBox && rematchBtn) {
+      vsBox.hidden = !this.isVersusActive;
+      rematchBtn.hidden = !this.isVersusActive;
+
+      if (this.isVersusActive) {
+        const myScoreEl = document.getElementById('perf-vs-my-score');
+        const myAccEl = document.getElementById('perf-vs-my-acc');
+        const bannerEl = document.getElementById('perf-vs-banner');
+        if (myScoreEl) myScoreEl.textContent = `${Math.round(this.score)} pts`;
+        if (myAccEl) myAccEl.textContent = `${accuracy}% Precisión`;
+
+        // Calcular victoria o derrota
+        const rivalScore = this.rivalLastScore || 0;
+        if (bannerEl) {
+          if (this.score > rivalScore) {
+            bannerEl.textContent = '¡VICTORIA! 🏆';
+            bannerEl.style.color = '#f0c14a';
+          } else if (this.score < rivalScore) {
+            bannerEl.textContent = 'DERROTA ⚔️';
+            bannerEl.style.color = '#ff6b6b';
+          } else {
+            bannerEl.textContent = '¡EMPATE! 🤝';
+            bannerEl.style.color = '#7eb6ff';
+          }
+        }
+      }
+    }
+
     modal.style.display = 'flex';
   }
 
@@ -795,6 +990,10 @@ export class GameplayEngine {
     const width = container.clientWidth || 1100;
     const height = container.clientHeight || 340;
     const hitZoneX = width * 0.35;
+    const listenPx = 0.12 * this.scrollSpeed * 2;
+    document.querySelectorAll<HTMLElement>(`${activeViewId} .game-hit-window`).forEach(band => {
+      band.style.width = `${listenPx}px`;
+    });
 
     if (this.mode === 'notes') {
       this.renderNotesMotion(width, height, hitZoneX);
@@ -821,6 +1020,11 @@ export class GameplayEngine {
     }
 
     this.notesTrack.forEach(note => {
+      if (!note.hit && !note.missed && this.currentTime > note.time + note.hold + 0.12) {
+        note.missed = true;
+        this.recordProbe(note, null);
+        this.triggerNoteMiss(note);
+      }
       if (!note.el) return;
 
       const noteX = hitZoneX + (note.time - this.currentTime) * this.scrollSpeed;
@@ -831,14 +1035,6 @@ export class GameplayEngine {
         note.el.style.transform = `translate3d(${noteX}px, ${noteY}px, 0) translateY(-50%)`;
       } else {
         note.el.style.display = 'none';
-      }
-
-      if (!note.hit && !note.missed) {
-        if (this.currentTime > note.time + 0.45) {
-          note.missed = true;
-          this.recordProbe(note, null);
-          this.triggerNoteMiss(note);
-        }
       }
     });
 
@@ -992,7 +1188,7 @@ export class GameplayEngine {
         chord.el.style.display = 'none';
       }
 
-      if (this.isPlaying && !chord.hit && !chord.missed && this.currentTime > chord.time + 0.55) {
+      if (this.isPlaying && !chord.hit && !chord.missed && this.currentTime > chord.time + chord.hold + 0.12) {
         chord.missed = true;
         this.triggerChordMiss(chord);
       }
@@ -1073,6 +1269,10 @@ export class GameplayEngine {
       setTimeout(() => note.el?.classList.remove('hit-flash'), 220);
     }
 
+    if (this.isVersusActive && this.onNoteHitCallback) {
+      this.onNoteHitCallback(note.id, 'PERFECT', 0);
+    }
+
     const ball = document.querySelector('#view-notes .bouncing-ball');
     if (ball) {
       ball.classList.add('hit-pulse');
@@ -1080,6 +1280,7 @@ export class GameplayEngine {
     }
 
     this.spawnScoreParticle(`+${150 * this.multiplier}`, false);
+    this.spawnTimingLabel(this.currentTime - note.time);
     this.markTimelineResult('n', note.id, 'hit');
     this.updateUI();
   }
@@ -1110,8 +1311,9 @@ export class GameplayEngine {
 
     for (const note of this.notesTrack) {
       if (note.hit || note.missed) continue;
+      if (!this.noteIsOpen(note.time, note.hold)) continue;
       const diff = Math.abs(this.currentTime - note.time);
-      if (diff <= 0.28 && diff < minDiff) {
+      if (diff < minDiff) {
         minDiff = diff;
         bestNote = note;
       }
@@ -1185,9 +1387,10 @@ export class GameplayEngine {
 
     for (const note of this.notesTrack) {
       if (note.hit || note.missed) continue;
+      const window = this.songTitle === SOUND_PROBE_TITLE ? 0.7 : note.hold;
+      if (!this.noteIsOpen(note.time, window)) continue;
       const diff = Math.abs(this.currentTime - note.time);
-      const window = this.songTitle === SOUND_PROBE_TITLE ? 0.7 : GameplayEngine.MIC_TIMING_WINDOW;
-      if (diff <= window && diff < minDiff) {
+      if (diff < minDiff) {
         minDiff = diff;
         bestNote = note;
       }
@@ -1236,8 +1439,9 @@ export class GameplayEngine {
 
     for (const chord of this.chordsTrack) {
       if (chord.hit || chord.missed) continue;
+      if (!this.noteIsOpen(chord.time, chord.hold)) continue;
       const diff = Math.abs(this.currentTime - chord.time);
-      if (diff <= 0.55 && diff < minDiff) {
+      if (diff < minDiff) {
         minDiff = diff;
         bestChord = chord;
       }
@@ -1260,8 +1464,9 @@ export class GameplayEngine {
 
     for (const chord of this.chordsTrack) {
       if (chord.hit || chord.missed) continue;
+      if (!this.noteIsOpen(chord.time, chord.hold)) continue;
       const diff = Math.abs(this.currentTime - chord.time);
-      if (diff <= 0.5 && diff < minDiff) {
+      if (diff < minDiff) {
         minDiff = diff;
         bestChord = chord;
       }
@@ -1352,6 +1557,8 @@ export class GameplayEngine {
       setTimeout(() => chord.el?.classList.remove('hit-flash'), 220);
     }
 
+    this.spawnTimingLabel(this.currentTime - chord.time);
+
     const ball = document.querySelector('#view-chords .bouncing-ball');
     if (ball) {
       ball.classList.add('hit-pulse');
@@ -1372,16 +1579,32 @@ export class GameplayEngine {
     }
   }
 
-  public spawnScoreParticle(text: string, isMiss: boolean = false): void {
+  /** Signed offset in seconds: negative is early, positive is late. */
+  private spawnTimingLabel(deltaSeconds: number): void {
+    const perfect = 0.12;
+    let text = 'PERFECTO';
+    let kind = 'timing-perfect';
+    if (deltaSeconds < -perfect) {
+      text = 'ADELANTADO';
+      kind = 'timing-early';
+    } else if (deltaSeconds > perfect) {
+      text = 'ATRASADO';
+      kind = 'timing-late';
+    }
+    this.spawnScoreParticle(text, false, kind);
+  }
+
+  public spawnScoreParticle(text: string, isMiss: boolean = false, extraClass: string = ''): void {
     const activeViewId = this.mode === 'notes' ? '#view-notes' : '#view-chords';
-    const container = document.querySelector(`${activeViewId} .fretboard-canvas-container`);
+    const container = document.querySelector(`${activeViewId}.is-sheet #sheet-stage`)
+      ?? document.querySelector(`${activeViewId} .fretboard-canvas-container`);
     if (!container) return;
 
     const particle = document.createElement('div');
-    particle.className = `hit-score-particle ${isMiss ? 'particle-miss' : ''}`;
+    particle.className = `hit-score-particle ${isMiss ? 'particle-miss' : ''} ${extraClass}`.trim();
     particle.textContent = text;
     particle.style.left = '35%';
-    particle.style.top = isMiss ? '42%' : '38%';
+    particle.style.top = extraClass ? '58%' : isMiss ? '42%' : '38%';
     container.appendChild(particle);
 
     setTimeout(() => {
@@ -1512,15 +1735,27 @@ export class GameplayEngine {
       });
 
       track.addEventListener('touchstart', (e) => {
+        const target = e.target as HTMLElement;
+        const handle = target.closest('.timeline-loop-handle');
+        if (handle) {
+          this.loopHandleDrag = handle.classList.contains('is-start') ? 'start' : 'end';
+          if (this.sessionMode !== 'practice') this.setSessionMode('practice');
+          this.isLooping = true;
+          isDragging = true;
+          return;
+        }
         isDragging = true;
         handleSeek(e);
-      }, { passive: true });
+      }, { passive: false });
 
       window.addEventListener('touchmove', (e) => {
         if (isDragging) {
+          if (this.loopHandleDrag && e.cancelable) {
+            e.preventDefault();
+          }
           handleSeek(e);
         }
-      }, { passive: true });
+      }, { passive: false });
 
       window.addEventListener('touchend', () => {
         isDragging = false;
@@ -1531,12 +1766,16 @@ export class GameplayEngine {
     this.setupHUDListeners();
 
     document.addEventListener('visibilitychange', () => {
-      if (!document.hidden) return;
       const onGameplay = document.getElementById('view-notes')?.classList.contains('view-active')
         || document.getElementById('view-chords')?.classList.contains('view-active');
       if (!onGameplay) return;
-      if (this.isCountingDown) this.cancelCountdown();
-      if (this.isPlaying) this.pausePlaying();
+
+      if (document.hidden) {
+        if (this.isCountingDown) this.cancelCountdown();
+        if (this.isPlaying) this.pausePlaying();
+      } else if (this.isPlaying) {
+        this.requestScreenWakeLock();
+      }
     });
 
     document.querySelectorAll<HTMLElement>('.fretboard-canvas-container').forEach(canvas => {
