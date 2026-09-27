@@ -3,6 +3,7 @@ import { multiplayerOrigin } from '../services/network/serverStatus';
 import type { GameMode, PlayerRole, PlayerSummary, ServerMessage } from '../types/multiplayer';
 import { goToScreen } from '../screens';
 import { gameplayEngine } from './gameplay';
+import { furEliseSong } from '../songs/furElise';
 
 export class VersusLobby {
   private client: MultiplayerClient | null = null;
@@ -11,6 +12,10 @@ export class VersusLobby {
   private myRole: PlayerRole | null = null;
   private selectedMode: GameMode = 'classic';
   private selectedSongId = 'sultans_swing';
+  private songPrepared = false;
+  private localNames: [string, string] | null = null;
+  private localTurn: 0 | 1 = 0;
+  private localFirst: { score: number; accuracy: number; combo: number } | null = null;
 
   // DOM Elements
   private container: HTMLElement | null = null;
@@ -75,6 +80,10 @@ export class VersusLobby {
       this.createRoom();
     });
 
+    document.getElementById('vs-btn-local')?.addEventListener('click', () => {
+      this.startLocalMatch();
+    });
+
     document.getElementById('vs-btn-refresh-rooms')?.addEventListener('click', () => {
       void this.refreshPublicRooms();
     });
@@ -100,15 +109,42 @@ export class VersusLobby {
 
     // Botón Listo
     this.readyBtn?.addEventListener('click', () => {
-      if (this.client) {
-        const isReady = this.readyBtn?.classList.toggle('ready-active') ?? false;
-        if (this.readyBtn) {
-          this.readyBtn.textContent = isReady ? '✓ Estoy listo' : 'Listo para tocar';
+      if (!this.client) return;
+      if (!this.songPrepared && !this.preloadSong()) {
+        this.setStatus('No se pudo cargar la canción de la sala', true);
+        return;
+      }
+      const isReady = this.readyBtn?.classList.toggle('ready-active') ?? false;
+      if (this.readyBtn) {
+        this.readyBtn.textContent = isReady ? '✓ Estoy listo' : 'Listo para tocar';
+      }
+      this.client.send({
+        type: 'set_ready',
+        payload: { ready: isReady },
+      });
+    });
+
+    // Selector de Canción del Duelo
+    const songSelect = document.getElementById('vs-song-select') as HTMLSelectElement | null;
+    if (songSelect) {
+      songSelect.value = this.selectedSongId;
+      songSelect.addEventListener('change', () => {
+        this.selectedSongId = songSelect.value;
+      });
+    }
+
+    // Botón de Ataque / Trampas (Face-Off)
+    document.getElementById('vs-attack-trigger-btn')?.addEventListener('click', () => {
+      gameplayEngine.launchAttack();
+    });
+
+    // Tecla Espacio para disparar ataque en Face-Off cuando esté cargado
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space' && gameplayEngine.isVersusActive && gameplayEngine.isFaceOffMode) {
+        if (gameplayEngine.attackStreak >= gameplayEngine.attackThreshold) {
+          e.preventDefault();
+          gameplayEngine.launchAttack();
         }
-        this.client.send({
-          type: 'set_ready',
-          payload: { ready: isReady },
-        });
       }
     });
 
@@ -263,6 +299,8 @@ export class VersusLobby {
         this.currentRoomCode = msg.payload.room_code;
         this.mySessionId = msg.payload.session_id;
         this.myRole = msg.payload.role;
+        this.selectedSongId = msg.payload.song_id;
+        this.selectedMode = msg.payload.mode;
         this.showActiveRoom(msg.payload.room_code, msg.payload.role, [
           {
             session_id: msg.payload.session_id,
@@ -274,7 +312,8 @@ export class VersusLobby {
             accuracy: 100,
           },
         ]);
-        this.setStatus('Sala creada. Comparte el código o enlace.');
+        this.preloadSong();
+        this.setStatus('Sala creada. La canción ya está cargada. Comparte el código.');
         break;
       }
 
@@ -282,8 +321,13 @@ export class VersusLobby {
         this.currentRoomCode = msg.payload.room_code;
         this.mySessionId = msg.payload.session_id;
         this.myRole = msg.payload.role;
+        this.selectedSongId = msg.payload.song_id;
+        this.selectedMode = msg.payload.mode;
         this.showActiveRoom(msg.payload.room_code, msg.payload.role, msg.payload.players);
-        this.setStatus('¡Te has unido a la sala!');
+        this.preloadSong();
+        this.setStatus(this.songPrepared
+          ? 'Unido. La canción ya está cargada. Marcate como listo.'
+          : 'Unido, pero no se pudo cargar la canción.', !this.songPrepared);
         break;
       }
 
@@ -356,11 +400,136 @@ export class VersusLobby {
     }
   }
 
+  private startLocalMatch(): void {
+    const first = this.guestNameInput?.value.trim() || 'Jugador 1';
+    const secondInput = document.getElementById('vs-local-name-2') as HTMLInputElement | null;
+    const second = secondInput?.value.trim() || 'Jugador 2';
+    this.localNames = [first, second];
+    this.localTurn = 0;
+    this.localFirst = null;
+    if (!this.preloadSong()) {
+      this.setStatus('No se pudo cargar la canción', true);
+      return;
+    }
+    this.armLocalEngine();
+    const screen = this.selectedSongId === 'chords_progression' ? 'chords' : 'notes';
+    goToScreen(screen);
+    this.setStatus(`Turno de ${first}. Cuando termine, pasa el aparato.`);
+  }
+
+  private armLocalEngine(): void {
+    gameplayEngine.isVersusActive = false;
+    gameplayEngine.isFaceOffMode = false;
+    gameplayEngine.isLocalHotseat = true;
+    gameplayEngine.localPassHandoff = false;
+    gameplayEngine.attackStreak = 0;
+    gameplayEngine.updateAttackHUD();
+    gameplayEngine.onTriggerAttack = null;
+    gameplayEngine.onProgressUpdate = null;
+    gameplayEngine.onNoteHitCallback = null;
+    gameplayEngine.onNoteMissCallback = null;
+    gameplayEngine.onMatchFinished = (score, _combo, accuracy) => {
+      this.onLocalTurnDone(score, accuracy);
+    };
+    gameplayEngine.onLocalRetry = () => {
+      this.continueLocal();
+    };
+  }
+
+  private onLocalTurnDone(score: number, accuracy: number): void {
+    const names = this.localNames;
+    if (!names) return;
+    const verdict = document.getElementById('perf-verdict-text');
+    const retryLabel = document.querySelector('#perf-btn-retry span');
+    const practice = document.getElementById('perf-btn-practice');
+    const vsBox = document.getElementById('perf-vs-comparison');
+    if (this.localTurn === 0) {
+      this.localFirst = { score, accuracy, combo: gameplayEngine.maxCombo };
+      gameplayEngine.localPassHandoff = true;
+      if (verdict) verdict.textContent = `${names[0]} hizo ${score} pts. Pasá el aparato: le toca a ${names[1]}.`;
+      if (retryLabel) retryLabel.textContent = `Turno de ${names[1]}`;
+      if (practice) practice.hidden = true;
+      if (vsBox) vsBox.hidden = true;
+      return;
+    }
+    const first = this.localFirst;
+    gameplayEngine.localPassHandoff = false;
+    if (practice) practice.hidden = false;
+    if (retryLabel) retryLabel.textContent = 'Otra vez';
+    if (!first || !vsBox) return;
+    vsBox.hidden = false;
+    const banner = document.getElementById('perf-vs-banner');
+    const myScore = document.getElementById('perf-vs-my-score');
+    const myAcc = document.getElementById('perf-vs-my-acc');
+    const rivalScore = document.getElementById('perf-vs-rival-score');
+    const rivalAcc = document.getElementById('perf-vs-rival-acc');
+    const rivalLabel = document.getElementById('perf-vs-rival-label');
+    const localBadge = vsBox.querySelector('.player-local .perf-vs-badge');
+    if (localBadge) localBadge.textContent = names[0];
+    if (rivalLabel) rivalLabel.textContent = names[1];
+    if (myScore) myScore.textContent = `${first.score} pts`;
+    if (myAcc) myAcc.textContent = `${Math.round(first.accuracy)}% Precisión`;
+    if (rivalScore) rivalScore.textContent = `${score} pts`;
+    if (rivalAcc) rivalAcc.textContent = `${Math.round(accuracy)}% Precisión`;
+    if (banner) {
+      if (first.score > score) banner.textContent = `Gana ${names[0]}`;
+      else if (score > first.score) banner.textContent = `Gana ${names[1]}`;
+      else banner.textContent = 'Empate';
+    }
+    if (verdict) verdict.textContent = 'Misma canción, dos turnos.';
+  }
+
+  private continueLocal(): void {
+    const names = this.localNames;
+    if (!names) return;
+    const modal = document.getElementById('performance-results-modal');
+    if (modal) modal.style.display = 'none';
+    if (gameplayEngine.localPassHandoff) {
+      this.localTurn = 1;
+      gameplayEngine.localPassHandoff = false;
+    } else {
+      this.localTurn = 0;
+      this.localFirst = null;
+      const retryLabel = document.querySelector('#perf-btn-retry span');
+      if (retryLabel) retryLabel.textContent = 'Reintentar';
+    }
+    this.armLocalEngine();
+    gameplayEngine.restartPerformance();
+  }
+
+  /** Carga el chart en memoria sin salir del lobby. Host y guest lo hacen al entrar a la sala. */
+  private preloadSong(): boolean {
+    if (this.selectedSongId === 'fur_elise') {
+      gameplayEngine.loadCustomSong(furEliseSong);
+    } else if (this.selectedSongId === 'chords_progression') {
+      gameplayEngine.init('chords');
+    } else if (this.selectedSongId === 'sultans_swing') {
+      gameplayEngine.init('notes');
+    } else {
+      this.songPrepared = false;
+      return false;
+    }
+    this.songPrepared = true;
+    return true;
+  }
+
+  private songLabel(songId: string): string {
+    switch (songId) {
+      case 'fur_elise': return '🎼 Für Elise';
+      case 'chords_progression': return '🎶 Acordes (Am, C, Em)';
+      default: return '🎸 Melodía';
+    }
+  }
+
   private showActiveRoom(code: string, role: PlayerRole, players: PlayerSummary[]): void {
     if (this.lobbyConfigSection) this.lobbyConfigSection.hidden = true;
     if (this.lobbyViewSection) this.lobbyViewSection.hidden = false;
 
     if (this.roomCodeDisplay) this.roomCodeDisplay.textContent = code;
+    const songBadge = document.getElementById('vs-room-song-badge');
+    if (songBadge) {
+      songBadge.textContent = this.songLabel(this.selectedSongId);
+    }
     if (this.roomLinkInput) {
       this.roomLinkInput.value = `${window.location.origin}${window.location.pathname}#vs?code=${code}`;
     }
@@ -382,17 +551,23 @@ export class VersusLobby {
       if (!p.ready) allReady = false;
 
       const card = document.createElement('div');
-      card.className = `vs-player-card ${p.role === 'host' ? 'is-host' : ''}`;
-      card.innerHTML = `
-        <div class="vs-avatar">${p.role === 'host' ? '👑' : '🎸'}</div>
-        <div class="vs-player-info">
-          <strong>${p.name} ${p.session_id === this.mySessionId ? '(Tú)' : ''}</strong>
-          <span class="vs-player-role">${p.role.toUpperCase()}</span>
-        </div>
-        <div class="vs-player-status ${p.ready ? 'ready' : 'waiting'}">
-          ${p.ready ? '✓ Listo' : 'Esperando...'}
-        </div>
-      `;
+      card.className = `vs-player-card${p.role === 'host' ? ' is-host' : ''}`;
+      const avatar = document.createElement('div');
+      avatar.className = 'vs-avatar';
+      avatar.textContent = p.role === 'host' ? '👑' : '🎸';
+      const info = document.createElement('div');
+      info.className = 'vs-player-info';
+      const name = document.createElement('strong');
+      const you = p.session_id === this.mySessionId ? ' (Tú)' : '';
+      name.textContent = `${p.name}${you}`;
+      const role = document.createElement('span');
+      role.className = 'vs-player-role';
+      role.textContent = p.role.toUpperCase();
+      info.append(name, role);
+      const status = document.createElement('div');
+      status.className = `vs-player-status ${p.ready ? 'ready' : 'waiting'}`;
+      status.textContent = p.ready ? '✓ Listo' : 'Esperando...';
+      card.append(avatar, info, status);
       this.playersListEl.appendChild(card);
     }
 
@@ -413,10 +588,32 @@ export class VersusLobby {
     if (modal) modal.style.display = 'none';
 
     this.setStatus('¡Partida sincronizada! Comenzando...');
-    goToScreen('notes');
 
-    // Activar modo versus en el motor de gameplay y enlazar telemetría
+    this.preloadSong();
+    const screen = this.selectedSongId === 'chords_progression' ? 'chords' : 'notes';
+    goToScreen(screen);
+
+    // Configurar modo Versus y modo de juego (Face-Off, etc.)
     gameplayEngine.isVersusActive = true;
+    gameplayEngine.isLocalHotseat = false;
+    gameplayEngine.localPassHandoff = false;
+    gameplayEngine.onLocalRetry = null;
+    gameplayEngine.isFaceOffMode = this.selectedMode === 'face_off';
+    gameplayEngine.attackStreak = 0;
+    gameplayEngine.updateAttackHUD();
+
+    // Enlazar hook de ataque disparado por el jugador (Face-Off)
+    gameplayEngine.onTriggerAttack = (attackType, durationMs) => {
+      this.client?.send({
+        type: 'send_attack',
+        payload: {
+          attack_type: attackType,
+          duration_ms: durationMs,
+        },
+      });
+    };
+
+    // Telemetría en tiempo real
     gameplayEngine.onProgressUpdate = (score, combo, accuracy, measure) => {
       this.client?.send({
         type: 'player_progress',
@@ -427,6 +624,34 @@ export class VersusLobby {
       this.client?.send({
         type: 'note_hit',
         payload: { note_id: noteId, rating, cents_offset: centsOffset },
+      });
+    };
+    gameplayEngine.onNoteMissCallback = (noteId) => {
+      this.client?.send({
+        type: 'note_hit',
+        payload: { note_id: noteId, rating: 'MISS', cents_offset: 0 },
+      });
+    };
+    gameplayEngine.onMatchFinished = (finalScore, maxCombo, accuracy, hits, totalNotes) => {
+      // Checksum anti-cheat ligero: hash FNV-1a (score + hits + combo + songId)
+      const raw = `${this.selectedSongId}:${finalScore}:${maxCombo}:${accuracy.toFixed(1)}:${hits}:${totalNotes}`;
+      let hash = 0x811c9dc5;
+      for (let i = 0; i < raw.length; i++) {
+        hash ^= raw.charCodeAt(i);
+        hash = Math.imul(hash, 0x01000193);
+      }
+      const checksum = (hash >>> 0).toString(16).padStart(8, '0');
+
+      this.client?.send({
+        type: 'submit_summary',
+        payload: {
+          final_score: finalScore,
+          max_combo: maxCombo,
+          accuracy,
+          hits,
+          total_notes: totalNotes,
+          checksum,
+        },
       });
     };
 

@@ -1,11 +1,16 @@
 import { createClient } from '@supabase/supabase-js';
-import type { SongProject } from '../types/editor.types';
+import type { EditorChord, EditorNote, SongProject } from '../types/editor.types';
 import { multiplayerOrigin } from './network/serverStatus';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://vygofqsqapdzqljabnrr.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'sb_publishable_ytdtke8Dwf4GNVdtNu85Tg_IiBcGSs-';
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+if (!supabaseUrl || !supabaseAnonKey) {
+  throw new Error('Faltan VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY');
+}
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: { experimental: { passkey: true } }
+});
 
 export async function probeSupabase(): Promise<boolean> {
   const controller = new AbortController();
@@ -36,8 +41,8 @@ export interface CommunitySongRecord {
   mode: 'notes' | 'chords';
   difficulty: 'easy' | 'medium' | 'hard' | 'expert';
   measures: number;
-  notes: any[];
-  chords: any[];
+  notes: EditorNote[];
+  chords: EditorChord[];
   audio_url: string | null;
   is_public: boolean;
   likes_count: number;
@@ -194,22 +199,28 @@ async function postAuth(path: string, body: Record<string, string>): Promise<{ o
   }
 }
 
-export async function signUpWithEmail(email: string, password: string): Promise<{ ok: boolean; needsConfirmation: boolean; error?: string }> {
-  const result = await postAuth('/auth/signup', { email, password });
-  if (!result.ok) return { ok: false, needsConfirmation: false, error: result.error };
-  return { ok: true, needsConfirmation: true };
-}
-
-export async function requestPasswordRecovery(email: string): Promise<{ ok: boolean; error?: string }> {
-  return postAuth('/auth/recover', { email });
-}
-
 export async function requestMagicLink(email: string): Promise<{ ok: boolean; error?: string }> {
   return postAuth('/auth/magic-link', { email });
 }
 
-export async function signInWithEmail(email: string, password: string): Promise<{ ok: boolean; error?: string }> {
-  const { error } = await supabase.auth.signInWithPassword({ email, password });
+export function passkeysAvailable(): boolean {
+  return typeof PublicKeyCredential !== 'undefined';
+}
+
+export async function signInWithPasskey(): Promise<{ ok: boolean; error?: string }> {
+  if (!passkeysAvailable()) {
+    return { ok: false, error: 'Este navegador no puede usar passkeys.' };
+  }
+  const { error } = await supabase.auth.signInWithPasskey();
+  if (error) return { ok: false, error: error.message };
+  return { ok: true };
+}
+
+export async function registerPasskey(): Promise<{ ok: boolean; error?: string }> {
+  if (!passkeysAvailable()) {
+    return { ok: false, error: 'Este navegador no puede usar passkeys.' };
+  }
+  const { error } = await supabase.auth.registerPasskey();
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -253,8 +264,9 @@ export async function publishCommunitySong(payload: {
     }
 
     return { success: true, id: data?.id };
-  } catch (err: any) {
-    return { success: false, error: err.message || 'Error inesperado al publicar' };
+  } catch (err) {
+    const message = err instanceof Error ? err.message : 'Error inesperado al publicar';
+    return { success: false, error: message };
   }
 }
 

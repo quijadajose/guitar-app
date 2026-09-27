@@ -30,10 +30,17 @@
 
   <!-- Master Application Container -->
   <main class="app-container" id="guitar-app">
-    <button class="btn-fullscreen" id="btn-fullscreen" type="button">Pantalla completa</button>
-    <div class="hub-account" id="hub-account">
-      <p id="hub-account-status">Iniciaste como anónimo.</p>
-      <button type="button" id="hub-account-btn" class="hub-account-btn">Iniciar sesión</button>
+    <div class="app-chrome">
+      <button class="btn-fullscreen" id="btn-fullscreen" type="button">Pantalla completa</button>
+      <div class="hub-account" id="hub-account">
+        <p id="hub-account-status">Iniciaste como anónimo.</p>
+        <button type="button" id="hub-account-btn" class="hub-account-btn">Iniciar sesión</button>
+      </div>
+    </div>
+    <div class="rotate-gate" id="rotate-gate">
+      <p class="rotate-gate-title">Girá el teléfono</p>
+      <p class="rotate-gate-copy">Para tocar y para editar la pantalla va en horizontal.</p>
+      <button class="rotate-gate-back btn-back-menu" data-target="menu" type="button">Volver</button>
     </div>
 
     <!-- Main Viewport for Screens -->
@@ -193,6 +200,22 @@
                 </button>
               </div>
 
+              <h2 style="margin-top: 20px;">Canción del Duelo</h2>
+              <label for="vs-song-select">Selecciona la canción:</label>
+              <select id="vs-song-select" class="vs-input" style="width: 100%; box-sizing: border-box; background: #171a21; margin-bottom: 14px;">
+                <option value="sultans_swing">🎸 Melodía de Guitarra (8 notas)</option>
+                <option value="fur_elise">🎼 Für Elise - Beethoven (24 notas)</option>
+                <option value="chords_progression">🎶 Progresión de Acordes (Am, C, Em)</option>
+              </select>
+
+              <h2 style="margin-top: 20px;">En este aparato</h2>
+              <label for="vs-local-name-2">Segundo jugador:</label>
+              <input type="text" id="vs-local-name-2" class="vs-input" maxlength="20" placeholder="El otro guitarrista" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;">
+              <button type="button" id="vs-btn-local" class="vs-btn-secondary">
+                Tocar de a uno
+              </button>
+              <p style="color: #9aa3ab; font-size: 13px; margin-top: 8px;">Primero toca una persona y después la otra, la misma canción. Gana el puntaje más alto.</p>
+
               <label class="vs-public-toggle" for="vs-room-public">
                 <input type="checkbox" id="vs-room-public">
                 Mostrar la sala en la lista pública
@@ -231,6 +254,7 @@
               <div>
                 <span class="hub-kicker">Código de Sala:</span>
                 <span id="vs-display-room-code" class="vs-badge-code">-----</span>
+                <span id="vs-room-song-badge" class="vs-badge-mode" style="margin-left: 8px;">🎸 Melodía</span>
               </div>
               <button type="button" id="vs-btn-leave-room" class="vs-btn-ghost">Salir de la sala</button>
             </div>
@@ -436,6 +460,14 @@
                 <span id="vs-score-diff" class="vs-score-diff">+0</span>
               </div>
               <div class="hud-vs-rival-score" id="vs-rival-score">0 pts</div>
+            </div>
+
+            <!-- Botón de Ataque / Trampas para Face-Off (Visible al cargar poder) -->
+            <div class="hud-vs-attack-box" id="hud-vs-attack-box" hidden>
+              <button type="button" class="vs-attack-trigger-btn" id="vs-attack-trigger-btn" title="¡Lanza un ataque al rival! (Espacio o clic)" disabled>
+                <span class="attack-icon">⚡</span>
+                <span class="attack-label" id="vs-attack-btn-label">Cargando 0/10</span>
+              </button>
             </div>
 
             <div class="hud-multiplier-box">
@@ -1492,11 +1524,9 @@
             <p style="margin: 0 0 10px; font-size: 13px; color: #fca5a5;">Tenés que crear una cuenta para cargar una canción.</p>
             <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #cbd5e1;">Email</label>
             <input type="email" id="comm-account-email" class="vs-input" autocomplete="email" style="width: 100%; box-sizing: border-box; margin-bottom: 8px;">
-            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #cbd5e1;">Contraseña</label>
-            <input type="password" id="comm-account-password" class="vs-input" autocomplete="current-password" minlength="6" style="width: 100%; box-sizing: border-box; margin-bottom: 8px;">
             <div style="display: flex; gap: 8px;">
-              <button type="button" id="comm-account-signup" class="vs-btn-primary" data-multiplayer hidden>Crear cuenta</button>
-              <button type="button" id="comm-account-signin" class="vs-btn-ghost">Ya tengo cuenta</button>
+              <button type="button" id="comm-account-passkey" class="vs-btn-primary" data-supabase hidden>Entrar con passkey</button>
+              <button type="button" id="comm-account-magic" class="vs-btn-ghost" data-multiplayer hidden>Enviar enlace al email</button>
             </div>
           </div>
           <div id="comm-publish-fields" style="display: flex; flex-direction: column; gap: 14px;">

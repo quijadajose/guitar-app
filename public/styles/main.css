@@ -898,6 +898,7 @@ html, body {
   #view-songs {
     justify-content: flex-start;
     padding: 64px 20px 28px;
+    overflow-y: auto;
   }
 
   .hub {
@@ -965,15 +966,24 @@ html, body {
   display: none !important;
 }
 
-.hub-account {
+.app-chrome {
   position: fixed;
   top: 14px;
   right: 16px;
   z-index: 1300;
   display: flex;
   align-items: center;
+  justify-content: flex-end;
   gap: 10px;
-  max-width: min(420px, 46vw);
+  max-width: calc(100% - 32px);
+}
+
+.hub-account {
+  position: static;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
 }
 
 .hub-account p {
@@ -1003,10 +1013,8 @@ html, body {
 }
 
 .btn-fullscreen {
-  position: fixed;
-  top: 14px;
-  left: 50%;
-  transform: translateX(-50%);
+  position: static;
+  flex: none;
   z-index: 1300;
   background: rgba(18, 24, 36, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.16);
@@ -1633,4 +1641,130 @@ html, body {
 .vs-attack-blind {
   filter: blur(10px) opacity(0.3) !important;
   transition: filter 0.3s ease;
+}
+
+/* Attack Trigger Button in Gameplay HUD */
+.hud-vs-attack-box {
+  display: flex;
+  align-items: center;
+  margin-right: 8px;
+}
+
+.vs-attack-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 20px;
+  padding: 6px 14px;
+  color: #9aa3ab;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: not-allowed;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: none;
+}
+
+.vs-attack-trigger-btn.attack-ready {
+  background: linear-gradient(135deg, #f59e0b 0%, #d97706 50%, #b45309 100%);
+  border: 1px solid #fbbf24;
+  color: #0b1528;
+  cursor: pointer;
+  animation: attack-pulse 1.2s infinite alternate;
+  box-shadow: 0 0 16px rgba(245, 158, 11, 0.6);
+}
+
+.vs-attack-trigger-btn.attack-ready:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 24px rgba(245, 158, 11, 0.9);
+}
+
+@keyframes attack-pulse {
+  from {
+    box-shadow: 0 0 10px rgba(245, 158, 11, 0.5);
+  }
+  to {
+    box-shadow: 0 0 22px rgba(245, 158, 11, 0.9);
+  }
+}
+
+.rotate-gate {
+  display: none;
+}
+
+@media (max-width: 720px), (max-height: 520px) {
+  .app-chrome .hub-account p {
+    display: none;
+  }
+
+  .btn-fullscreen {
+    font-size: 0;
+    line-height: 0;
+    padding: 8px 12px;
+  }
+
+  .btn-fullscreen::after {
+    content: "Expandir";
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 600;
+  }
+}
+
+@media (max-width: 480px) {
+  .hub-account-btn {
+    font-size: 0;
+    line-height: 0;
+    padding: 8px 12px;
+  }
+
+  .hub-account-btn::after {
+    content: "Entrar";
+    font-size: 13px;
+    line-height: 1.2;
+    font-weight: 650;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 600px) {
+
+  body:has(#view-notes.view-active) .rotate-gate,
+  body:has(#view-chords.view-active) .rotate-gate,
+  body:has(#view-editor.view-active) .rotate-gate {
+    position: fixed;
+    inset: 0;
+    z-index: 1600;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 32px 28px;
+    background: #0d0e10;
+    text-align: center;
+  }
+}
+
+.rotate-gate-title {
+  margin: 0;
+  font-size: 28px;
+  font-weight: 750;
+  letter-spacing: -0.03em;
+  color: #fff;
+}
+
+.rotate-gate-copy {
+  margin: 0;
+  max-width: 26ch;
+  font-size: 16px;
+  line-height: 1.4;
+  color: oklch(78% 0.02 240);
+}
+
+.rotate-gate-back {
+  position: static;
+  margin-top: 8px;
+  transform: none;
 }

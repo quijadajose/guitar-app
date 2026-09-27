@@ -6,14 +6,15 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
+    "check:types": "tsc --noEmit",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest"
   },
   "devDependencies": {
-    "typescript": "~6.0.2",
-    "vite": "^8.2.2",
-    "vitest": "^5.0.0"
+    "typescript": "~7.0.2",
+    "vite": "^8.3.1",
+    "vitest": "^5.0.2"
   },
   "dependencies": {
     "@coderline/alphatab": "^1.8.4",

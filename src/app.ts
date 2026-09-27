@@ -9,27 +9,15 @@ import { registerScreenSwitcher, takeQueuedGameplaySong, queueGameplaySong, reca
 import { listNotePickerItems, removeLibrarySong, clearLibrary } from './songLibrary';
 import { soundProbeSong } from './songs/soundProbe';
 import { publishLiveFrame } from './audio/liveFeed';
-import { versusLobby } from './components/versusLobby';
 import { probeMultiplayerServer } from './services/network/serverStatus';
 import {
   fetchCommunitySongs,
   communityRecordToSongProject,
-  cancelScheduledDeletion,
-  currentAccountEmail,
-  currentAccountProfile,
-  scheduleAccountDeletion,
-  scheduledDeletionDue,
   probeSupabase,
-  requestMagicLink,
-  requestPasswordRecovery,
-  signInWithEmail,
-  signUpWithEmail,
-  signOut,
-  supabase,
   type DifficultyLevel
 } from './services/supabase';
+import { bindAccount } from './screens/account';
 import { applyNoteNaming, readNoteNaming, readNotationView, writeNoteNaming, writeNotationView, type NoteNaming, type NotationView } from './notation/notationPreference';
-import { clearSheet, renderSheet } from './notation/sheetView';
 import type { SongProject } from './types/editor.types';
 
 function demoSheetProject(notes: Array<{ string: number; fret: number }>, title: string): SongProject {
@@ -103,6 +91,20 @@ export class GuitarApp {
   public communitySearch: string = '';
   public communityTotalPages: number = 1;
   private communityDebounceTimer: number | null = null;
+  private loadedSheet: Promise<typeof import('./notation/sheetView')> | null = null;
+  private versusReady: Promise<void> | null = null;
+
+  private loadSheet(): Promise<typeof import('./notation/sheetView')> {
+    this.loadedSheet ??= import('./notation/sheetView');
+    return this.loadedSheet;
+  }
+
+  private ensureVersus(): Promise<void> {
+    this.versusReady ??= import('./components/versusLobby').then(({ versusLobby }) => {
+      versusLobby.init();
+    });
+    return this.versusReady;
+  }
 
   constructor() {
     this.screens = {
@@ -129,7 +131,6 @@ export class GuitarApp {
     sessionCalibrator.bind();
 
     songEditor.init();
-    versusLobby.init();
     gameplayEngine.setupScrubbingListeners();
     this.setupNotationSettings();
     this.setupAccount();
@@ -147,6 +148,8 @@ export class GuitarApp {
   public switchScreen(targetId: string): void {
     if (targetId === 'vs' && !this.multiplayerOnline) {
       targetId = 'menu';
+    } else if (targetId === 'vs') {
+      void this.ensureVersus();
     }
 
     if (!this.screens[targetId]) {
@@ -209,12 +212,13 @@ export class GuitarApp {
       if (useSheet) {
         gameplayEngine.cancelCountdown();
         gameplayEngine.pausePlaying();
-        renderSheet(gameplayEngine.loadedProject ?? demoSheetProject(gameplayEngine.notesTrack, gameplayEngine.songTitle));
+        const project = gameplayEngine.loadedProject ?? demoSheetProject(gameplayEngine.notesTrack, gameplayEngine.songTitle);
+        void this.loadSheet().then(({ renderSheet }) => renderSheet(project));
         requestAnimationFrame(() => {
           sessionCalibrator.start(() => gameplayEngine.beginWithCountdown());
         });
       } else {
-        clearSheet();
+        void this.loadedSheet?.then(({ clearSheet }) => clearSheet());
         requestAnimationFrame(() => {
           if (gameplayEngine.mode === 'notes') gameplayEngine.buildDOMNotes();
           else gameplayEngine.buildDOMChords();
@@ -230,7 +234,7 @@ export class GuitarApp {
       if (targetId === 'editor') {
         songEditor.renderGrid();
       }
-      if (targetId !== 'notes') clearSheet();
+      if (targetId !== 'notes') void this.loadedSheet?.then(({ clearSheet }) => clearSheet());
     }
 
     setTimeout(() => this.resizeCanvases(), 50);
@@ -269,236 +273,7 @@ export class GuitarApp {
   }
 
   private setupAccount(): void {
-    const status = document.getElementById('hub-account-status');
-    const button = document.getElementById('hub-account-btn');
-    if (!status || !button) return;
-
-    const paint = async (): Promise<void> => {
-      const email = await currentAccountEmail();
-      if (email) {
-        status.textContent = `Sesión iniciada como ${email}`;
-        button.textContent = 'Tu cuenta';
-      } else {
-        status.textContent = 'Iniciaste como anónimo.';
-        button.textContent = 'Iniciar sesión';
-      }
-    };
-
-    const profile = document.createElement('dialog');
-    profile.className = 'account-dialog';
-    profile.innerHTML = `
-      <form method="dialog">
-        <header class="account-dialog-head">
-          <h2>Tu cuenta</h2>
-          <button type="button" class="account-dialog-close" data-profile-close aria-label="Cerrar">×</button>
-        </header>
-        <p class="account-dialog-lead" data-profile-email></p>
-        <p class="account-dialog-lead" data-profile-since hidden></p>
-        <p class="account-dialog-msg is-info" data-profile-msg hidden></p>
-        <div class="account-dialog-actions">
-          <button type="button" class="account-btn-ghost" data-profile-signout>Cerrar sesión</button>
-          <button type="button" class="account-btn-danger" data-profile-delete>Eliminar cuenta</button>
-        </div>
-      </form>`;
-    document.body.appendChild(profile);
-
-    const dialog = document.createElement('dialog');
-    dialog.className = 'account-dialog';
-    dialog.innerHTML = `
-      <form method="dialog">
-        <header class="account-dialog-head">
-          <h2>Iniciar sesión</h2>
-          <button type="button" class="account-dialog-close" data-account-close aria-label="Cerrar">×</button>
-        </header>
-        <p class="account-dialog-lead">Hace falta una cuenta para cargar una canción. Podés practicar igual como anónimo.</p>
-        <label class="account-field">Email
-          <input type="email" name="email" required autocomplete="email" placeholder="tu@email.com" class="vs-input">
-        </label>
-        <label class="account-field">Contraseña
-          <input type="password" name="password" minlength="6" autocomplete="current-password" placeholder="Mínimo 6 caracteres" class="vs-input">
-        </label>
-        <p class="account-dialog-msg" data-account-msg hidden></p>
-        <div class="account-dialog-actions">
-          <button type="submit" class="account-btn-primary" value="signin">Entrar</button>
-          <button type="button" class="account-btn-ghost" value="signup" data-multiplayer hidden>Crear cuenta</button>
-          <button type="button" class="account-btn-ghost" data-account-magic data-multiplayer hidden>Entrar con enlace al email</button>
-          <button type="button" class="account-link" data-account-recover data-multiplayer hidden>Olvidé mi contraseña</button>
-        </div>
-      </form>`;
-    document.body.appendChild(dialog);
-    const form = dialog.querySelector('form');
-    const msg = dialog.querySelector<HTMLElement>('[data-account-msg]');
-    if (!form || !msg) return;
-
-    const showMsg = (text: string): void => {
-      msg.hidden = false;
-      msg.textContent = text;
-    };
-
-    const emailValue = (): string | null => {
-      const email = String(new FormData(form).get('email') || '').trim();
-      if (!email) {
-        showMsg('Ingresá un email.');
-        return null;
-      }
-      return email;
-    };
-
-    const credentials = (): { email: string; password: string } | null => {
-      const data = new FormData(form);
-      const email = String(data.get('email') || '').trim();
-      const password = String(data.get('password') || '');
-      if (!email || password.length < 6) {
-        showMsg('Ingresá un email y una contraseña de al menos 6 caracteres.');
-        return null;
-      }
-      return { email, password };
-    };
-
-    form.querySelector<HTMLButtonElement>('button[value="signup"]')?.addEventListener('click', async () => {
-      const creds = credentials();
-      if (!creds) return;
-      const result = await signUpWithEmail(creds.email, creds.password);
-      msg.hidden = false;
-      if (!result.ok) {
-        msg.textContent = result.error || 'No se pudo crear la cuenta.';
-        return;
-      }
-      if (result.needsConfirmation) {
-        msg.textContent = 'Cuenta creada. Confirmá el email y volvé a entrar.';
-        return;
-      }
-      dialog.close();
-      await paint();
-    });
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-      const creds = credentials();
-      if (!creds) return;
-      const result = await signInWithEmail(creds.email, creds.password);
-      msg.hidden = false;
-      if (!result.ok) {
-        msg.textContent = result.error || 'No se pudo entrar.';
-        return;
-      }
-      dialog.close();
-      await paint();
-    });
-
-    dialog.querySelector('[data-account-magic]')?.addEventListener('click', async () => {
-      const email = emailValue();
-      if (!email) return;
-      const result = await requestMagicLink(email);
-      showMsg(result.ok ? 'Te mandamos un enlace para entrar. Abrilo desde el email.' : (result.error || 'No se pudo enviar el enlace.'));
-    });
-
-    dialog.querySelector('[data-account-recover]')?.addEventListener('click', async () => {
-      const email = emailValue();
-      if (!email) return;
-      const result = await requestPasswordRecovery(email);
-      showMsg(result.ok ? 'Te mandamos un email para cambiar la contraseña.' : (result.error || 'No se pudo enviar el email.'));
-    });
-
-    button.addEventListener('click', async () => {
-      const account = await currentAccountProfile();
-      if (account) {
-        const emailLine = profile.querySelector<HTMLElement>('[data-profile-email]');
-        const sinceLine = profile.querySelector<HTMLElement>('[data-profile-since]');
-        const profileMsg = profile.querySelector<HTMLElement>('[data-profile-msg]');
-        if (emailLine) emailLine.textContent = account.email;
-        if (sinceLine) {
-          const created = account.createdAt ? new Date(account.createdAt) : null;
-          if (created && !Number.isNaN(created.getTime())) {
-            sinceLine.hidden = false;
-            sinceLine.textContent = `Cuenta creada el ${created.toLocaleDateString('es')}.`;
-          } else {
-            sinceLine.hidden = true;
-          }
-        }
-        if (profileMsg) profileMsg.hidden = true;
-        profile.showModal();
-        return;
-      }
-      msg.hidden = true;
-      dialog.showModal();
-    });
-
-    profile.querySelector('[data-profile-close]')?.addEventListener('click', () => profile.close());
-    profile.querySelector('[data-profile-signout]')?.addEventListener('click', async () => {
-      await signOut();
-      profile.close();
-      await paint();
-    });
-    profile.querySelector('[data-profile-delete]')?.addEventListener('click', async () => {
-      const profileMsg = profile.querySelector<HTMLElement>('[data-profile-msg]');
-      const accepted = window.confirm('Tu cuenta se eliminará en 14 días si no volvés a iniciar sesión. ¿Seguir?');
-      if (!accepted) return;
-      const result = await scheduleAccountDeletion();
-      profile.close();
-      await paint();
-      msg.hidden = false;
-      msg.classList.toggle('is-info', result.ok);
-      msg.textContent = result.ok
-        ? 'Sesión cerrada. Tu cuenta se eliminará en 14 días. Si volvés a entrar, vas a poder restaurarla o dejar que se borre.'
-        : (result.error || 'No se pudo programar la eliminación.');
-      dialog.showModal();
-    });
-    dialog.querySelector('[data-account-close]')?.addEventListener('click', () => dialog.close());
-
-    const restore = document.createElement('dialog');
-    restore.className = 'account-dialog';
-    restore.innerHTML = `
-      <form method="dialog">
-        <header class="account-dialog-head">
-          <h2>Cuenta por borrarse</h2>
-        </header>
-        <p class="account-dialog-lead" data-restore-lead></p>
-        <p class="account-dialog-msg" data-restore-msg hidden></p>
-        <div class="account-dialog-actions">
-          <button type="button" class="account-btn-primary" data-restore-keep>Restaurar cuenta</button>
-          <button type="button" class="account-btn-ghost" data-restore-back>Volver atrás</button>
-        </div>
-      </form>`;
-    document.body.appendChild(restore);
-    const restoreLead = restore.querySelector<HTMLElement>('[data-restore-lead]');
-    const restoreMsg = restore.querySelector<HTMLElement>('[data-restore-msg]');
-
-    const offerRestore = async (): Promise<void> => {
-      const due = await scheduledDeletionDue();
-      if (!due || !restoreLead) return;
-      const when = new Date(due);
-      const label = Number.isNaN(when.getTime()) ? due : when.toLocaleString('es');
-      restoreLead.textContent = `Tu cuenta está programada para borrarse el ${label}. Restaurala para seguir usándola, o volvé atrás y se borrará en esa fecha.`;
-      if (restoreMsg) restoreMsg.hidden = true;
-      if (!restore.open) restore.showModal();
-    };
-
-    restore.querySelector('[data-restore-keep]')?.addEventListener('click', async () => {
-      const kept = await cancelScheduledDeletion();
-      if (!kept) {
-        if (restoreMsg) {
-          restoreMsg.hidden = false;
-          restoreMsg.textContent = 'No se pudo restaurar la cuenta.';
-        }
-        return;
-      }
-      restore.close();
-      await paint();
-    });
-    restore.querySelector('[data-restore-back]')?.addEventListener('click', async () => {
-      await signOut();
-      restore.close();
-      await paint();
-    });
-
-    supabase.auth.onAuthStateChange((event) => {
-      void paint();
-      if (event === 'SIGNED_IN') void offerRestore();
-    });
-    void offerRestore();
-
-    void paint();
+    bindAccount();
   }
 
   private setupNotationSettings(): void {

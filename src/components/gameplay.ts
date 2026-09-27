@@ -65,10 +65,16 @@ export class GameplayEngine {
 
   // Hooks para Modo Multijugador Versus
   public isVersusActive: boolean = false;
+  public isLocalHotseat: boolean = false;
+  /** Primer jugador ya terminó; Reintentar arranca el turno del segundo. */
+  public localPassHandoff: boolean = false;
   public rivalLastScore: number = 0;
   public rivalLastAccuracy: number = 0;
   public onProgressUpdate: ((score: number, combo: number, accuracy: number, measure: number) => void) | null = null;
   public onNoteHitCallback: ((noteId: number, rating: string, centsOffset: number) => void) | null = null;
+  public onNoteMissCallback: ((noteId: number) => void) | null = null;
+  public onMatchFinished: ((finalScore: number, maxCombo: number, accuracy: number, hits: number, totalNotes: number) => void) | null = null;
+  public onLocalRetry: (() => void) | null = null;
   private lastProgressEmitTime: number = 0;
 
   public updateRivalHUD(rivalName: string, rivalScore: number, accuracy: number = 100): void {
@@ -98,6 +104,53 @@ export class GameplayEngine {
     const perfRivalAcc = document.getElementById('perf-vs-rival-acc');
     if (perfRivalScore) perfRivalScore.textContent = `${rivalScore} pts`;
     if (perfRivalAcc) perfRivalAcc.textContent = `${Math.round(accuracy)}% Precisión`;
+  }
+
+  // Face-Off attack streak charge
+  public isFaceOffMode: boolean = false;
+  public attackStreak: number = 0;
+  public readonly attackThreshold: number = 8;
+  public onTriggerAttack: ((attackType: 'invert_screen' | 'blind_strings' | 'turbo_speed', durationMs: number) => void) | null = null;
+
+  public updateAttackHUD(): void {
+    const box = document.getElementById('hud-vs-attack-box');
+    const btn = document.getElementById('vs-attack-trigger-btn') as HTMLButtonElement | null;
+    const label = document.getElementById('vs-attack-btn-label');
+    if (!box || !btn || !label) return;
+
+    if (!this.isVersusActive || !this.isFaceOffMode) {
+      box.hidden = true;
+      return;
+    }
+
+    box.hidden = false;
+    const isReady = this.attackStreak >= this.attackThreshold;
+    btn.disabled = !isReady;
+    if (isReady) {
+      btn.classList.add('attack-ready');
+      label.textContent = '¡LANZAR ATAQUE! ⚡';
+    } else {
+      btn.classList.remove('attack-ready');
+      label.textContent = `Cargando ${this.attackStreak}/${this.attackThreshold}`;
+    }
+  }
+
+  public launchAttack(): void {
+    if (this.attackStreak < this.attackThreshold) return;
+    this.attackStreak = 0;
+    this.updateAttackHUD();
+
+    const attacks: Array<'invert_screen' | 'blind_strings' | 'turbo_speed'> = [
+      'invert_screen',
+      'blind_strings',
+      'turbo_speed',
+    ];
+    const chosen = attacks[Math.floor(Math.random() * attacks.length)];
+    const duration = chosen === 'turbo_speed' ? 3500 : 3000;
+
+    if (this.onTriggerAttack) {
+      this.onTriggerAttack(chosen, duration);
+    }
   }
 
   /**
@@ -924,7 +977,13 @@ export class GameplayEngine {
             bannerEl.style.color = '#7eb6ff';
           }
         }
+        if (this.onMatchFinished) {
+          this.onMatchFinished(Math.round(this.score), this.maxCombo, accuracy, hits, effectiveTotal);
+        }
       }
+    }
+    if (this.isLocalHotseat && this.onMatchFinished) {
+      this.onMatchFinished(Math.round(this.score), this.maxCombo, accuracy, hits, effectiveTotal);
     }
 
     modal.style.display = 'flex';
@@ -1273,6 +1332,13 @@ export class GameplayEngine {
       this.onNoteHitCallback(note.id, 'PERFECT', 0);
     }
 
+    if (this.isVersusActive && this.isFaceOffMode) {
+      if (this.attackStreak < this.attackThreshold) {
+        this.attackStreak++;
+        this.updateAttackHUD();
+      }
+    }
+
     const ball = document.querySelector('#view-notes .bouncing-ball');
     if (ball) {
       ball.classList.add('hit-pulse');
@@ -1289,6 +1355,14 @@ export class GameplayEngine {
     this.combo = 0;
     this.comboInTier = 0;
     this.multiplier = 1;
+
+    if (this.isVersusActive && this.isFaceOffMode) {
+      this.attackStreak = 0;
+      this.updateAttackHUD();
+    }
+    if (this.isVersusActive && this.onNoteMissCallback) {
+      this.onNoteMissCallback(note.id);
+    }
 
     guitarAudio.playMissSound();
 
@@ -1488,6 +1562,14 @@ export class GameplayEngine {
     this.comboInTier = 0;
     this.multiplier = 1;
 
+    if (this.isVersusActive && this.isFaceOffMode) {
+      this.attackStreak = 0;
+      this.updateAttackHUD();
+    }
+    if (this.isVersusActive && this.onNoteMissCallback) {
+      this.onNoteMissCallback(chord.id);
+    }
+
     guitarAudio.playMissSound();
 
     if (chord.el) {
@@ -1551,6 +1633,16 @@ export class GameplayEngine {
 
     this.score += 300 * this.multiplier;
     if (this.score > this.targetScore) this.score = this.targetScore;
+
+    if (this.isVersusActive && this.onNoteHitCallback) {
+      this.onNoteHitCallback(chord.id, 'PERFECT', 0);
+    }
+    if (this.isVersusActive && this.isFaceOffMode) {
+      if (this.attackStreak < this.attackThreshold) {
+        this.attackStreak++;
+        this.updateAttackHUD();
+      }
+    }
 
     if (chord.el) {
       chord.el.classList.add('hit-flash');
@@ -1900,12 +1992,29 @@ export class GameplayEngine {
         const modal = document.getElementById('performance-results-modal');
         if (modal) modal.style.display = 'none';
 
+        this.isLocalHotseat = false;
+        this.localPassHandoff = false;
+        this.onLocalRetry = null;
+        const practice = document.getElementById('perf-btn-practice');
+        if (practice) practice.hidden = false;
+        const retryLabel = document.querySelector('#perf-btn-retry span');
+        if (retryLabel) retryLabel.textContent = 'Reintentar';
         goToScreen(this.isCustomSongLoaded ? 'editor' : 'menu');
       });
     }
   }
 
   public retryPerformance(): void {
+    if (this.isLocalHotseat && this.onLocalRetry) {
+      const next = this.onLocalRetry;
+      this.onLocalRetry = null;
+      next();
+      return;
+    }
+    this.restartPerformance();
+  }
+
+  public restartPerformance(): void {
     const modal = document.getElementById('performance-results-modal');
     if (modal) modal.style.display = 'none';
 

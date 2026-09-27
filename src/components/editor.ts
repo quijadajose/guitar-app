@@ -18,8 +18,14 @@ import {
 } from '../songSafety';
 import { getEditorSongId, newSongId, setEditorSongId, upsertLibrarySong } from '../songLibrary';
 import { furEliseSong } from '../songs/furElise';
-import { getCurrentUserId, publishCommunitySong, signInWithEmail, signUpWithEmail } from '../services/supabase';
-import { followEditorSheet, scheduleEditorSheet } from '../notation/sheetView';
+import { getCurrentUserId, publishCommunitySong, requestMagicLink, signInWithPasskey } from '../services/supabase';
+function scheduleEditorSheet(song: SongProject): void {
+  void import('../notation/sheetView').then((sheet) => sheet.scheduleEditorSheet(song));
+}
+
+function followEditorSheet(beat: number): void {
+  void import('../notation/sheetView').then((sheet) => sheet.followEditorSheet(beat));
+}
 
 export class SongEditor {
   public currentSong: SongProject = {
@@ -406,7 +412,6 @@ export class SongEditor {
     const accountGate = document.getElementById('comm-account-gate');
     const publishFields = document.getElementById('comm-publish-fields');
     const accountEmail = document.getElementById('comm-account-email') as HTMLInputElement | null;
-    const accountPassword = document.getElementById('comm-account-password') as HTMLInputElement | null;
 
     const showPublishStatus = (text: string, ok: boolean): void => {
       if (!publishStatus) return;
@@ -432,33 +437,28 @@ export class SongEditor {
       });
     }
 
-    const submitAccount = async (mode: 'signup' | 'signin'): Promise<void> => {
+    document.getElementById('comm-account-magic')?.addEventListener('click', () => {
       const email = accountEmail?.value.trim() || '';
-      const password = accountPassword?.value || '';
-      if (!email || password.length < 6) {
-        showPublishStatus('Ingresá un email y una contraseña de al menos 6 caracteres.', false);
+      if (!email) {
+        showPublishStatus('Ingresá un email para recibir el enlace.', false);
         return;
       }
-      const result = mode === 'signup'
-        ? await signUpWithEmail(email, password)
-        : await signInWithEmail(email, password);
-      if (!result.ok) {
-        showPublishStatus(result.error || 'No se pudo entrar.', false);
-        return;
-      }
-      if (mode === 'signup' && 'needsConfirmation' in result && result.needsConfirmation) {
-        showPublishStatus('Cuenta creada. Confirmá el email y volvé a entrar para cargar la canción.', true);
-        return;
-      }
-      showPublishStatus('Cuenta lista. Ya podés cargar la canción.', true);
-      await refreshAccountGate();
-    };
-
-    document.getElementById('comm-account-signup')?.addEventListener('click', () => {
-      void submitAccount('signup');
+      void requestMagicLink(email).then((result) => {
+        showPublishStatus(
+          result.ok ? 'Te mandamos un enlace. Abrilo desde el email y volvé a publicar.' : (result.error || 'No se pudo enviar el enlace.'),
+          result.ok
+        );
+      });
     });
-    document.getElementById('comm-account-signin')?.addEventListener('click', () => {
-      void submitAccount('signin');
+    document.getElementById('comm-account-passkey')?.addEventListener('click', () => {
+      void signInWithPasskey().then(async (result) => {
+        if (!result.ok) {
+          showPublishStatus(result.error || 'No se pudo entrar con passkey.', false);
+          return;
+        }
+        showPublishStatus('Cuenta lista. Ya podés cargar la canción.', true);
+        await refreshAccountGate();
+      });
     });
 
     if (publishClose) publishClose.addEventListener('click', hidePublishModal);

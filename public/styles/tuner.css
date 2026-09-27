@@ -6,7 +6,7 @@
   background: oklch(0.145 0.012 250);
   justify-content: space-between;
   align-items: center;
-  padding: 28px 0 16px 0;
+  padding: 64px 0 16px 0;
   isolation: isolate;
 }
 
@@ -66,7 +66,7 @@
 
 .tuner-meter-container {
   position: relative;
-  width: 520px;
+  width: min(520px, calc(100% - 32px));
   height: 64px;
   display: flex;
   align-items: center;
@@ -678,7 +678,7 @@
 
 @media (max-height: 520px), (orientation: landscape) and (max-height: 700px) {
   #view-tuner {
-    padding: 8px 0 6px;
+    padding: 72px 8px 6px;
   }
 
   .tuner-top-section {
@@ -706,7 +706,7 @@
 
   .headstock-canvas-container {
     grid-template-columns: 48px minmax(120px, 180px) 48px;
-    height: min(280px, 58vh);
+    height: min(168px, 40vh);
     width: min(320px, 70vw);
   }
 

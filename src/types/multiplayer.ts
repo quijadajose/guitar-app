@@ -10,6 +10,7 @@ export interface PlayerSummary {
   score: number;
   combo: number;
   accuracy: number;
+  is_disqualified?: boolean;
 }
 
 // Mensajes enviados desde el cliente
@@ -71,6 +72,8 @@ export type ClientMessage =
         final_score: number;
         max_combo: number;
         accuracy: number;
+        hits: number;
+        total_notes: number;
         checksum: string;
       };
     }
