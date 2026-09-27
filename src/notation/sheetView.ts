@@ -163,9 +163,7 @@ function fitSheet(host: HTMLElement): void {
 
 let previewApi: AlphaTabApi | null = null;
 let previewTimer = 0;
-let previewReady = false;
 let previewStep = 0;
-let previewBpm = 72;
 
 export function scheduleEditorSheet(song: SongProject): void {
   window.clearTimeout(previewTimer);
@@ -178,8 +176,6 @@ export function renderEditorSheet(song: SongProject): void {
   if (!panel || !host || !panel.classList.contains('is-open')) return;
   host.replaceChildren();
   previewApi?.destroy();
-  previewReady = false;
-  previewBpm = Math.max(40, song.bpm || 72);
   const fontDirectory = new URL(`${import.meta.env.BASE_URL}alphatab/font/`, window.location.href).href;
   previewApi = new AlphaTabApi(host, {
     core: {
@@ -211,17 +207,17 @@ export function renderEditorSheet(song: SongProject): void {
   });
   previewApi.scoreLoaded.on((score) => paintNotes(score as never));
   previewApi.playerReady.on(() => {
-    previewReady = true;
     if (previewApi) previewApi.masterVolume = 0;
     applyPreviewCursor();
   });
+  previewApi.renderFinished.on(() => applyPreviewCursor());
   previewApi.tex(songToAlphaTex(song));
 }
 
 function applyPreviewCursor(): void {
-  if (!previewApi || !previewReady) return;
-  const sixteenthMs = 60000 / previewBpm / 4;
-  previewApi.timePosition = Math.max(0, previewStep) * sixteenthMs;
+  if (!previewApi) return;
+  // A quarter note is 960 ticks, so each editor step (a sixteenth) is 240.
+  previewApi.tickPosition = Math.max(0, previewStep) * 240;
   const beat = document.querySelector<HTMLElement>('#editor-sheet-host .at-cursor-beat');
   const panel = document.getElementById('editor-sheet');
   if (!beat || !panel) return;

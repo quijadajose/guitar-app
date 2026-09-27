@@ -247,9 +247,16 @@ export class SongEditor {
       btn.classList.toggle('active', btn.dataset.mode === this.currentSong.mode);
     });
 
+    const chords = this.currentSong.mode === 'chords';
     const chordLane = document.getElementById('editor-chord-lane');
-    if (chordLane) {
-      chordLane.classList.toggle('active', this.currentSong.mode === 'chords');
+    if (chordLane) chordLane.classList.toggle('active', chords);
+    document.querySelector('.editor-grid-scroll-area')?.classList.toggle('is-chords', chords);
+    document.getElementById('view-editor')?.classList.toggle('is-chord-mode', chords);
+    const hint = document.querySelector('.editor-hint span');
+    if (hint) {
+      hint.textContent = chords
+        ? 'Modo acordes: hacé clic en un pulso de la franja para colocar un acorde. La partitura de notas queda oculta.'
+        : 'Haz clic en un pulso (cada celda es una semicorchea). En la nota elegí 1/16, 1/8, 1/4 o 1/2. Notas en la misma columna = a la vez.';
     }
   }
 
@@ -300,6 +307,24 @@ export class SongEditor {
         this.renderGrid();
         this.saveToStorage();
       });
+    });
+
+    document.getElementById('editor-chord-lane')?.addEventListener('click', (e) => {
+      if (this.currentSong.mode !== 'chords') return;
+      if ((e.target as HTMLElement).closest('.grid-chord-block')) return;
+      const track = document.getElementById('chord-lane-track');
+      if (!track) return;
+      const x = e.clientX - track.getBoundingClientRect().left;
+      const beatWidth = STEP_CELL_PX * STEPS_PER_BEAT;
+      const beatIndex = Math.max(0, Math.floor(x / beatWidth));
+      const maxBeat = this.currentSong.measures * 4 - 1;
+      const clamped = Math.min(beatIndex, maxBeat);
+      this.promptAddChord(Math.floor(clamped / 4) + 1, (clamped % 4) + 1);
+    });
+
+    document.querySelector('.editor-more')?.addEventListener('click', (e) => {
+      const item = (e.target as HTMLElement).closest('.editor-more-menu .editor-btn');
+      if (item) (e.currentTarget as HTMLDetailsElement).open = false;
     });
 
     const presetSelect = document.getElementById('editor-preset-select') as HTMLSelectElement | null;

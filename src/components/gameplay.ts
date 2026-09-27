@@ -344,10 +344,28 @@ export class GameplayEngine {
     if (mode === 'performance') {
       this.isLooping = false;
       document.documentElement.requestFullscreen?.().catch(() => {});
+    } else if (!this.isPlaying) {
+      this.armPracticeLoop();
     }
     this.updateSessionModeUI();
     this.updateSpeedUI();
     this.updateLoopRegionUI();
+  }
+
+  /** Paused practice: place repeat brackets around the playhead so a range can be looped. */
+  private armPracticeLoop(): void {
+    if (this.loopStartRatio === null || this.loopEndRatio === null) {
+      const half = 0.08;
+      const center = this.progress;
+      const minGap = this.loopMinGap();
+      let start = Math.max(0, center - half);
+      let end = Math.min(1, center + half);
+      if (end - start < minGap) end = Math.min(1, start + minGap);
+      if (end - start < minGap) start = Math.max(0, end - minGap);
+      this.loopStartRatio = start;
+      this.loopEndRatio = end;
+    }
+    this.isLooping = true;
   }
 
   public hasLoopRegion(): boolean {
@@ -456,6 +474,9 @@ export class GameplayEngine {
   }
 
   public updateSessionModeUI(): void {
+    document.querySelectorAll('.gameplay-view').forEach(view => {
+      view.classList.toggle('is-practice', this.sessionMode === 'practice');
+    });
     document.querySelectorAll('.mode-btn-practice').forEach(btn => {
       btn.classList.toggle('active', this.sessionMode === 'practice');
     });

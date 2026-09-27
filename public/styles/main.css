@@ -18,6 +18,7 @@
   /* Gameplay theme */
   --gameplay-mint-bg: linear-gradient(135deg, #0ba573 0%, #12ba81 50%, #17cb8e 100%);
   --gameplay-teal-bg: linear-gradient(135deg, #0e966b 0%, #16ab7c 50%, #1bc48f 100%);
+  --gameplay-practice-bg: linear-gradient(135deg, #1d4e9c 0%, #2563c9 48%, #3b82f6 100%);
 
   --transition-smooth: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
@@ -1553,6 +1554,10 @@ html, body {
   color: #7eb6ff;
 }
 
+.hud-vs-rival[hidden] {
+  display: none;
+}
+
 /* Versus Post-Match Results Box */
 .perf-vs-box {
   background: rgba(18, 20, 24, 0.95);
@@ -1650,15 +1655,19 @@ html, body {
   margin-right: 8px;
 }
 
+.hud-vs-attack-box[hidden] {
+  display: none;
+}
+
 .vs-attack-trigger-btn {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  background: rgba(255, 255, 255, 0.08);
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  background: rgba(12, 16, 20, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.28);
   border-radius: 20px;
   padding: 6px 14px;
-  color: #9aa3ab;
+  color: #f4f7fb;
   font-family: inherit;
   font-size: 13px;
   font-weight: 700;

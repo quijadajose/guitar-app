@@ -967,10 +967,6 @@
               </select>
             </div>
 
-            <button class="editor-btn editor-btn-clear" id="editor-clear-all-btn" title="Vaciar notas y acordes colocados">
-              Limpiar todo
-            </button>
-
             <button class="editor-btn editor-btn-extract" id="editor-audio-extract-btn" title="Cargar pista de video o audio">
               Cargar audio
             </button>
@@ -998,31 +994,15 @@
               Probar
             </button>
 
-            <button class="editor-btn" id="editor-export-btn" title="Descargar como archivo JSON">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="7 10 12 15 17 10"/>
-                <line x1="12" y1="15" x2="12" y2="3"/>
-              </svg>
-              Exportar
-            </button>
-
-            <button class="editor-btn" id="editor-import-btn" title="Cargar archivo JSON">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                <polyline points="17 8 12 3 7 8"/>
-                <line x1="12" y1="3" x2="12" y2="15"/>
-              </svg>
-              Importar
-            </button>
-            <button class="editor-btn editor-btn-publish" id="editor-publish-btn" data-supabase title="Publicar esta partitura en la comunidad (Supabase)">
-              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2">
-                <circle cx="12" cy="12" r="10"/>
-                <line x1="2" y1="12" x2="22" y2="12"/>
-                <path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/>
-              </svg>
-              Publicar
-            </button>
+            <details class="editor-more">
+              <summary class="editor-btn">Más</summary>
+              <div class="editor-more-menu">
+                <button class="editor-btn editor-btn-clear" id="editor-clear-all-btn" title="Vaciar notas y acordes colocados">Limpiar todo</button>
+                <button class="editor-btn" id="editor-export-btn" title="Descargar como archivo JSON">Exportar</button>
+                <button class="editor-btn" id="editor-import-btn" title="Cargar archivo JSON">Importar</button>
+                <button class="editor-btn editor-btn-publish" id="editor-publish-btn" data-supabase title="Publicar esta partitura en la comunidad">Publicar</button>
+              </div>
+            </details>
             <input type="file" id="editor-import-file" accept=".json" style="display: none;">
           </div>
         </header>

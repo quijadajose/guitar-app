@@ -6,6 +6,11 @@
   background: var(--gameplay-mint-bg);
   justify-content: space-between;
   padding: 64px 48px 24px 48px;
+  transition: background 0.35s ease;
+}
+
+.gameplay-view.is-practice {
+  background: var(--gameplay-practice-bg);
 }
 
 #view-chords {
@@ -1489,7 +1494,7 @@
   display: flex;
   align-items: flex-start;
   justify-content: center;
-  padding-top: 92px;
+  padding-top: 168px;
   background: transparent;
   pointer-events: none;
 }

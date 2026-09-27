@@ -475,13 +475,57 @@
 /* --------------------------------------------------------------------------
    Chord Lane (When in Chord Mode)
    -------------------------------------------------------------------------- */
+.editor-grid-scroll-area.is-chords .editor-strings-legend,
+.editor-grid-scroll-area.is-chords .editor-matrix-grid {
+  visibility: hidden;
+}
+
+#view-editor.is-chord-mode .editor-sheet {
+  display: none;
+}
+
+.editor-more {
+  position: relative;
+}
+
+.editor-more > summary {
+  list-style: none;
+  cursor: pointer;
+}
+
+.editor-more > summary::-webkit-details-marker {
+  display: none;
+}
+
+.editor-more-menu {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 160px;
+  padding: 8px;
+  border-radius: 12px;
+  background: #1a2030;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.45);
+}
+
+.editor-more-menu .editor-btn {
+  justify-content: flex-start;
+}
+
 .editor-chord-lane {
   position: absolute;
   inset: 0;
   display: none;
-  padding-left: 100px;
+  padding-left: 16px;
   overflow-x: auto;
   z-index: 10;
+  background: #141820;
+  cursor: pointer;
 }
 
 .editor-chord-lane.active {
