@@ -5,6 +5,7 @@ import type { SongProject, LegacySongProject, EditorNote, EditorChord } from '..
 import { beatFromStep, lastContentStepIndex, noteDurationSteps, noteStep, STEP_CELL_PX, STEPS_PER_BEAT, STEPS_PER_MEASURE } from '../rhythm';
 import { gameplayEngine } from './gameplay';
 import { fillSvgFromTemplate } from '../dom';
+import { startEditorTour } from '../editorTour';
 import { goToScreen, queueGameplaySong } from '../screens';
 import {
   SONG_LIMITS,
@@ -195,6 +196,7 @@ export class SongEditor {
         const parsed = sanitizeSongProject(JSON.parse(saved));
         if (!parsed) throw new Error('invalid song');
         this.currentSong = parsed;
+        this.currentSong.mode = 'notes';
         this.currentLibraryId = getEditorSongId();
         this.updateToolbarUI();
       } else {
@@ -233,13 +235,11 @@ export class SongEditor {
 
   public updateToolbarUI(): void {
     const titleInput = document.getElementById('editor-song-title') as HTMLInputElement | null;
-    const sectionInput = document.getElementById('editor-section-name') as HTMLInputElement | null;
     const bpmSlider = document.getElementById('editor-bpm-slider') as HTMLInputElement | null;
     const bpmVal = document.getElementById('editor-bpm-val');
     const modeBtns = document.querySelectorAll<HTMLElement>('.editor-mode-btn');
 
     if (titleInput) titleInput.value = this.currentSong.title;
-    if (sectionInput) sectionInput.value = this.currentSong.section;
     if (bpmSlider) bpmSlider.value = this.currentSong.bpm.toString();
     if (bpmVal) bpmVal.textContent = this.currentSong.bpm.toString();
 
@@ -253,10 +253,8 @@ export class SongEditor {
     document.querySelector('.editor-grid-scroll-area')?.classList.toggle('is-chords', chords);
     document.getElementById('view-editor')?.classList.toggle('is-chord-mode', chords);
     const hint = document.querySelector('.editor-hint span');
-    if (hint) {
-      hint.textContent = chords
-        ? 'Modo acordes: hacé clic en un pulso de la franja para colocar un acorde. La partitura de notas queda oculta.'
-        : 'Haz clic en un pulso (cada celda es una semicorchea). En la nota elegí 1/16, 1/8, 1/4 o 1/2. Notas en la misma columna = a la vez.';
+    if (hint && !chords) {
+      hint.textContent = 'Haz clic en un pulso (cada celda es una semicorchea). En la nota elegí 1/16, 1/8, 1/4 o 1/2. Notas en la misma columna = a la vez.';
     }
   }
 
@@ -267,14 +265,6 @@ export class SongEditor {
         this.currentSong.title = sanitizePlainText((e.target as HTMLInputElement).value, SONG_LIMITS.titleMax, 'Canción');
         this.saveToStorage();
         scheduleEditorSheet(this.currentSong);
-      });
-    }
-
-    const sectionInput = document.getElementById('editor-section-name') as HTMLInputElement | null;
-    if (sectionInput) {
-      sectionInput.addEventListener('input', (e) => {
-        this.currentSong.section = sanitizePlainText((e.target as HTMLInputElement).value, SONG_LIMITS.sectionMax, 'Canción');
-        this.saveToStorage();
       });
     }
 
@@ -298,16 +288,6 @@ export class SongEditor {
         }
       });
     }
-
-    document.querySelectorAll<HTMLElement>('.editor-mode-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const mode = btn.dataset.mode as 'notes' | 'chords';
-        this.currentSong.mode = mode;
-        this.updateToolbarUI();
-        this.renderGrid();
-        this.saveToStorage();
-      });
-    });
 
     document.getElementById('editor-chord-lane')?.addEventListener('click', (e) => {
       if (this.currentSong.mode !== 'chords') return;
@@ -359,6 +339,10 @@ export class SongEditor {
         if (e.target === clearModal) hideClearModal();
       });
     }
+
+    document.getElementById('editor-tour-btn')?.addEventListener('click', () => {
+      startEditorTour(true);
+    });
 
     const playGameBtn = document.getElementById('editor-play-game-btn');
     if (playGameBtn) {

@@ -1,4 +1,5 @@
 import { guitarAudio } from './audio/audioEngine';
+import { startEditorTour } from './editorTour';
 import { songEditor } from './components/editor';
 import { gameplayEngine } from './components/gameplay';
 import { sessionCalibrator } from './components/calibration';
@@ -233,6 +234,7 @@ export class GuitarApp {
       gameplayEngine.pausePlaying();
       if (targetId === 'editor') {
         songEditor.renderGrid();
+        window.setTimeout(() => startEditorTour(), 400);
       }
       if (targetId !== 'notes') void this.loadedSheet?.then(({ clearSheet }) => clearSheet());
     }

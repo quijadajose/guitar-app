@@ -164,6 +164,10 @@ function fitSheet(host: HTMLElement): void {
 let previewApi: AlphaTabApi | null = null;
 let previewTimer = 0;
 let previewStep = 0;
+let previewBeats: Array<{ tick: number; beat: object }> = [];
+
+const TICKS_PER_QUARTER = 960;
+const TICKS_PER_BAR = TICKS_PER_QUARTER * 4;
 
 export function scheduleEditorSheet(song: SongProject): void {
   window.clearTimeout(previewTimer);
@@ -208,21 +212,70 @@ export function renderEditorSheet(song: SongProject): void {
   previewApi.scoreLoaded.on((score) => paintNotes(score as never));
   previewApi.playerReady.on(() => {
     if (previewApi) previewApi.masterVolume = 0;
+  });
+  previewApi.renderFinished.on(() => {
+    previewBeats = collectPreviewBeats(previewApi);
     applyPreviewCursor();
   });
-  previewApi.renderFinished.on(() => applyPreviewCursor());
   previewApi.tex(songToAlphaTex(song));
+}
+
+function collectPreviewBeats(player: AlphaTabApi | null): Array<{ tick: number; beat: object }> {
+  const score = player?.score as {
+    tracks?: Array<{
+      staves?: Array<{
+        bars?: Array<{
+          voices?: Array<{ beats?: Array<{ playbackStart: number; isEmpty?: boolean }> }>;
+        }>;
+      }>;
+    }>;
+  } | null;
+  const bars = score?.tracks?.[0]?.staves?.[0]?.bars;
+  if (!bars) return [];
+  const placed: Array<{ tick: number; beat: object }> = [];
+  bars.forEach((bar, index) => {
+    const barStart = index * TICKS_PER_BAR;
+    for (const voice of bar.voices ?? []) {
+      for (const beat of voice.beats ?? []) {
+        if (beat.isEmpty) continue;
+        placed.push({ tick: barStart + beat.playbackStart, beat });
+      }
+    }
+  });
+  placed.sort((a, b) => a.tick - b.tick);
+  return placed;
 }
 
 function applyPreviewCursor(): void {
   if (!previewApi) return;
-  // A quarter note is 960 ticks, so each editor step (a sixteenth) is 240.
-  previewApi.tickPosition = Math.max(0, previewStep) * 240;
-  const beat = document.querySelector<HTMLElement>('#editor-sheet-host .at-cursor-beat');
+  const target = Math.max(0, previewStep) * (TICKS_PER_QUARTER / 4);
+  let chosen = previewBeats[0];
+  for (const item of previewBeats) {
+    if (item.tick <= target) chosen = item;
+    else break;
+  }
+  const bounds = chosen
+    ? previewApi.boundsLookup?.findBeat(chosen.beat as never)
+    : null;
+  if (!bounds) return;
+
+  const host = document.getElementById('editor-sheet-host');
+  const surface = host?.querySelector<HTMLElement>('.at-surface') ?? host;
+  if (!surface) return;
+  let cursor = surface.querySelector<HTMLElement>('#editor-sheet-cursor');
+  if (!cursor) {
+    cursor = document.createElement('div');
+    cursor.id = 'editor-sheet-cursor';
+    surface.appendChild(cursor);
+  }
+  cursor.style.left = `${bounds.onNotesX}px`;
+  cursor.style.top = `${bounds.visualBounds.y}px`;
+  cursor.style.height = `${Math.max(24, bounds.visualBounds.h)}px`;
+
   const panel = document.getElementById('editor-sheet');
-  if (!beat || !panel) return;
+  if (!panel) return;
   const panelBox = panel.getBoundingClientRect();
-  const beatBox = beat.getBoundingClientRect();
+  const beatBox = cursor.getBoundingClientRect();
   if (beatBox.right > panelBox.right - 24 || beatBox.left < panelBox.left + 8) {
     panel.scrollBy({ left: beatBox.left - panelBox.left - 32, top: beatBox.top - panelBox.top - 12 });
   }

@@ -237,9 +237,23 @@
   background: rgba(46, 229, 154, 0.28);
 }
 
+#editor-sheet-host .at-surface {
+  position: relative;
+}
+
+#editor-sheet-host .at-cursor-bar,
 #editor-sheet-host .at-cursor-beat {
-  background: #2ee59a;
+  display: none;
+}
+
+#editor-sheet-cursor {
+  position: absolute;
   width: 3px;
+  margin-left: -1px;
+  background: #5ee0b5;
+  box-shadow: 0 0 12px #2ee59a;
+  pointer-events: none;
+  z-index: 4;
 }
 
 .editor-sheet {
