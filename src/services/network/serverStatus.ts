@@ -1,4 +1,4 @@
-const PROBE_MS = 1200;
+const PROBE_MS = 6000;
 
 export function multiplayerOrigin(): string {
   const envUrl = import.meta.env.VITE_SERVER_URL;
