@@ -1,5 +1,5 @@
 import { MultiplayerClient } from '../services/network/multiplayerClient';
-import { multiplayerOrigin } from '../services/network/serverStatus';
+import { multiplayerOrigin, multiplayerWsUrl } from '../services/network/serverStatus';
 import type { GameMode, PlayerRole, PlayerSummary, ServerMessage } from '../types/multiplayer';
 import { goToScreen } from '../screens';
 import { gameplayEngine } from './gameplay';
@@ -197,9 +197,7 @@ export class VersusLobby {
   private async ensureClient(): Promise<MultiplayerClient> {
     if (this.client) return this.client;
     // Conectar por WebSocket
-    const wsProto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
-    const wsHost = window.location.hostname === 'localhost' ? 'localhost:3001' : `${window.location.hostname}:3001`;
-    const client = new MultiplayerClient(`${wsProto}//${wsHost}/ws`);
+    const client = new MultiplayerClient(multiplayerWsUrl());
     await client.connect();
 
     client.subscribe((msg: ServerMessage) => this.handleServerMessage(msg));
