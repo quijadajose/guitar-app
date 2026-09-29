@@ -270,24 +270,32 @@ export class SongEditor {
 
     const bpmSlider = document.getElementById('editor-bpm-slider') as HTMLInputElement | null;
     const bpmVal = document.getElementById('editor-bpm-val');
-    if (bpmSlider) {
-      bpmSlider.addEventListener('input', (e) => {
-        const val = parseInt((e.target as HTMLInputElement).value);
-        this.currentSong.bpm = val;
-        if (bpmVal) bpmVal.textContent = val.toString();
-        this.updateStats();
-        this.saveToStorage();
-        scheduleEditorSheet(this.currentSong);
-
-        // If currently playing, restart with new BPM interval smoothly
-        if (this.isSequencerPlaying) {
-          const currentBeat = this.currentSequencerBeat;
-          this.stopSequencerPlayback();
-          this.startSequencerPlayback();
-          this.currentSequencerBeat = currentBeat;
-        }
-      });
-    }
+    const applyBpm = (val: number): void => {
+      const min = bpmSlider ? Number(bpmSlider.min) : 50;
+      const max = bpmSlider ? Number(bpmSlider.max) : 180;
+      const next = Math.min(max, Math.max(min, val));
+      this.currentSong.bpm = next;
+      if (bpmSlider) bpmSlider.value = String(next);
+      if (bpmVal) bpmVal.textContent = String(next);
+      this.updateStats();
+      this.saveToStorage();
+      scheduleEditorSheet(this.currentSong);
+      if (this.isSequencerPlaying) {
+        const currentBeat = this.currentSequencerBeat;
+        this.stopSequencerPlayback();
+        this.startSequencerPlayback();
+        this.currentSequencerBeat = currentBeat;
+      }
+    };
+    bpmSlider?.addEventListener('input', (e) => {
+      applyBpm(parseInt((e.target as HTMLInputElement).value, 10));
+    });
+    document.getElementById('editor-bpm-down')?.addEventListener('click', () => {
+      applyBpm(this.currentSong.bpm - 1);
+    });
+    document.getElementById('editor-bpm-up')?.addEventListener('click', () => {
+      applyBpm(this.currentSong.bpm + 1);
+    });
 
     document.getElementById('editor-chord-lane')?.addEventListener('click', (e) => {
       if (this.currentSong.mode !== 'chords') return;

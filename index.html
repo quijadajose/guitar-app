@@ -1092,7 +1092,13 @@
             <div class="editor-input-group">
               <label class="editor-input-label">Tempo: <span id="editor-bpm-val" class="editor-bpm-value">85</span> BPM</label>
               <div class="editor-bpm-control">
+                <button type="button" class="editor-bpm-step" id="editor-bpm-down" aria-label="Bajar tempo" title="Bajar 1 BPM">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+                </button>
                 <input type="range" min="50" max="180" value="85" class="editor-bpm-slider" id="editor-bpm-slider">
+                <button type="button" class="editor-bpm-step" id="editor-bpm-up" aria-label="Subir tempo" title="Subir 1 BPM">
+                  <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.4" aria-hidden="true"><path d="M6 15l6-6 6 6"/></svg>
+                </button>
               </div>
             </div>
           </div>
@@ -1145,9 +1151,30 @@
                 </svg>
               </summary>
               <div class="editor-more-menu">
-                <button class="editor-btn" id="editor-export-btn" title="Descargar como archivo JSON">Exportar</button>
-                <button class="editor-btn" id="editor-import-btn" title="Cargar archivo JSON">Importar</button>
-                <button class="editor-btn editor-btn-publish" id="editor-publish-btn" data-supabase title="Publicar esta partitura en la comunidad">Publicar</button>
+                <button class="editor-btn" id="editor-export-btn" title="Descargar como archivo JSON">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <path d="M6 3h8l4 4v14H6z"/>
+                    <path d="M14 3v4h4"/>
+                    <text x="12" y="16.5" text-anchor="middle" fill="currentColor" stroke="none" font-size="5.2" font-weight="700" font-family="Outfit, sans-serif">JSON</text>
+                  </svg>
+                  Exportar
+                </button>
+                <button class="editor-btn" id="editor-import-btn" title="Cargar archivo JSON">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                    <path d="M12 3v12"/>
+                    <path d="M7 11l5 5 5-5"/>
+                    <path d="M5 21h14"/>
+                  </svg>
+                  Importar
+                </button>
+                <button class="editor-btn editor-btn-publish" id="editor-publish-btn" data-supabase title="Publicar esta partitura en la comunidad">
+                  <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                    <circle cx="12" cy="12" r="9"/>
+                    <ellipse cx="12" cy="12" rx="4" ry="9"/>
+                    <path d="M3 12h18"/>
+                  </svg>
+                  Publicar
+                </button>
               </div>
             </details>
             <input type="file" id="editor-import-file" accept=".json" style="display: none;">
