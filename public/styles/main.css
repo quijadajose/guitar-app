@@ -1438,11 +1438,11 @@ body:has(#view-editor.view-active) #editor-tour-btn {
 }
 
 .vs-container {
-  max-width: 980px;
-  width: 90%;
-  margin: 60px auto 40px auto;
+  max-width: 1200px;
+  width: 95%;
+  margin: 40px auto 30px auto;
   overflow-y: auto;
-  max-height: calc(100vh - 100px);
+  max-height: calc(100vh - 80px);
   padding-right: 8px;
 }
 
@@ -1805,78 +1805,155 @@ body:has(#view-editor.view-active) #editor-tour-btn {
 }
 
 .vs-room-board {
-  width: min(1080px, 100%);
+  width: 100%;
+  max-width: 1200px;
   margin: 0 auto;
   display: grid;
-  grid-template-columns: 220px minmax(0, 1fr) 240px;
+  grid-template-columns: 280px minmax(0, 1fr) 300px;
+  grid-template-rows: auto 1fr;
   grid-template-areas:
     "top top top"
     "players config chat";
-  gap: 16px 18px;
-  align-items: start;
+  gap: 16px 20px;
+  align-items: stretch;
 }
 
 .vs-room-top {
   grid-area: top;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: start;
-}
-
-.vs-room-top .vs-copy-code {
+  grid-template-columns: 140px 1fr 140px;
   align-items: center;
+  margin-bottom: 4px;
 }
 
 .vs-room-top .vs-btn-ghost {
   justify-self: start;
+  background: rgba(255, 75, 75, 0.12);
+  border: 1px solid rgba(255, 75, 75, 0.35);
+  color: #ff7b7b;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 8px 18px;
+  border-radius: 4px;
+  transition: var(--transition-smooth);
+}
+
+.vs-room-top .vs-btn-ghost:hover {
+  background: rgba(255, 75, 75, 0.25);
+  border-color: #ff6b6b;
+  transform: translateY(-1px);
+}
+
+.vs-room-top .vs-copy-code {
+  grid-column: 2;
+  justify-self: center;
+  align-items: center;
 }
 
 .vs-room-col {
   min-width: 0;
-  background: #16141c;
-  border: 1px solid #343b46;
-  padding: 14px;
+  background: rgba(18, 16, 26, 0.88);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 6px;
+  padding: 16px 18px;
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  backdrop-filter: blur(12px);
 }
 
-.vs-room-config { grid-area: config; }
-.vs-room-board > aside:first-of-type { grid-area: players; }
-.vs-room-chat { grid-area: chat; display: flex; flex-direction: column; min-height: 360px; }
+.vs-room-col > .hub-kicker {
+  font-size: 15px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #ffffff;
+  margin: 0 0 14px 0;
+  padding-bottom: 8px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.vs-room-config {
+  grid-area: config;
+}
+
+.vs-room-config .song-picker-tabs {
+  margin-bottom: 16px;
+}
+
+.vs-room-board > aside:first-of-type {
+  grid-area: players;
+}
+
+.vs-room-chat {
+  grid-area: chat;
+  min-height: 480px;
+}
 
 .vs-chat-log {
   flex: 1;
-  min-height: 220px;
-  max-height: 420px;
+  min-height: 320px;
+  max-height: 480px;
   overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 8px;
-  margin: 8px 0 12px;
+  margin: 4px 0 12px;
+  padding: 10px;
+  background: rgba(10, 8, 16, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 4px;
 }
 
 .vs-chat-line {
   font-size: 13px;
-  line-height: 1.35;
-  color: #e7ebf0;
+  line-height: 1.4;
+  color: #dbe2ea;
   word-break: break-word;
 }
 
 .vs-chat-line strong {
-  color: #ffb089;
-  font-weight: 800;
+  color: #b08aff;
+  font-weight: 700;
+}
+
+.vs-chat-form {
+  margin-top: auto;
 }
 
 .vs-chat-form .vs-input {
   width: 100%;
+  background: rgba(12, 10, 20, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  padding: 10px 12px;
+  font-size: 13px;
 }
 
-@media (max-width: 900px) {
+.vs-chat-form .vs-input:focus {
+  border-color: #9d65ff;
+  box-shadow: 0 0 0 2px rgba(157, 101, 255, 0.25);
+}
+
+@media (max-width: 960px) {
   .vs-room-board {
     grid-template-columns: 1fr;
     grid-template-areas:
       "top"
-      "config"
       "players"
+      "config"
       "chat";
+  }
+
+  .vs-room-top {
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+  }
+
+  .vs-room-top .vs-copy-code {
+    grid-column: 2;
+    justify-self: end;
   }
 }
 
@@ -1889,16 +1966,27 @@ body:has(#view-editor.view-active) #editor-tour-btn {
 }
 
 .vs-copy-code {
-  display: flex;
+  display: inline-flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 6px;
-  padding: 0;
-  border: 0;
-  background: transparent;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 18px;
+  border: 1px solid rgba(157, 101, 255, 0.35);
+  background: rgba(28, 20, 48, 0.7);
+  border-radius: 6px;
   color: inherit;
   cursor: pointer;
   font-family: inherit;
+  transition: var(--transition-smooth);
+}
+
+.vs-copy-code .hub-kicker {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  color: #b08aff;
+  text-transform: uppercase;
+  margin: 0;
 }
 
 .vs-copy-code.is-copied .hub-kicker {
@@ -1906,84 +1994,107 @@ body:has(#view-editor.view-active) #editor-tour-btn {
 }
 
 .vs-badge-code {
-  font-size: 28px;
+  font-size: 26px;
   font-weight: 900;
-  letter-spacing: 0.18em;
-  color: #e7ebf0;
-  background: #1c2129;
-  border: 1px solid #343b46;
-  padding: 8px 14px;
-  border-radius: 0;
+  letter-spacing: 0.22em;
+  color: #ffffff;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  text-shadow: 0 0 12px rgba(157, 101, 255, 0.6);
+}
+
+.vs-copy-code:hover {
+  background: rgba(45, 30, 80, 0.85);
+  border-color: #b08aff;
+  transform: translateY(-1px);
 }
 
 .vs-copy-code:hover .vs-badge-code {
-  border-color: #e07a2f;
-  color: #ffb089;
+  color: #ffffff;
 }
 
 #vs-active-room .song-tab-btn:disabled {
-  opacity: 0.7;
-  cursor: default;
+  opacity: 0.6;
+  cursor: not-allowed;
 }
 
 .vs-players-grid {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  margin: 16px 0;
+  gap: 10px;
+  margin: 4px 0 0 0;
 }
 
 .vs-player-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  background: #111317;
-  border: 1px solid rgba(255, 255, 255, 0.06);
-  border-radius: 0;
-  padding: 12px 16px;
+  gap: 12px;
+  background: rgba(26, 22, 38, 0.85);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-left: 3px solid rgba(255, 255, 255, 0.2);
+  border-radius: 4px;
+  padding: 10px 14px;
+  transition: var(--transition-smooth);
 }
 
 .vs-player-card.is-host {
-  border-color: rgba(240, 193, 74, 0.3);
+  border-color: rgba(240, 193, 74, 0.35);
+  border-left: 3px solid #f0c14a;
+  background: rgba(35, 30, 48, 0.9);
 }
 
 .vs-avatar {
-  font-size: 24px;
+  font-size: 20px;
+  line-height: 1;
 }
 
 .vs-player-info {
   flex: 1;
   display: flex;
   flex-direction: column;
+  gap: 2px;
+}
+
+.vs-player-info strong {
+  font-size: 14px;
+  color: #ffffff;
 }
 
 .vs-player-role {
-  font-size: 11px;
-  color: #7eb6ff;
-  font-weight: 700;
+  font-size: 10px;
+  color: #b08aff;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
 .vs-player-status {
-  font-size: 13px;
-  font-weight: 600;
-  padding: 4px 10px;
-  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .vs-player-status.ready {
-  background: rgba(46, 229, 154, 0.15);
+  background: rgba(46, 229, 154, 0.2);
   color: #2ee59a;
+  border: 1px solid rgba(46, 229, 154, 0.4);
 }
 
 .vs-player-status.waiting {
-  background: rgba(255, 255, 255, 0.06);
+  background: rgba(255, 255, 255, 0.05);
   color: #8c97a3;
+  border: 1px solid rgba(255, 255, 255, 0.1);
 }
 
 .vs-room-actions {
   display: flex;
-  gap: 14px;
-  margin-top: 24px;
+  gap: 12px;
+  margin-top: auto;
+  padding-top: 20px;
 }
 
 /* Versus Rival HUD */
