@@ -94,16 +94,17 @@ export class GuitarApp {
   public communityTotalPages: number = 1;
   private communityDebounceTimer: number | null = null;
   private loadedSheet: Promise<typeof import('./notation/sheetView')> | null = null;
-  private versusReady: Promise<void> | null = null;
+  private versusReady: Promise<{ joinFromLocation: () => void }> | null = null;
 
   private loadSheet(): Promise<typeof import('./notation/sheetView')> {
     this.loadedSheet ??= import('./notation/sheetView');
     return this.loadedSheet;
   }
 
-  private ensureVersus(): Promise<void> {
+  private ensureVersus(): Promise<{ joinFromLocation: () => void }> {
     this.versusReady ??= import('./components/versusLobby').then(({ versusLobby }) => {
       versusLobby.init();
+      return versusLobby;
     });
     return this.versusReady;
   }
@@ -149,7 +150,9 @@ export class GuitarApp {
   }
 
   public switchScreen(targetId: string): void {
-    if (targetId === 'vs' && !this.multiplayerOnline) {
+    const hashRaw = window.location.hash.replace(/^#/, '');
+    const roomLink = hashRaw.startsWith('vs') && /(?:^|[?&])code=/i.test(hashRaw);
+    if (targetId === 'vs' && !this.multiplayerOnline && !roomLink) {
       targetId = 'menu';
     } else if (targetId === 'vs') {
       void this.ensureVersus();
@@ -171,7 +174,8 @@ export class GuitarApp {
     this.currentScreenId = targetId;
     const account = document.getElementById('hub-account');
     if (account) account.hidden = targetId === 'notes' || targetId === 'chords';
-    if (window.location.hash !== `#${targetId}`) {
+    const hashScreen = window.location.hash.replace(/^#/, '').split('?')[0];
+    if (hashScreen !== targetId) {
       window.location.hash = targetId;
     }
 
@@ -700,12 +704,17 @@ export class GuitarApp {
   }
 
   private checkHash(): void {
-    const hash = window.location.hash.replace('#', '');
-    if (hash === this.currentScreenId && this.screens[hash]?.classList.contains('view-active')) {
+    const raw = window.location.hash.replace(/^#/, '');
+    const hash = raw.split('?')[0] || 'menu';
+    const roomCode = new URLSearchParams(raw.split('?')[1] || '').get('code');
+    if (hash === this.currentScreenId && this.screens[hash]?.classList.contains('view-active') && !roomCode) {
       return;
     }
     if (this.screens[hash]) {
       this.switchScreen(hash);
+      if (hash === 'vs' && roomCode) {
+        void this.ensureVersus().then((lobby) => lobby.joinFromLocation());
+      }
     } else {
       this.switchScreen('menu');
     }

@@ -47,6 +47,9 @@ export class VersusLobby {
 
     this.setupListeners();
     this.showPath('how');
+  }
+
+  public joinFromLocation(): void {
     this.checkUrlForRoomCode();
   }
 
@@ -749,16 +752,13 @@ export class VersusLobby {
   }
 
   private checkUrlForRoomCode(): void {
-    const hash = window.location.hash;
-    if (hash.includes('code=')) {
-      const match = hash.match(/code=([A-Za-z0-9]+)/);
-      if (match && match[1]) {
-        const code = match[1].toUpperCase();
-        if (this.roomCodeInput) this.roomCodeInput.value = code;
-        goToScreen('vs');
-        this.joinRoom(code);
-      }
-    }
+    const raw = window.location.hash.replace(/^#/, '');
+    const code = new URLSearchParams(raw.split('?')[1] || '').get('code')?.trim().toUpperCase();
+    if (!code || !/^[A-Z0-9]{4,8}$/.test(code)) return;
+    if (this.currentRoomCode === code && this.client) return;
+    if (this.roomCodeInput) this.roomCodeInput.value = code;
+    this.showPath('online');
+    void this.joinRoom(code);
   }
 }
 
