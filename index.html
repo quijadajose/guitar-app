@@ -66,12 +66,36 @@
   <!-- Master Application Container -->
   <main class="app-container" id="guitar-app">
     <div class="app-chrome">
-      <button class="btn-fullscreen" id="btn-fullscreen" type="button">Pantalla completa</button>
+      <button class="btn-fullscreen" id="btn-fullscreen" type="button" aria-label="Pantalla completa">
+        <svg class="fs-icon fs-enter" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" aria-hidden="true">
+          <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>
+        </svg>
+        <svg class="fs-icon fs-exit" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+          <path d="M9 4v5H4M15 4v5h5M20 15h-5v5M4 15h5v5"/>
+        </svg>
+      </button>
       <button class="player-badge" id="player-badge" type="button" hidden>
         <span class="player-badge-name" id="player-badge-name"></span>
         <span class="player-badge-anon" id="player-badge-anon">ANÓNIMO</span>
       </button>
     </div>
+    <dialog class="player-menu" id="player-menu">
+      <form method="dialog">
+        <header class="player-menu-head">
+          <h2 data-menu-title>USUARIO</h2>
+          <button type="button" class="player-menu-close" data-menu-close aria-label="Cerrar">×</button>
+        </header>
+        <p data-menu-copy></p>
+        <p class="player-menu-msg" data-menu-msg hidden></p>
+        <div class="player-menu-actions" data-menu-anon>
+          <button class="is-reg" type="button" data-menu-change>Cambiar de usuario</button>
+        </div>
+        <div class="player-menu-actions" data-menu-account hidden>
+          <button class="is-back" type="button" data-menu-signout>Cerrar sesión</button>
+          <button class="is-danger" type="button" data-menu-delete>Borrar la cuenta</button>
+        </div>
+      </form>
+    </dialog>
     <div class="rotate-gate" id="rotate-gate">
       <p class="rotate-gate-title">Girá el teléfono</p>
       <p class="rotate-gate-copy">Para tocar y para editar la pantalla va en horizontal.</p>
@@ -85,6 +109,16 @@
            PANTALLA 0: MENÚ PRINCIPAL (HUB SELECCIÓN DE MODO)
            =================================================================== -->
       <section class="screen-view view-active" id="view-menu" aria-label="Inicio">
+        <div class="note-field" aria-hidden="true">
+          <svg class="float-note n1" viewBox="0 0 40 64"><ellipse cx="14" cy="50" rx="10" ry="7" transform="rotate(-20 14 50)"/><path d="M24 48V8"/></svg>
+          <svg class="float-note n2" viewBox="0 0 48 64"><ellipse cx="14" cy="50" rx="10" ry="7" transform="rotate(-20 14 50)"/><path d="M24 48V10c8 4 14 4 16-2"/></svg>
+          <svg class="float-note n3" viewBox="0 0 40 64"><ellipse cx="14" cy="50" rx="10" ry="7" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-20 14 50)"/><path d="M24 46V8"/></svg>
+          <svg class="float-note n4" viewBox="0 0 56 64"><ellipse cx="12" cy="52" rx="9" ry="6" transform="rotate(-18 12 52)"/><ellipse cx="30" cy="46" rx="9" ry="6" transform="rotate(-18 30 46)"/><path d="M21 50V12M39 44V8M21 12h18"/></svg>
+          <svg class="float-note n5" viewBox="0 0 40 64"><ellipse cx="14" cy="50" rx="10" ry="7" transform="rotate(-20 14 50)"/><path d="M24 48V8"/></svg>
+          <svg class="float-note n6" viewBox="0 0 48 64"><ellipse cx="14" cy="50" rx="10" ry="7" transform="rotate(-20 14 50)"/><path d="M24 48V10c8 4 14 4 16-2"/></svg>
+          <svg class="float-note n7" viewBox="0 0 40 64"><ellipse cx="14" cy="50" rx="10" ry="7" fill="none" stroke="currentColor" stroke-width="2" transform="rotate(-20 14 50)"/><path d="M24 46V8"/></svg>
+          <svg class="float-note n8" viewBox="0 0 56 64"><ellipse cx="12" cy="52" rx="9" ry="6" transform="rotate(-18 12 52)"/><ellipse cx="30" cy="46" rx="9" ry="6" transform="rotate(-18 30 46)"/><path d="M21 50V12M39 44V8M21 12h18"/></svg>
+        </div>
         <div class="tetra-menu" data-tetra-panel="root">
           <p class="tetra-home">Inicio</p>
           <nav class="tetra-stack tetra-stack-rows" aria-label="Menú principal">

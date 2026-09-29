@@ -1,5 +1,5 @@
 import { normalizeName, randomPlayerName, readPlayer, writePlayer, type PlayerIdentity } from '../player';
-import { requestMagicLink } from '../services/supabase';
+import { requestMagicLink, scheduleAccountDeletion, signOut, supabase } from '../services/supabase';
 
 type Step = 'welcome' | 'claim' | 'register';
 
@@ -48,13 +48,31 @@ export function bindPlayerGate(): void {
   };
 
   const existing = readPlayer();
-  if (existing) {
+  if (existing?.anonymous) {
     paintBadge(existing);
     root.hidden = true;
   } else {
     badge.hidden = true;
     show('welcome');
   }
+
+  void supabase.auth.getSession().then(({ data }) => {
+    if (!data.session) return;
+    const player = readPlayer();
+    if (!player) return;
+    close({ ...player, anonymous: false, email: data.session.user.email || player.email });
+  });
+
+  supabase.auth.onAuthStateChange((event, session) => {
+    if (event !== 'SIGNED_IN' || !session) return;
+    const name = pending || readPlayer()?.name;
+    if (!name) return;
+    close({
+      name,
+      anonymous: false,
+      email: session.user.email || emailInput.value.trim()
+    });
+  });
 
   root.querySelector('[data-join]')?.addEventListener('click', () => {
     pending = normalizeName(nameInput.value) || randomPlayerName();
@@ -100,13 +118,61 @@ export function bindPlayerGate(): void {
     }
     registerMsg.hidden = false;
     registerMsg.classList.add('is-ok');
-    registerMsg.textContent = 'Te mandamos un enlace. Abrilo desde el email para quedar con este nombre.';
-    window.setTimeout(() => close({ name: pending, anonymous: false, email }), 1600);
+    registerMsg.textContent = 'Te mandamos un enlace. Esta pantalla sigue hasta que lo abras y entres.';
   });
 
-  badge.addEventListener('click', () => {
+  const menu = document.getElementById('player-menu') as HTMLDialogElement | null;
+  const menuTitle = menu?.querySelector<HTMLElement>('[data-menu-title]');
+  const menuCopy = menu?.querySelector<HTMLElement>('[data-menu-copy]');
+  const menuMsg = menu?.querySelector<HTMLElement>('[data-menu-msg]');
+  const menuAnon = menu?.querySelector<HTMLElement>('[data-menu-anon]');
+  const menuAccount = menu?.querySelector<HTMLElement>('[data-menu-account]');
+
+  const openMenu = (): void => {
+    const player = readPlayer();
+    if (!menu || !player || !menuTitle || !menuCopy || !menuAnon || !menuAccount) return;
+    if (menuMsg) menuMsg.hidden = true;
+    const registered = !player.anonymous;
+    menuTitle.textContent = player.name;
+    menuAnon.hidden = registered;
+    menuAccount.hidden = !registered;
+    menuCopy.textContent = registered
+      ? 'Estás con una cuenta registrada.'
+      : 'Estás jugando como anónimo. Cambiá de usuario para elegir otro nombre o registrar este.';
+    if (!menu.open) menu.showModal();
+  };
+
+  menu?.querySelector('[data-menu-close]')?.addEventListener('click', () => menu.close());
+  menu?.querySelector('[data-menu-change]')?.addEventListener('click', () => {
+    menu?.close();
     const player = readPlayer();
     nameInput.value = player?.name || '';
     show('welcome');
   });
+  menu?.querySelector('[data-menu-signout]')?.addEventListener('click', async () => {
+    await signOut();
+    const player = readPlayer();
+    if (player) close({ ...player, anonymous: true, email: '' });
+    menu?.close();
+  });
+  menu?.querySelector('[data-menu-delete]')?.addEventListener('click', async () => {
+    const accepted = window.confirm('Tu cuenta se eliminará en 14 días si no volvés a iniciar sesión. ¿Seguir?');
+    if (!accepted) return;
+    const result = await scheduleAccountDeletion();
+    const player = readPlayer();
+    if (player) close({ ...player, anonymous: true, email: '' });
+    if (menuMsg) {
+      menuMsg.hidden = false;
+      menuMsg.textContent = result.ok
+        ? 'Sesión cerrada. La cuenta se elimina en 14 días. Si volvés a entrar, vas a poder restaurarla.'
+        : (result.error || 'No se pudo programar la eliminación.');
+    }
+    if (result.ok && menuAnon && menuAccount && menuCopy) {
+      menuAnon.hidden = false;
+      menuAccount.hidden = true;
+      menuCopy.textContent = 'Quedaste como anónimo.';
+    }
+  });
+
+  badge.addEventListener('click', () => openMenu());
 }

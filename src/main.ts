@@ -32,9 +32,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const updateFullscreenButton = (): void => {
     const isFs = isFillingScreen();
     button?.classList.toggle('is-active', isFs);
-    if (button) {
-      button.textContent = isFs ? 'Salir' : 'Pantalla completa';
-    }
+    button?.setAttribute('aria-label', isFs ? 'Salir de pantalla completa' : 'Pantalla completa');
   };
 
   updateFullscreenButton();

@@ -197,6 +197,83 @@ body.player-gate-open .app-chrome {
 .player-actions .is-anon { background: #ef6a4a; }
 .player-actions .is-reg { background: #2f6bff; }
 
+.player-menu {
+  width: min(28rem, 92vw);
+  padding: 0;
+  border: 0;
+  background: #ececec;
+  color: #111;
+  font-family: Chivo, Outfit, sans-serif;
+  box-shadow: 0 0 0 0.0625rem #fff, 0 1.125rem 3.125rem rgba(0, 0, 0, 0.45);
+}
+
+.player-menu::backdrop {
+  background: rgba(0, 0, 0, 0.62);
+}
+
+.player-menu-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 1rem 1rem 0 1.25rem;
+}
+
+.player-menu-head h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.player-menu-close {
+  border: 0;
+  background: transparent;
+  color: #111;
+  font: 700 1.5rem/1 Chivo, Outfit, sans-serif;
+  cursor: pointer;
+}
+
+.player-menu p {
+  margin: 0.5rem 0 0;
+  padding: 0 1.25rem;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+.player-menu-msg[hidden] {
+  display: none;
+}
+
+.player-menu-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.625rem;
+  padding: 1.125rem;
+}
+
+.player-menu-actions[hidden] {
+  display: none;
+}
+
+.player-menu-actions button {
+  border: 0;
+  cursor: pointer;
+  padding: 0.875rem 0.75rem;
+  color: #fff;
+  font: 900 1rem/1 Chivo, Outfit, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.player-menu-actions .is-reg { background: #2f6bff; }
+.player-menu-actions .is-back { background: #9a9a9a; color: #1a1a1a; }
+.player-menu-actions .is-danger { background: #c4202a; }
+
 .player-register-msg {
   color: #9b1c1c;
   text-transform: none;
