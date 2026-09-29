@@ -71,10 +71,6 @@
         <span class="player-badge-name" id="player-badge-name"></span>
         <span class="player-badge-anon" id="player-badge-anon">ANÓNIMO</span>
       </button>
-      <div class="hub-account" id="hub-account">
-        <p id="hub-account-status" hidden>Iniciaste como anónimo.</p>
-        <button type="button" id="hub-account-btn" class="hub-account-btn">Iniciar sesión</button>
-      </div>
     </div>
     <div class="rotate-gate" id="rotate-gate">
       <p class="rotate-gate-title">Girá el teléfono</p>
@@ -91,7 +87,7 @@
       <section class="screen-view view-active" id="view-menu" aria-label="Inicio">
         <div class="tetra-menu" data-tetra-panel="root">
           <p class="tetra-home">Inicio</p>
-          <nav class="tetra-stack" aria-label="Menú principal">
+          <nav class="tetra-stack tetra-stack-rows" aria-label="Menú principal">
             <button class="tetra-bar is-play" type="button" data-tetra-open="play">
               <span class="tetra-mark">1P</span>
               <span class="tetra-copy">
@@ -125,7 +121,7 @@
 
         <div class="tetra-menu" data-tetra-panel="play" hidden>
           <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
-          <nav class="tetra-stack" aria-label="Tocar">
+          <nav class="tetra-stack tetra-stack-rows" aria-label="Tocar">
             <button class="tetra-bar is-play" type="button" data-nav="tuner">
               <span class="tetra-mark">AF</span>
               <span class="tetra-copy">
@@ -145,7 +141,7 @@
 
         <div class="tetra-menu" data-tetra-panel="create" hidden>
           <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
-          <nav class="tetra-stack" aria-label="Crear">
+          <nav class="tetra-stack tetra-stack-rows" aria-label="Crear">
             <button class="tetra-bar is-create" type="button" data-nav="editor">
               <span class="tetra-mark">ED</span>
               <span class="tetra-copy">
@@ -158,7 +154,7 @@
 
         <div class="tetra-menu" data-tetra-panel="versus" hidden>
           <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
-          <nav class="tetra-stack" aria-label="Versus">
+          <nav class="tetra-stack tetra-stack-rows" aria-label="Versus">
             <button class="tetra-bar is-vs" type="button" data-nav="vs">
               <span class="tetra-mark">VS</span>
               <span class="tetra-copy">
@@ -171,7 +167,7 @@
 
         <div class="tetra-menu" data-tetra-panel="config" hidden>
           <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
-          <nav class="tetra-stack" aria-label="Configuración">
+          <nav class="tetra-stack tetra-stack-rows" aria-label="Configuración">
             <button class="tetra-bar is-cfg" type="button" id="btn-notation-settings">
               <span class="tetra-mark">CFG</span>
               <span class="tetra-copy">
@@ -241,10 +237,7 @@
            =================================================================== -->
       <section class="screen-view view-hidden" id="view-vs" aria-label="Modo Versus Online">
         <button class="btn-back-menu" data-target="menu" type="button" title="Volver al menú">
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M10 19l-7-7m0 0l7-7m-7 7h18"/>
-          </svg>
-          <span>Menú</span>
+          <span>Volver</span>
         </button>
 
         <div class="vs-container">
@@ -257,14 +250,20 @@
           <div id="vs-status-msg" class="vs-status-box" hidden></div>
 
           <div id="vs-room-creation">
-            <div id="vs-step-how" class="vs-choice-grid">
-              <button type="button" class="vs-choice" data-vs-path="local">
-                <strong>En este aparato</strong>
-                <span>Un amigo al lado, la misma guitarra. Primero toca uno y después el otro.</span>
+            <div id="vs-step-how" class="tetra-stack tetra-stack-rows">
+              <button type="button" class="tetra-bar is-vs" data-vs-path="local">
+                <span class="tetra-mark">AQ</span>
+                <span class="tetra-copy">
+                  <span class="tetra-title">En este aparato</span>
+                  <span class="tetra-desc">Un amigo al lado, la misma guitarra</span>
+                </span>
               </button>
-              <button type="button" class="vs-choice" data-vs-path="online">
-                <strong>En línea</strong>
-                <span>Otro dispositivo. Creá una sala o unite con un código.</span>
+              <button type="button" class="tetra-bar is-vs" data-vs-path="online">
+                <span class="tetra-mark">ON</span>
+                <span class="tetra-copy">
+                  <span class="tetra-title">En línea</span>
+                  <span class="tetra-desc">Creá una sala o unite con un código</span>
+                </span>
               </button>
             </div>
 
@@ -279,18 +278,27 @@
                 </div>
 
                 <h2 style="margin-top: 20px;">Modo de duelo</h2>
-                <div class="vs-mode-options">
-                  <button type="button" class="vs-mode-btn active" data-mode="classic">
-                    <strong>Clásico</strong>
-                    <span>Gana quien obtenga más puntos.</span>
+                <div class="vs-mode-options tetra-stack tetra-stack-rows">
+                  <button type="button" class="vs-mode-btn tetra-bar is-vs active" data-mode="classic">
+                    <span class="tetra-mark">CL</span>
+                    <span class="tetra-copy">
+                      <span class="tetra-title">Clásico</span>
+                      <span class="tetra-desc">Gana quien obtenga más puntos</span>
+                    </span>
                   </button>
-                  <button type="button" class="vs-mode-btn" data-mode="sudden_death">
-                    <strong>Muerte súbita</strong>
-                    <span>3 fallos seguidos o &lt; 70% = knockout.</span>
+                  <button type="button" class="vs-mode-btn tetra-bar is-vs" data-mode="sudden_death">
+                    <span class="tetra-mark">MS</span>
+                    <span class="tetra-copy">
+                      <span class="tetra-title">Muerte súbita</span>
+                      <span class="tetra-desc">3 fallos seguidos o menos de 70% es knockout</span>
+                    </span>
                   </button>
-                  <button type="button" class="vs-mode-btn" data-mode="face_off">
-                    <strong>Ataques</strong>
-                    <span>Rachas desbloquean trampas al rival.</span>
+                  <button type="button" class="vs-mode-btn tetra-bar is-vs" data-mode="face_off">
+                    <span class="tetra-mark">AT</span>
+                    <span class="tetra-copy">
+                      <span class="tetra-title">Ataques</span>
+                      <span class="tetra-desc">Rachas desbloquean trampas al rival</span>
+                    </span>
                   </button>
                 </div>
 
@@ -1518,43 +1526,42 @@
 
     <dialog class="notation-settings" id="notation-settings">
       <form method="dialog">
-        <h2>Vista al tocar</h2>
-        <p>Vale para las lecciones de notas. Los acordes siguen en el mástil.</p>
-        <fieldset>
-          <label>
-            <input type="radio" name="notation" value="fretboard">
-            <span>
-              <span class="notation-choice-title">Mástil</span>
-              <span class="notation-choice-desc">Las notas avanzan por las cuerdas. El micrófono puntúa.</span>
-            </span>
-          </label>
-          <label>
-            <input type="radio" name="notation" value="sheet">
-            <span>
-              <span class="notation-choice-title">Partitura</span>
-              <span class="notation-choice-desc">Pentagrama y tablatura de la misma lección.</span>
-            </span>
-          </label>
-        </fieldset>
-        <fieldset>
-          <legend class="notation-choice-title">Nombre de las notas</legend>
-          <label>
-            <input type="radio" name="naming" value="solfege">
-            <span>
-              <span class="notation-choice-title">Europea</span>
-              <span class="notation-choice-desc">Do, Re, Mi. En las cuerdas: Mi, Si, Sol, Re, La, Mi.</span>
-            </span>
-          </label>
-          <label>
-            <input type="radio" name="naming" value="letters">
-            <span>
-              <span class="notation-choice-title">Americana</span>
-              <span class="notation-choice-desc">C, D, E. En las cuerdas: E, B, G, D, A, E.</span>
-            </span>
-          </label>
-        </fieldset>
-        <div class="notation-settings-actions">
-          <button type="submit" value="close">Listo</button>
+        <div data-cfg-panel="home">
+          <button type="button" class="cfg-back" data-cfg-close>Volver</button>
+          <header class="cfg-head">
+            <h2>Config</h2>
+            <p>Vale para las lecciones de notas. Los acordes siguen en el mástil.</p>
+          </header>
+          <button type="button" class="cfg-row" data-cfg-open="view">
+            <span>Vista al tocar</span>
+            <strong data-cfg-value="view">Mástil</strong>
+          </button>
+          <button type="button" class="cfg-row" data-cfg-open="naming">
+            <span>Nombre de las notas</span>
+            <strong data-cfg-value="naming">Europea</strong>
+          </button>
+        </div>
+        <div data-cfg-panel="view" hidden>
+          <button type="button" class="cfg-back" data-cfg-open="home">Volver</button>
+          <button type="button" class="cfg-option" data-set-view="fretboard">
+            <strong>Mástil</strong>
+            <span>Las notas avanzan por las cuerdas. El micrófono puntúa.</span>
+          </button>
+          <button type="button" class="cfg-option" data-set-view="sheet">
+            <strong>Partitura</strong>
+            <span>Pentagrama y tablatura de la misma lección.</span>
+          </button>
+        </div>
+        <div data-cfg-panel="naming" hidden>
+          <button type="button" class="cfg-back" data-cfg-open="home">Volver</button>
+          <button type="button" class="cfg-option" data-set-naming="solfege">
+            <strong>Europea</strong>
+            <span>Do, Re, Mi. En las cuerdas: Mi, Si, Sol, Re, La, Mi.</span>
+          </button>
+          <button type="button" class="cfg-option" data-set-naming="letters">
+            <strong>Americana</strong>
+            <span>C, D, E. En las cuerdas: E, B, G, D, A, E.</span>
+          </button>
         </div>
       </form>
     </dialog>

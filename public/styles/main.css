@@ -138,9 +138,39 @@ html, body {
 }
 
 .tetra-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 0.65rem;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr));
+  gap: 0.85rem;
+}
+
+.tetra-stack-rows {
+  grid-template-columns: 1fr;
+  width: min(52rem, 100%);
+  margin-inline: auto;
+}
+
+.tetra-stack-rows .tetra-bar {
+  flex-direction: row;
+  align-items: center;
+  aspect-ratio: auto;
+  min-height: 5.25rem;
+  gap: 1.25rem;
+  padding: 0.85rem 1.5rem;
+  width: calc(100% - 6rem);
+  transition: transform 0.16s ease;
+}
+
+.tetra-stack-rows .tetra-bar:nth-child(2) { margin-left: 1.5rem; }
+.tetra-stack-rows .tetra-bar:nth-child(3) { margin-left: 3rem; }
+.tetra-stack-rows .tetra-bar:nth-child(4) { margin-left: 4.5rem; }
+
+.tetra-stack-rows .tetra-bar:hover {
+  transform: translateX(2.75rem);
+}
+
+.vs-mode-btn.active {
+  outline: 2px solid #e07a2f;
+  outline-offset: 2px;
 }
 
 .tetra-bar[hidden] {
@@ -149,17 +179,20 @@ html, body {
 
 .tetra-bar {
   display: flex;
-  align-items: center;
-  gap: 1.25rem;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: flex-end;
+  gap: 0.35rem;
   width: 100%;
-  min-height: 5.25rem;
-  padding: 0.85rem 1.5rem;
+  aspect-ratio: 1;
+  min-height: 0;
+  padding: 1rem;
   border: 0;
   color: inherit;
   text-align: left;
   cursor: pointer;
   font-family: Chivo, Outfit, sans-serif;
-  box-shadow: 0.45rem 0.35rem 0 rgba(0, 0, 0, 0.28);
+  box-shadow: 0.35rem 0.35rem 0 rgba(0, 0, 0, 0.28);
 }
 
 .tetra-bar:hover {
@@ -189,7 +222,7 @@ html, body {
 }
 
 .tetra-title {
-  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-size: clamp(1.05rem, 1.6vw, 1.35rem);
   font-weight: 900;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -219,10 +252,6 @@ html, body {
   text-transform: uppercase;
   cursor: pointer;
 }
-
-.tetra-stack .tetra-bar:nth-child(2) { margin-left: 1.25rem; width: calc(100% - 1.25rem); }
-.tetra-stack .tetra-bar:nth-child(3) { margin-left: 2.5rem; width: calc(100% - 2.5rem); }
-.tetra-stack .tetra-bar:nth-child(4) { margin-left: 3.75rem; width: calc(100% - 3.75rem); }
 
 .song-picker {
   width: 100%;
@@ -485,102 +514,117 @@ html, body {
 .notation-settings {
   position: fixed;
   inset: 0;
-  width: min(420px, calc(100vw - 32px));
-  height: fit-content;
-  margin: auto;
-  border: 1px solid oklch(92% 0.02 240 / 0.16);
-  border-radius: 16px;
-  padding: 0;
-  background: oklch(22% 0.02 240);
-  color: oklch(96% 0.01 240);
-  box-shadow: 0 24px 60px oklch(8% 0.02 240 / 0.55);
+  width: 100%;
+  max-width: none;
+  height: 100%;
+  max-height: none;
+  margin: 0;
+  border: 0;
+  padding: 1.5rem 8vw 2rem;
+  background: rgba(8, 6, 14, 0.92);
+  color: #e6dff5;
+  font-family: Chivo, Outfit, sans-serif;
 }
 
 .notation-settings::backdrop {
-  background: oklch(8% 0.02 240 / 0.72);
+  background: rgba(4, 2, 8, 0.72);
 }
 
 .notation-settings form {
-  padding: 22px 22px 18px;
+  width: min(46rem, 100%);
+  margin: 0 auto;
 }
 
-.notation-settings h2 {
-  font-size: 20px;
+.notation-settings [hidden] {
+  display: none !important;
+}
+
+.cfg-back {
+  margin-bottom: 1.25rem;
+  padding: 0.55rem 0.9rem;
+  border: 0;
+  background: #2a2433;
+  color: #eee;
+  font: 900 0.85rem/1 Chivo, Outfit, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.cfg-head h2 {
+  margin: 0;
+  font-size: 1.6rem;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #c7b6e6;
+}
+
+.cfg-head p {
+  margin: 0.35rem 0 1.1rem;
+  font-size: 0.82rem;
   font-weight: 700;
-  margin-bottom: 6px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: #9b8cb3;
 }
 
-.notation-settings form > p {
-  font-size: 14px;
-  line-height: 1.45;
-  color: oklch(78% 0.02 240);
-  margin-bottom: 18px;
-  max-width: 36ch;
-}
-
-.notation-settings fieldset {
-  border: 0;
+.cfg-row,
+.cfg-option {
   display: flex;
+  width: 100%;
+  margin-top: 0.55rem;
+  padding: 0.9rem 1rem;
+  border: 1px solid #4a3d62;
+  background: #241c33;
+  color: #efe8f8;
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.cfg-row {
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 800;
+}
+
+.cfg-row strong {
+  color: #fff;
+  font-weight: 900;
+}
+
+.cfg-option {
   flex-direction: column;
-  gap: 8px;
-  margin: 0 0 18px;
-  padding: 0;
+  gap: 0.25rem;
 }
 
-.notation-settings legend {
-  margin-bottom: 8px;
+.cfg-option strong {
+  font-size: 1.05rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
 }
 
-.notation-settings label {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: start;
-  gap: 12px;
-  padding: 12px 14px;
-  border-radius: 10px;
-  border: 1px solid oklch(92% 0.02 240 / 0.08);
-  background: oklch(26% 0.02 240);
-  cursor: pointer;
+.cfg-option span {
+  font-size: 0.78rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #b7a8cc;
 }
 
-.notation-settings label:has(input:checked) {
-  border-color: oklch(72% 0.12 165);
-  background: oklch(28% 0.03 175);
-}
-
-.notation-settings input {
-  margin-top: 3px;
-  accent-color: oklch(72% 0.12 165);
-}
-
-.notation-choice-title {
-  display: block;
-  font-size: 15px;
-  font-weight: 650;
-}
-
-.notation-choice-desc {
-  display: block;
-  margin-top: 2px;
-  font-size: 13px;
-  line-height: 1.35;
-  color: oklch(76% 0.02 240);
-}
-
-.notation-settings-actions {
-  display: flex;
-  justify-content: flex-end;
-}
-
-.notation-settings button {
-  font: inherit;
-  font-weight: 650;
-  border: 0;
-  border-radius: 8px;
-  padding: 10px 16px;
-  background: oklch(78% 0.14 165);
-  color: oklch(18% 0.03 165);
-  cursor: pointer;
+.cfg-row:hover,
+.cfg-option:hover,
+.cfg-option.is-on {
+  position: relative;
+  z-index: 2;
+  background: #3a2418;
+  border-color: #e07a2f;
+  box-shadow: 0 0 0 1px #e07a2f;
+  transform: translateY(-0.15rem);
 }
 
 .account-dialog {
@@ -1273,6 +1317,44 @@ html, body {
 /* ==========================================================================
    Modo Versus / Multiplayer Online CSS (Estilo Lichess & Cyberpunk)
    ========================================================================== */
+#view-vs:has(#vs-step-how:not([hidden])) .vs-header {
+  display: none;
+}
+
+#view-vs .btn-back-menu {
+  position: static;
+  align-self: flex-start;
+  margin: 0 0 1rem;
+  width: auto;
+  padding: 0.55rem 0.9rem;
+  border-radius: 0;
+  background: #2a2e36;
+  font: 900 0.85rem/1 Chivo, Outfit, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+#view-vs .btn-back-menu svg {
+  display: none;
+}
+
+#view-vs {
+  align-items: center;
+  justify-content: center;
+  background:
+    linear-gradient(180deg, rgba(6, 8, 12, 0.55), rgba(6, 8, 12, 0.82)),
+    radial-gradient(120% 80% at 70% 40%, #243044 0%, #10141c 55%, #07080c 100%);
+}
+
+#view-vs .btn-back-menu,
+#view-vs .vs-container {
+  width: min(52rem, 92%);
+}
+
+#view-vs .vs-container {
+  margin-top: 0;
+}
+
 .vs-container {
   max-width: 980px;
   width: 90%;
@@ -1457,6 +1539,15 @@ html, body {
   flex-direction: column;
   gap: 10px;
   margin-top: 8px;
+}
+
+.tetra-stack-rows .tetra-bar.vs-mode-btn {
+  flex-direction: row;
+  align-items: center;
+  border-radius: 0;
+  border: 0;
+  background: linear-gradient(90deg, #5a2a18, #8a3d22);
+  color: #ffb089;
 }
 
 .vs-mode-btn {
