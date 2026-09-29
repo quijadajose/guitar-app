@@ -1,4 +1,5 @@
 import { normalizeName, randomPlayerName, readPlayer, writePlayer, type PlayerIdentity } from '../player';
+import { requestMagicLink } from '../services/supabase';
 
 type Step = 'welcome' | 'claim' | 'register';
 
@@ -15,10 +16,9 @@ export function bindPlayerGate(): void {
   const nameInput = root.querySelector<HTMLInputElement>('#player-name');
   const claimCopy = root.querySelector<HTMLElement>('[data-claim-copy]');
   const emailInput = root.querySelector<HTMLInputElement>('#player-email');
-  const passInput = root.querySelector<HTMLInputElement>('#player-pass');
-  const passAgain = root.querySelector<HTMLInputElement>('#player-pass-again');
   const registerMsg = root.querySelector<HTMLElement>('[data-register-msg]');
-  if (!welcome || !claim || !register || !nameInput || !claimCopy || !emailInput || !passInput || !passAgain || !registerMsg) return;
+  const registerBtn = root.querySelector<HTMLButtonElement>('[data-register]');
+  if (!welcome || !claim || !register || !nameInput || !claimCopy || !emailInput || !registerMsg || !registerBtn) return;
 
   let pending = '';
 
@@ -78,25 +78,30 @@ export function bindPlayerGate(): void {
 
   root.querySelector('[data-to-register]')?.addEventListener('click', () => {
     registerMsg.hidden = true;
-    passInput.value = '';
-    passAgain.value = '';
+    registerMsg.classList.remove('is-ok');
     show('register');
   });
 
-  root.querySelector('[data-register]')?.addEventListener('click', () => {
-    const pass = passInput.value;
-    const again = passAgain.value;
-    if (pass.length < 4) {
+  registerBtn.addEventListener('click', async () => {
+    const email = emailInput.value.trim();
+    registerMsg.classList.remove('is-ok');
+    if (!email.includes('@')) {
       registerMsg.hidden = false;
-      registerMsg.textContent = 'La contraseña necesita al menos 4 caracteres.';
+      registerMsg.textContent = 'Ingresá un email.';
       return;
     }
-    if (pass !== again) {
+    registerBtn.disabled = true;
+    const result = await requestMagicLink(email);
+    registerBtn.disabled = false;
+    if (!result.ok) {
       registerMsg.hidden = false;
-      registerMsg.textContent = 'Las contraseñas no coinciden.';
+      registerMsg.textContent = result.error || 'No se pudo enviar el enlace.';
       return;
     }
-    close({ name: pending, anonymous: false, email: emailInput.value.trim() });
+    registerMsg.hidden = false;
+    registerMsg.classList.add('is-ok');
+    registerMsg.textContent = 'Te mandamos un enlace. Abrilo desde el email para quedar con este nombre.';
+    window.setTimeout(() => close({ name: pending, anonymous: false, email }), 1600);
   });
 
   badge.addEventListener('click', () => {

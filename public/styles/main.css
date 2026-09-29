@@ -112,9 +112,117 @@ html, body {
 }
 
 #view-menu {
-  justify-content: flex-start;
-  padding-top: 108px;
+  justify-content: center;
+  padding: 4.5rem 6vw 3rem;
+  background:
+    linear-gradient(180deg, rgba(6, 8, 12, 0.55), rgba(6, 8, 12, 0.82)),
+    radial-gradient(120% 80% at 70% 40%, #243044 0%, #10141c 55%, #07080c 100%);
 }
+
+.tetra-menu {
+  width: min(52rem, 100%);
+  margin-inline: auto;
+}
+
+.tetra-menu[hidden] {
+  display: none;
+}
+
+.tetra-home {
+  margin: 0 0 1.25rem;
+  font-family: Silkscreen, Chivo, sans-serif;
+  font-size: 1.35rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: oklch(78% 0.02 250);
+}
+
+.tetra-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+}
+
+.tetra-bar[hidden] {
+  display: none;
+}
+
+.tetra-bar {
+  display: flex;
+  align-items: center;
+  gap: 1.25rem;
+  width: 100%;
+  min-height: 5.25rem;
+  padding: 0.85rem 1.5rem;
+  border: 0;
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  font-family: Chivo, Outfit, sans-serif;
+  box-shadow: 0.45rem 0.35rem 0 rgba(0, 0, 0, 0.28);
+}
+
+.tetra-bar:hover {
+  filter: brightness(1.08);
+  transform: translateX(0.35rem);
+}
+
+.tetra-bar:focus-visible {
+  outline: 2px solid #fff;
+  outline-offset: 3px;
+}
+
+.tetra-mark {
+  flex: none;
+  width: 4.5rem;
+  font-family: Silkscreen, monospace;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  line-height: 1;
+  letter-spacing: -0.04em;
+}
+
+.tetra-copy {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 0;
+}
+
+.tetra-title {
+  font-size: clamp(1.35rem, 2.4vw, 1.85rem);
+  font-weight: 900;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.tetra-desc {
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0.8;
+}
+
+.tetra-bar.is-play { background: linear-gradient(90deg, #4a2748, #6a3558); color: #f3b4d8; }
+.tetra-bar.is-create { background: linear-gradient(90deg, #16361f, #1f5a32); color: #8ee7a0; }
+.tetra-bar.is-vs { background: linear-gradient(90deg, #5a2a18, #8a3d22); color: #ffb089; }
+.tetra-bar.is-cfg { background: linear-gradient(90deg, #1a3358, #24507a); color: #9fd0ff; }
+
+.tetra-back {
+  margin-bottom: 1rem;
+  padding: 0.55rem 0.9rem;
+  border: 0;
+  background: #2a2e36;
+  color: #eee;
+  font: 900 0.85rem/1 Chivo, Outfit, sans-serif;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  cursor: pointer;
+}
+
+.tetra-stack .tetra-bar:nth-child(2) { margin-left: 1.25rem; width: calc(100% - 1.25rem); }
+.tetra-stack .tetra-bar:nth-child(3) { margin-left: 2.5rem; width: calc(100% - 2.5rem); }
+.tetra-stack .tetra-bar:nth-child(4) { margin-left: 3.75rem; width: calc(100% - 3.75rem); }
 
 .song-picker {
   width: 100%;

@@ -340,6 +340,19 @@ export class GuitarApp {
       });
     });
 
+    const tetraPanels = document.querySelectorAll<HTMLElement>('[data-tetra-panel]');
+    const openTetra = (id: string): void => {
+      tetraPanels.forEach(panel => {
+        panel.hidden = panel.dataset.tetraPanel !== id;
+      });
+    };
+    document.querySelectorAll<HTMLButtonElement>('[data-tetra-open]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.dataset.tetraOpen;
+        if (id) openTetra(id);
+      });
+    });
+
     this.backBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.preventDefault();

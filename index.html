@@ -51,15 +51,9 @@
     </section>
     <section class="player-panel" data-step="register" hidden>
       <h2>HAGÁMOSLO OFICIAL</h2>
-      <p>Elegí una contraseña para quedarte con este nombre en este aparato.</p>
+      <p>Te mandamos un enlace al email. Abrilo para quedar con este nombre.</p>
       <label class="player-field">
-        <input id="player-email" type="email" autocomplete="email" placeholder="email (opcional)">
-      </label>
-      <label class="player-field">
-        <input id="player-pass" type="password" autocomplete="new-password" placeholder="contraseña">
-      </label>
-      <label class="player-field">
-        <input id="player-pass-again" type="password" autocomplete="new-password" placeholder="contraseña otra vez">
+        <input id="player-email" type="email" autocomplete="email" placeholder="tu@email.com" required>
       </label>
       <p class="player-register-msg" data-register-msg hidden></p>
       <div class="player-actions">
@@ -95,57 +89,97 @@
            PANTALLA 0: MENÚ PRINCIPAL (HUB SELECCIÓN DE MODO)
            =================================================================== -->
       <section class="screen-view view-active" id="view-menu" aria-label="Inicio">
-        <div class="hub">
-          <section class="hub-learn" aria-labelledby="hub-learn-title">
-            <h1 id="hub-learn-title" class="hub-kicker">Aprender</h1>
-            <p class="hub-lead">Afina, coloca los acordes y toca. El micrófono da la retroalimentación.</p>
-            <ol class="hub-path">
-              <li>
-                <button class="hub-step" data-nav="tuner" type="button">
-                  <span class="hub-step-num">1</span>
-                  <span class="hub-step-copy">
-                    <span class="hub-step-title">Afinar</span>
-                    <span class="hub-step-desc">Seis cuerdas, Hz y cents. Micrófono o simulador.</span>
-                  </span>
-                </button>
-              </li>
-              <li>
-                <button class="hub-step" data-nav="songs" type="button">
-                  <span class="hub-step-num">2</span>
-                  <span class="hub-step-copy">
-                    <span class="hub-step-title">Tocar</span>
-                    <span class="hub-step-desc">Cuerdas o acordes. Elegí la canción y pulsá reproducir cuando estés listo.</span>
-                  </span>
-                </button>
-              </li>
-            </ol>
-          </section>
+        <div class="tetra-menu" data-tetra-panel="root">
+          <p class="tetra-home">Inicio</p>
+          <nav class="tetra-stack" aria-label="Menú principal">
+            <button class="tetra-bar is-play" type="button" data-tetra-open="play">
+              <span class="tetra-mark">1P</span>
+              <span class="tetra-copy">
+                <span class="tetra-title">Tocar</span>
+                <span class="tetra-desc">Afiná y tocá lecciones</span>
+              </span>
+            </button>
+            <button class="tetra-bar is-create" type="button" data-tetra-open="create">
+              <span class="tetra-mark">ED</span>
+              <span class="tetra-copy">
+                <span class="tetra-title">Crear</span>
+                <span class="tetra-desc">Escribí tus propias lecciones</span>
+              </span>
+            </button>
+            <button class="tetra-bar is-vs" type="button" data-tetra-open="versus" data-multiplayer hidden>
+              <span class="tetra-mark">VS</span>
+              <span class="tetra-copy">
+                <span class="tetra-title">Versus</span>
+                <span class="tetra-desc">Duelo en tiempo real</span>
+              </span>
+            </button>
+            <button class="tetra-bar is-cfg" type="button" data-tetra-open="config">
+              <span class="tetra-mark">CFG</span>
+              <span class="tetra-copy">
+                <span class="tetra-title">Config</span>
+                <span class="tetra-desc">Cómo se ve la lección</span>
+              </span>
+            </button>
+          </nav>
+        </div>
 
-          <div class="hub-side">
-            <section class="hub-create" aria-labelledby="hub-create-title">
-              <h2 id="hub-create-title" class="hub-kicker">Crear</h2>
-              <button class="hub-create-btn" data-nav="editor" type="button">
-                <span class="hub-step-title">Editor de lecciones</span>
-                <span class="hub-step-desc">Escribe la tablatura, pruébala y exporta JSON.</span>
-              </button>
-            </section>
+        <div class="tetra-menu" data-tetra-panel="play" hidden>
+          <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
+          <nav class="tetra-stack" aria-label="Tocar">
+            <button class="tetra-bar is-play" type="button" data-nav="tuner">
+              <span class="tetra-mark">AF</span>
+              <span class="tetra-copy">
+                <span class="tetra-title">Afinar</span>
+                <span class="tetra-desc">Seis cuerdas, Hz y cents</span>
+              </span>
+            </button>
+            <button class="tetra-bar is-play" type="button" data-nav="songs">
+              <span class="tetra-mark">GO</span>
+              <span class="tetra-copy">
+                <span class="tetra-title">Tocar</span>
+                <span class="tetra-desc">Cuerdas o acordes, elegí la canción</span>
+              </span>
+            </button>
+          </nav>
+        </div>
 
-            <section class="hub-create" aria-labelledby="hub-config-title">
-              <h2 id="hub-config-title" class="hub-kicker">Configuración</h2>
-              <button class="hub-create-btn" id="btn-notation-settings" type="button">
-                <span class="hub-step-title">Vista al tocar</span>
-                <span class="hub-step-desc">Mástil o partitura. Se usa al abrir una lección de notas.</span>
-              </button>
-            </section>
+        <div class="tetra-menu" data-tetra-panel="create" hidden>
+          <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
+          <nav class="tetra-stack" aria-label="Crear">
+            <button class="tetra-bar is-create" type="button" data-nav="editor">
+              <span class="tetra-mark">ED</span>
+              <span class="tetra-copy">
+                <span class="tetra-title">Editor de lecciones</span>
+                <span class="tetra-desc">Tablatura, prueba y exportar JSON</span>
+              </span>
+            </button>
+          </nav>
+        </div>
 
-            <section class="hub-create" id="hub-multiplayer" data-multiplayer aria-labelledby="hub-soon-title" hidden>
-              <h2 id="hub-soon-title" class="hub-kicker">Jugar con otros</h2>
-              <button class="hub-create-btn" data-nav="vs" type="button">
-                <span class="hub-step-title">Modo versus</span>
-                <span class="hub-step-desc">Duelo en tiempo real. Creá una sala o entrá con el enlace.</span>
-              </button>
-            </section>
-          </div>
+        <div class="tetra-menu" data-tetra-panel="versus" hidden>
+          <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
+          <nav class="tetra-stack" aria-label="Versus">
+            <button class="tetra-bar is-vs" type="button" data-nav="vs">
+              <span class="tetra-mark">VS</span>
+              <span class="tetra-copy">
+                <span class="tetra-title">Modo versus</span>
+                <span class="tetra-desc">Creá una sala o entrá con el enlace</span>
+              </span>
+            </button>
+          </nav>
+        </div>
+
+        <div class="tetra-menu" data-tetra-panel="config" hidden>
+          <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
+          <nav class="tetra-stack" aria-label="Configuración">
+            <button class="tetra-bar is-cfg" type="button" id="btn-notation-settings">
+              <span class="tetra-mark">CFG</span>
+              <span class="tetra-copy">
+                <span class="tetra-title">Vista al tocar</span>
+                <span class="tetra-desc">Mástil o partitura</span>
+              </span>
+            </button>
+          </nav>
         </div>
       </section>
 
