@@ -77,7 +77,7 @@ export function startEditorTour(force = false): void {
         element: '.editor-more',
         popover: {
           title: 'Compartir',
-          description: 'En Más: Exportar baja un archivo, Importar lo vuelve a abrir, y Publicar la sube a la comunidad si iniciaste sesión.',
+          description: 'Exportar baja un archivo, Importar lo vuelve a abrir, y Publicar la sube a la comunidad si iniciaste sesión.',
           side: 'bottom',
           align: 'end'
         }

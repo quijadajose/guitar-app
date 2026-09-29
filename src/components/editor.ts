@@ -1167,16 +1167,12 @@ export class SongEditor {
     const bothBtnText = document.getElementById('editor-play-both-text');
     const bothBtnIcon = document.getElementById('editor-play-both-icon');
     const playhead = this.ensurePlayhead();
-    const syncBadge = document.getElementById('audio-sync-badge');
 
     if (bothBtn) bothBtn.classList.add('active');
     if (bothBtnText) bothBtnText.textContent = 'Pausar';
     this.setSvgIcon(bothBtnIcon, 'pause-filled');
     if (playhead) {
       playhead.style.display = 'block';
-    }
-    if (syncBadge) {
-      syncBadge.style.display = 'inline-block';
     }
 
     // Reset reference audio to start (or synchronized offset)
@@ -1232,16 +1228,12 @@ export class SongEditor {
     const bothBtnText = document.getElementById('editor-play-both-text');
     const bothBtnIcon = document.getElementById('editor-play-both-icon');
     const playhead = document.getElementById('editor-playhead-line');
-    const syncBadge = document.getElementById('audio-sync-badge');
 
     if (bothBtn) bothBtn.classList.remove('active');
     if (bothBtnText) bothBtnText.textContent = 'Ambas';
     this.setSvgIcon(bothBtnIcon, 'play');
     if (playhead) {
       playhead.style.display = 'none';
-    }
-    if (syncBadge) {
-      syncBadge.style.display = 'none';
     }
     followEditorSheet(0);
 

@@ -1132,10 +1132,19 @@
               Probar
             </button>
 
+            <button class="editor-btn editor-btn-clear" id="editor-clear-all-btn" title="Vaciar notas y acordes colocados">Limpiar</button>
+
             <details class="editor-more">
-              <summary class="editor-btn">Más</summary>
+              <summary class="editor-btn editor-share-btn" title="Compartir" aria-label="Compartir">
+                <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                  <circle cx="18" cy="5" r="3"/>
+                  <circle cx="6" cy="12" r="3"/>
+                  <circle cx="18" cy="19" r="3"/>
+                  <line x1="8.6" y1="13.5" x2="15.4" y2="17.5"/>
+                  <line x1="15.4" y1="6.5" x2="8.6" y2="10.5"/>
+                </svg>
+              </summary>
               <div class="editor-more-menu">
-                <button class="editor-btn editor-btn-clear" id="editor-clear-all-btn" title="Vaciar notas y acordes colocados">Limpiar todo</button>
                 <button class="editor-btn" id="editor-export-btn" title="Descargar como archivo JSON">Exportar</button>
                 <button class="editor-btn" id="editor-import-btn" title="Cargar archivo JSON">Importar</button>
                 <button class="editor-btn editor-btn-publish" id="editor-publish-btn" data-supabase title="Publicar esta partitura en la comunidad">Publicar</button>
@@ -1173,10 +1182,16 @@
             <input type="range" class="audio-seeker" id="audio-ref-seeker" min="0" max="100" value="0" step="0.1">
           </div>
           <div class="audio-bar-right">
-            <span class="audio-sync-badge" id="audio-sync-badge" title="Sincronización activa con las notas del editor">🔗 Modo Dual Sincronizado</span>
             <label class="audio-volume-label">Volumen</label>
             <input type="range" class="audio-volume" id="audio-ref-volume" min="0" max="1" value="0.75" step="0.05">
-            <button class="audio-remove-btn" id="audio-ref-remove-btn" title="Quitar audio de referencia">&times;</button>
+            <button class="audio-remove-btn" id="audio-ref-remove-btn" title="Quitar audio de referencia" aria-label="Quitar audio de referencia">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <polyline points="3 6 5 6 21 6"/>
+                <path d="M19 6l-1 14H6L5 6"/>
+                <path d="M10 11v6M14 11v6"/>
+                <path d="M9 6V4h6v2"/>
+              </svg>
+            </button>
           </div>
         </div>
 

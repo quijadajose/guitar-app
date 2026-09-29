@@ -206,7 +206,11 @@ body.player-gate-open .app-chrome {
 .player-actions .is-reg { background: #2f6bff; }
 
 .player-menu {
+  position: fixed;
+  inset: 0;
   width: min(28rem, 92vw);
+  height: fit-content;
+  margin: auto;
   padding: 0;
   border: 0;
   background: #ececec;
