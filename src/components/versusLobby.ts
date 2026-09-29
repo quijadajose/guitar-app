@@ -12,6 +12,7 @@ export class VersusLobby {
   private mySessionId: string | null = null;
   private myRole: PlayerRole | null = null;
   private publicRooms: Array<{ code: string; song_id: string; mode: GameMode; host_name: string }> = [];
+  private roomPublic = false;
   private selectedMode: GameMode = 'classic';
   private selectedSongId = 'sultans_swing';
   private songPrepared = false;
@@ -127,12 +128,40 @@ export class VersusLobby {
     });
 
     // Copiar enlace
-    document.getElementById('vs-btn-copy-link')?.addEventListener('click', () => {
-      if (this.roomLinkInput?.value) {
-        navigator.clipboard.writeText(this.roomLinkInput.value).then(() => {
-          this.setStatus('¡Enlace de sala copiado!');
-        });
-      }
+    document.getElementById('vs-copy-code')?.addEventListener('click', () => {
+      const link = this.roomLinkInput?.value;
+      if (!link) return;
+      void navigator.clipboard.writeText(link).then(() => {
+        const button = document.getElementById('vs-copy-code');
+        const label = button?.querySelector('.hub-kicker');
+        button?.classList.add('is-copied');
+        if (label) label.textContent = 'Enlace copiado';
+        window.setTimeout(() => {
+          button?.classList.remove('is-copied');
+          if (label) label.textContent = 'Clic para copiar';
+        }, 1400);
+      });
+    });
+    document.querySelectorAll<HTMLButtonElement>('#vs-active-room [data-room-mode]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (this.myRole !== 'host') return;
+        this.selectedMode = (btn.dataset.roomMode as GameMode) || 'classic';
+        this.paintRoomSettings();
+        this.pushRoomSettings();
+      });
+    });
+    document.querySelectorAll<HTMLButtonElement>('#vs-active-room [data-room-song]').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        if (this.myRole !== 'host') return;
+        this.selectedSongId = btn.dataset.roomSong || 'sultans_swing';
+        this.paintRoomSettings();
+        this.pushRoomSettings();
+      });
+    });
+    document.getElementById('vs-room-live-public')?.addEventListener('change', (event) => {
+      if (this.myRole !== 'host') return;
+      this.roomPublic = (event.target as HTMLInputElement).checked;
+      this.pushRoomSettings();
     });
 
     // Botón Listo
@@ -247,7 +276,7 @@ export class VersusLobby {
           song_id: this.selectedSongId,
           mode: this.selectedMode,
           player_name: playerName,
-          is_public: (document.getElementById('vs-room-public') as HTMLInputElement | null)?.checked ?? false,
+          is_public: this.roomPublic = (document.getElementById('vs-room-public') as HTMLInputElement | null)?.checked ?? false,
         },
       });
     } catch (e) {
@@ -351,6 +380,7 @@ export class VersusLobby {
         this.myRole = msg.payload.role;
         this.selectedSongId = msg.payload.song_id;
         this.selectedMode = msg.payload.mode;
+        if (typeof msg.payload.is_public === 'boolean') this.roomPublic = msg.payload.is_public;
         this.showActiveRoom(msg.payload.room_code, msg.payload.role, [
           {
             session_id: msg.payload.session_id,
@@ -373,6 +403,7 @@ export class VersusLobby {
         this.myRole = msg.payload.role;
         this.selectedSongId = msg.payload.song_id;
         this.selectedMode = msg.payload.mode;
+        if (typeof msg.payload.is_public === 'boolean') this.roomPublic = msg.payload.is_public;
         this.showActiveRoom(msg.payload.room_code, msg.payload.role, msg.payload.players);
         this.preloadSong();
         this.setStatus(this.songPrepared
@@ -383,6 +414,15 @@ export class VersusLobby {
 
       case 'room_updated': {
         this.updatePlayersUI(msg.payload.players);
+        break;
+      }
+
+      case 'room_settings': {
+        this.selectedSongId = msg.payload.song_id;
+        this.selectedMode = msg.payload.mode;
+        this.roomPublic = msg.payload.is_public;
+        this.paintRoomSettings();
+        this.preloadSong();
         break;
       }
 
@@ -591,8 +631,37 @@ export class VersusLobby {
     if (this.startBtn) {
       this.startBtn.hidden = role !== 'host';
     }
-
+    this.paintRoomSettings();
     this.updatePlayersUI(players);
+  }
+
+  private paintRoomSettings(): void {
+    const host = this.myRole === 'host';
+    document.querySelectorAll<HTMLButtonElement>('#vs-active-room [data-room-mode]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.roomMode === this.selectedMode);
+      btn.disabled = !host;
+    });
+    document.querySelectorAll<HTMLButtonElement>('#vs-active-room [data-room-song]').forEach((btn) => {
+      btn.classList.toggle('active', btn.dataset.roomSong === this.selectedSongId);
+      btn.disabled = !host;
+    });
+    const pub = document.getElementById('vs-room-live-public') as HTMLInputElement | null;
+    if (pub) {
+      pub.checked = this.roomPublic;
+      pub.disabled = !host;
+    }
+  }
+
+  private pushRoomSettings(): void {
+    if (this.myRole !== 'host' || !this.client) return;
+    this.client.send({
+      type: 'update_room',
+      payload: {
+        song_id: this.selectedSongId,
+        mode: this.selectedMode,
+        is_public: this.roomPublic,
+      },
+    });
   }
 
   private updatePlayersUI(players: PlayerSummary[]): void {

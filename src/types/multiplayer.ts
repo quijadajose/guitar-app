@@ -34,6 +34,7 @@ export type ClientMessage =
       };
     }
   | { type: 'set_ready'; payload: { ready: boolean } }
+  | { type: 'update_room'; payload: { song_id: string; mode: GameMode; is_public: boolean } }
   | { type: 'start_game'; payload?: Record<string, never> }
   | {
       type: 'player_progress';
@@ -90,6 +91,7 @@ export type ServerMessage =
         role: PlayerRole;
         song_id: string;
         mode: GameMode;
+        is_public?: boolean;
       };
     }
   | {
@@ -100,6 +102,7 @@ export type ServerMessage =
         role: PlayerRole;
         song_id: string;
         mode: GameMode;
+        is_public?: boolean;
         players: PlayerSummary[];
         spectators_count: number;
       };
@@ -109,6 +112,14 @@ export type ServerMessage =
       payload: {
         players: PlayerSummary[];
         spectators_count: number;
+      };
+    }
+  | {
+      type: 'room_settings';
+      payload: {
+        song_id: string;
+        mode: GameMode;
+        is_public: boolean;
       };
     }
   | {

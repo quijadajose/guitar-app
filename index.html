@@ -418,28 +418,37 @@
           <!-- Sala Activa (Lobby de Espera) -->
           <div id="vs-active-room" class="vs-card vs-room-active-box" hidden>
             <div class="vs-room-header">
-              <div>
-                <span class="hub-kicker">Código de Sala:</span>
+              <button type="button" id="vs-copy-code" class="vs-copy-code" title="Copiar enlace">
+                <span class="hub-kicker">Clic para copiar</span>
                 <span id="vs-display-room-code" class="vs-badge-code">-----</span>
-                <span id="vs-room-song-badge" class="vs-badge-mode" style="margin-left: 8px;">🎸 Melodía</span>
-              </div>
-              <button type="button" id="vs-btn-leave-room" class="vs-btn-ghost">Salir de la sala</button>
+              </button>
+              <button type="button" id="vs-btn-leave-room" class="vs-btn-ghost">Salir</button>
             </div>
+            <input type="hidden" id="vs-room-link-copy">
 
-            <div class="vs-link-share">
-              <label for="vs-room-link-copy">Enlace de invitación:</label>
-              <div class="vs-join-group">
-                <input type="text" id="vs-room-link-copy" class="vs-input" readonly>
-                <button type="button" id="vs-btn-copy-link" class="vs-btn-secondary">Copiar</button>
-              </div>
+            <p class="hub-kicker">Sala</p>
+            <div class="song-picker-tabs" role="tablist" aria-label="Modo de la sala">
+              <button type="button" class="song-tab-btn" data-room-mode="classic">Clásico</button>
+              <button type="button" class="song-tab-btn" data-room-mode="sudden_death">Muerte súbita</button>
+              <button type="button" class="song-tab-btn" data-room-mode="face_off">Ataques</button>
             </div>
+            <div class="song-picker-tabs" role="tablist" aria-label="Canción de la sala">
+              <button type="button" class="song-tab-btn" data-room-song="sultans_swing">Melodía</button>
+              <button type="button" class="song-tab-btn" data-room-song="fur_elise">Für Elise</button>
+              <button type="button" class="song-tab-btn" data-room-song="chords_progression">Acordes</button>
+            </div>
+            <label class="vs-public-toggle" for="vs-room-live-public">
+              <input type="checkbox" id="vs-room-live-public">
+              Sala pública
+            </label>
+            <span id="vs-room-song-badge" hidden>Melodía</span>
 
-            <h3 style="margin-top: 24px;">Jugadores en la sala</h3>
+            <h3>Jugadores</h3>
             <div id="vs-players-list" class="vs-players-grid"></div>
 
             <div class="vs-room-actions">
               <button type="button" id="vs-btn-ready" class="vs-btn-ready">Listo para tocar</button>
-              <button type="button" id="vs-btn-start" class="vs-btn-primary" disabled hidden>Iniciar Partida</button>
+              <button type="button" id="vs-btn-start" class="vs-btn-primary" disabled hidden>Iniciar partida</button>
             </div>
           </div>
         </div>
