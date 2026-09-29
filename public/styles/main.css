@@ -135,9 +135,7 @@ html, body {
   max-height: 5rem;
   color: oklch(94% 0.03 85 / 0.82);
   fill: currentColor;
-  stroke: currentColor;
-  stroke-width: 2.4;
-  stroke-linecap: round;
+  stroke: none;
   animation: note-drift 28s linear infinite;
 }
 
@@ -150,9 +148,18 @@ html, body {
 .float-note.n7 { left: 6%; top: 40%; width: 2rem; animation-duration: 38s; animation-delay: -11s; }
 .float-note.n8 { left: 70%; top: 30%; animation-duration: 42s; animation-delay: -27s; }
 
+.float-note.is-click {
+  animation: note-click 16s linear forwards;
+}
+
 @keyframes note-drift {
   from { transform: translate3d(0, 12vh, 0) rotate(-8deg); }
   to { transform: translate3d(1.5rem, -110vh, 0) rotate(10deg); }
+}
+
+@keyframes note-click {
+  from { transform: translate3d(0, 0, 0) rotate(-6deg); }
+  to { transform: translate3d(1rem, -70vh, 0) rotate(8deg); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -1230,7 +1237,7 @@ html, body {
   background: rgba(18, 24, 36, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.16);
   color: #ffffff;
-  border-radius: 8px;
+  border-radius: 0;
   cursor: pointer;
 }
 
@@ -1398,7 +1405,10 @@ html, body {
     radial-gradient(120% 80% at 70% 40%, #243044 0%, #10141c 55%, #07080c 100%);
 }
 
-#view-vs .btn-back-menu,
+#view-vs .btn-back-menu {
+  width: fit-content;
+}
+
 #view-vs .vs-container {
   width: min(52rem, 92%);
 }
@@ -1550,6 +1560,20 @@ html, body {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
   gap: 24px;
+}
+
+#vs-step-how[hidden],
+#vs-step-setup[hidden],
+#vs-step-local[hidden],
+#vs-step-online[hidden],
+#vs-online-name[hidden] {
+  display: none !important;
+}
+
+.vs-card .tetra-stack-rows .tetra-bar {
+  width: 100%;
+  margin-left: 0;
+  min-height: 4.2rem;
 }
 
 .vs-card {

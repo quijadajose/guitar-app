@@ -1,25 +1,28 @@
 import { guitarApp } from './app';
 
-function isFillingScreen(): boolean {
-  if (document.fullscreenElement) return true;
+function isApiFullscreen(): boolean {
   const webkit = (document as Document & { webkitFullscreenElement?: Element }).webkitFullscreenElement;
-  if (webkit) return true;
-  if (window.matchMedia('(display-mode: fullscreen)').matches) return true;
-  const slack = 48;
-  return (
-    window.innerHeight >= window.screen.availHeight - slack &&
-    window.innerWidth >= window.screen.availWidth - slack
-  );
+  return Boolean(document.fullscreenElement || webkit);
 }
 
 function toggleFullscreen(): void {
-  const root = document.documentElement;
+  const doc = document as Document & {
+    webkitFullscreenElement?: Element;
+    webkitExitFullscreen?: () => Promise<void>;
+  };
+  const root = document.documentElement as HTMLElement & {
+    webkitRequestFullscreen?: () => Promise<void>;
+  };
   if (document.fullscreenElement) {
     document.exitFullscreen().catch(() => {});
     return;
   }
-  if (isFillingScreen()) return;
-  root.requestFullscreen?.().catch(() => {});
+  if (doc.webkitFullscreenElement) {
+    doc.webkitExitFullscreen?.()?.catch(() => {});
+    return;
+  }
+  const enter = root.requestFullscreen?.bind(root) ?? root.webkitRequestFullscreen?.bind(root);
+  enter?.()?.catch(() => {});
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -30,7 +33,7 @@ document.addEventListener('DOMContentLoaded', () => {
     toggleFullscreen();
   });
   const updateFullscreenButton = (): void => {
-    const isFs = isFillingScreen();
+    const isFs = isApiFullscreen();
     button?.classList.toggle('is-active', isFs);
     button?.setAttribute('aria-label', isFs ? 'Salir de pantalla completa' : 'Pantalla completa');
     button?.querySelector('.fs-enter')?.toggleAttribute('hidden', isFs);
