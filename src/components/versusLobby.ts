@@ -150,14 +150,15 @@ export class VersusLobby {
     });
 
     // Selector de Canción del Duelo
-    const songSelect = document.getElementById('vs-song-select') as HTMLSelectElement | null;
-    if (songSelect) {
-      songSelect.value = this.selectedSongId;
-      songSelect.addEventListener('change', () => {
-        this.selectedSongId = songSelect.value;
+    const songTabs = this.container?.querySelectorAll<HTMLElement>('#vs-step-online [data-song]');
+    songTabs?.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        songTabs.forEach((tab) => tab.classList.remove('active'));
+        btn.classList.add('active');
+        this.selectedSongId = btn.getAttribute('data-song') || 'sultans_swing';
         this.renderPublicRooms();
       });
-    }
+    });
 
     // Botón de Ataque / Trampas (Face-Off)
     document.getElementById('vs-attack-trigger-btn')?.addEventListener('click', () => {
@@ -266,7 +267,7 @@ export class VersusLobby {
       this.renderPublicRooms();
     } catch {
       const empty = document.createElement('p');
-      empty.className = 'vs-public-empty';
+      empty.className = 'song-picker-empty';
       empty.textContent = 'No se pudo cargar la lista de salas.';
       list.replaceChildren(empty);
     }
@@ -276,10 +277,12 @@ export class VersusLobby {
     const list = document.getElementById('vs-public-rooms');
     if (!list) return;
     list.replaceChildren();
+    const count = document.getElementById('vs-public-count');
+    if (count) count.textContent = String(this.publicRooms.length);
     const rooms = this.publicRooms.filter((room) => room.mode === this.selectedMode && room.song_id === this.selectedSongId);
     if (rooms.length === 0) {
-      const empty = document.createElement('li');
-      empty.className = 'vs-public-empty';
+      const empty = document.createElement('p');
+      empty.className = 'song-picker-empty';
       empty.textContent = 'No hay salas públicas con ese modo y esa canción.';
       list.append(empty);
       return;
@@ -289,18 +292,30 @@ export class VersusLobby {
       sudden_death: 'Muerte súbita',
       face_off: 'Ataques',
     };
+    const songs: Record<string, string> = {
+      sultans_swing: 'Melodía',
+      fur_elise: 'Für Elise',
+      chords_progression: 'Acordes',
+    };
     for (const room of rooms) {
-      const item = document.createElement('li');
-      const label = document.createElement('span');
-      label.textContent = `${room.host_name} · ${modes[room.mode] ?? room.mode} · ${room.code}`;
-      const join = document.createElement('button');
-      join.type = 'button';
-      join.className = 'vs-btn-secondary';
-      join.textContent = 'Unirme';
-      join.addEventListener('click', () => {
+      const item = document.createElement('button');
+      item.type = 'button';
+      item.className = 'song-picker-item';
+      const text = document.createElement('span');
+      const title = document.createElement('span');
+      title.className = 'song-picker-item-title';
+      title.textContent = room.host_name;
+      const meta = document.createElement('span');
+      meta.className = 'song-picker-item-meta';
+      meta.textContent = `${modes[room.mode] ?? room.mode} · ${songs[room.song_id] ?? room.song_id}`;
+      text.append(title, meta);
+      const code = document.createElement('span');
+      code.className = 'song-picker-item-bpm';
+      code.textContent = room.code;
+      item.append(text, code);
+      item.addEventListener('click', () => {
         void this.joinRoom(room.code);
       });
-      item.append(label, join);
       list.append(item);
     }
   }

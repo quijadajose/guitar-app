@@ -367,59 +367,38 @@
                 <button type="button" id="vs-btn-local" class="vs-btn-primary" style="margin-top: 16px;">Empezar</button>
               </div>
 
-              <div id="vs-step-online" class="vs-card" hidden>
-                <h2>Unirse a una sala</h2>
-                <p style="color: #9aa3ab; font-size: 14px;">Código de 5 caracteres.</p>
-                <div class="vs-join-group">
-                  <input type="text" id="vs-room-code-input" class="vs-input vs-code-input" maxlength="5" placeholder="EJ: X8K9Q">
-                  <button type="button" id="vs-btn-join-room" class="vs-btn-secondary">Unirme</button>
+              <div id="vs-step-online" hidden>
+                <header class="song-picker-header">
+                  <p class="hub-kicker">En línea</p>
+                  <h1 class="song-picker-title">Salas públicas <span id="vs-public-count" class="vs-public-count">0</span></h1>
+                  <p class="hub-lead">Elegí el modo y la canción, unite a una sala o creá la tuya.</p>
+                </header>
+
+                <div class="song-picker-tabs" role="tablist" aria-label="Modo de duelo">
+                  <button type="button" class="song-tab-btn active" data-mode="classic">Clásico</button>
+                  <button type="button" class="song-tab-btn" data-mode="sudden_death">Muerte súbita</button>
+                  <button type="button" class="song-tab-btn" data-mode="face_off">Ataques</button>
+                </div>
+                <div class="song-picker-tabs" role="tablist" aria-label="Canción">
+                  <button type="button" class="song-tab-btn active" data-song="sultans_swing">Melodía</button>
+                  <button type="button" class="song-tab-btn" data-song="fur_elise">Für Elise</button>
+                  <button type="button" class="song-tab-btn" data-song="chords_progression">Acordes</button>
                 </div>
 
-                <h2 style="margin-top: 20px;">Buscar salas</h2>
-                <div class="vs-mode-options tetra-stack tetra-stack-rows">
-                  <button type="button" class="vs-mode-btn tetra-bar is-vs active" data-mode="classic">
-                    <span class="tetra-mark">CL</span>
-                    <span class="tetra-copy">
-                      <span class="tetra-title">Clásico</span>
-                      <span class="tetra-desc">Gana quien obtenga más puntos</span>
-                    </span>
-                  </button>
-                  <button type="button" class="vs-mode-btn tetra-bar is-vs" data-mode="sudden_death">
-                    <span class="tetra-mark">MS</span>
-                    <span class="tetra-copy">
-                      <span class="tetra-title">Muerte súbita</span>
-                      <span class="tetra-desc">3 fallos seguidos o menos de 70% es knockout</span>
-                    </span>
-                  </button>
-                  <button type="button" class="vs-mode-btn tetra-bar is-vs" data-mode="face_off">
-                    <span class="tetra-mark">AT</span>
-                    <span class="tetra-copy">
-                      <span class="tetra-title">Ataques</span>
-                      <span class="tetra-desc">Rachas desbloquean trampas al rival</span>
-                    </span>
-                  </button>
-                </div>
-                <label for="vs-song-select" style="display:block;margin-top:14px;">Canción</label>
-                <select id="vs-song-select" class="vs-input" style="width: 100%; box-sizing: border-box; background: #171a21;">
-                  <option value="sultans_swing">Melodía de guitarra (8 notas)</option>
-                  <option value="fur_elise">Für Elise (24 notas)</option>
-                  <option value="chords_progression">Progresión de acordes (Am, C, Em)</option>
-                </select>
-
-                <div class="vs-public-rooms">
-                  <div class="vs-public-head">
-                    <h2>Salas públicas</h2>
-                    <button type="button" id="vs-btn-refresh-rooms" class="vs-btn-ghost">Actualizar</button>
-                  </div>
-                  <ul id="vs-public-rooms" class="vs-public-list"></ul>
-                </div>
-
-                <h2 style="margin-top: 20px;">Crear sala</h2>
+                <button type="button" id="vs-btn-create-room" class="song-create-btn">Crear sala</button>
                 <label class="vs-public-toggle" for="vs-room-public">
                   <input type="checkbox" id="vs-room-public">
                   Mostrar la sala en la lista pública
                 </label>
-                <button type="button" id="vs-btn-create-room" class="vs-btn-primary" style="margin-top: 16px;">Crear sala</button>
+
+                <div class="vs-join-group" style="margin-top: 16px;">
+                  <input type="text" id="vs-room-code-input" class="vs-input vs-code-input" maxlength="5" placeholder="Código">
+                  <button type="button" id="vs-btn-join-room" class="vs-btn-secondary">Unirme</button>
+                  <button type="button" id="vs-btn-refresh-rooms" class="vs-btn-ghost">Actualizar</button>
+                </div>
+
+                <p class="hub-kicker" style="margin-top: 22px;">Salas</p>
+                <div id="vs-public-rooms" class="song-picker-list"></div>
               </div>
             </div>
           </div>

@@ -1507,6 +1507,21 @@ body:has(#view-editor.view-active) #editor-tour-btn {
   margin: 0;
 }
 
+.vs-public-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.6rem;
+  margin-left: 0.4rem;
+  padding: 0.15rem 0.45rem;
+  background: #1c2129;
+  border: 1px solid #343b46;
+  color: #ffb089;
+  font-size: 0.85rem;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+}
+
 .vs-public-list {
   list-style: none;
   margin: 12px 0 0;
@@ -1590,10 +1605,15 @@ body:has(#view-editor.view-active) #editor-tour-btn {
   display: none !important;
 }
 
-.vs-card .tetra-stack-rows .tetra-bar {
+.vs-card .tetra-stack-rows .tetra-bar,
+.vs-card .tetra-stack-rows .tetra-bar:nth-child(n) {
   width: 100%;
   margin-left: 0;
   min-height: 4.2rem;
+}
+
+.vs-card .tetra-stack-rows .tetra-bar:hover {
+  transform: none;
 }
 
 .vs-card {
