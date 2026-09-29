@@ -205,6 +205,21 @@ body.player-gate-open .app-chrome {
 .player-actions .is-anon { background: #ef6a4a; }
 .player-actions .is-reg { background: #2f6bff; }
 
+.account-delete-dialog {
+  position: fixed;
+  inset: 0;
+  width: min(28rem, 92vw);
+  height: fit-content;
+  margin: auto;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.account-delete-dialog::backdrop {
+  background: rgba(0, 0, 0, 0.62);
+}
+
 .player-menu {
   position: fixed;
   inset: 0;

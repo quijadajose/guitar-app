@@ -815,7 +815,7 @@ export class SongEditor {
     const playIcon = document.getElementById('audio-ref-play-icon');
 
     if (playerBar) playerBar.style.display = 'flex';
-    if (titleEl) titleEl.textContent = `Pista de referencia: ${sanitizePlainText(title, SONG_LIMITS.titleMax, 'Pista')}`;
+    if (titleEl) titleEl.textContent = sanitizePlainText(title, SONG_LIMITS.titleMax, 'Pista');
 
     this.referenceAudio = new Audio(audioSrc);
     this.isReferenceAudioPlaying = false;

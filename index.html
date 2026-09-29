@@ -98,6 +98,21 @@
         <span class="player-badge-anon" id="player-badge-anon">ANÓNIMO</span>
       </button>
     </div>
+    <dialog class="account-delete-dialog" id="player-delete-dialog">
+      <div class="audio-extract-card editor-clear-confirm-card">
+        <div class="extract-card-header">
+          <h3 class="extract-card-title">¿Borrar la cuenta?</h3>
+          <button class="extract-close-btn" type="button" data-delete-cancel aria-label="Cerrar">&times;</button>
+        </div>
+        <div class="extract-card-body">
+          <p class="editor-clear-confirm-text">Tu cuenta se elimina en 14 días si no volvés a iniciar sesión. Si entrás antes, se puede restaurar.</p>
+        </div>
+        <div class="extract-card-footer">
+          <button class="extract-btn-cancel" type="button" data-delete-cancel>Cancelar</button>
+          <button class="editor-clear-confirm-action" type="button" data-delete-confirm>Sí, borrar</button>
+        </div>
+      </div>
+    </dialog>
     <dialog class="player-menu" id="player-menu">
       <form method="dialog">
         <header class="player-menu-head">
@@ -1190,8 +1205,11 @@
               </svg>
             </button>
             <div class="audio-track-info">
-              <span class="audio-track-name" id="audio-ref-track-name">Pista de referencia: Coco - Remember Me</span>
+              <span class="audio-track-name" id="audio-ref-track-name"></span>
               <span class="audio-track-time" id="audio-ref-track-time">0:00 / 0:00</span>
+            </div>
+            <div class="audio-bar-seek">
+              <input type="range" class="audio-seeker" id="audio-ref-seeker" min="0" max="100" value="0" step="0.1" aria-label="Avance de la pista">
             </div>
           </div>
 
@@ -1205,9 +1223,6 @@
             </button>
           </div>
 
-          <div class="audio-bar-center">
-            <input type="range" class="audio-seeker" id="audio-ref-seeker" min="0" max="100" value="0" step="0.1">
-          </div>
           <div class="audio-bar-right">
             <label class="audio-volume-label">Volumen</label>
             <input type="range" class="audio-volume" id="audio-ref-volume" min="0" max="1" value="0.75" step="0.05">

@@ -155,9 +155,16 @@ export function bindPlayerGate(): void {
     if (player) close({ ...player, anonymous: true, email: '' });
     menu?.close();
   });
-  menu?.querySelector('[data-menu-delete]')?.addEventListener('click', async () => {
-    const accepted = window.confirm('Tu cuenta se eliminará en 14 días si no volvés a iniciar sesión. ¿Seguir?');
-    if (!accepted) return;
+  const deleteDialog = document.getElementById('player-delete-dialog') as HTMLDialogElement | null;
+  const closeDeleteDialog = (): void => deleteDialog?.close();
+  deleteDialog?.querySelectorAll('[data-delete-cancel]').forEach((button) => {
+    button.addEventListener('click', closeDeleteDialog);
+  });
+  menu?.querySelector('[data-menu-delete]')?.addEventListener('click', () => {
+    if (deleteDialog && !deleteDialog.open) deleteDialog.showModal();
+  });
+  deleteDialog?.querySelector('[data-delete-confirm]')?.addEventListener('click', async () => {
+    deleteDialog.close();
     const result = await scheduleAccountDeletion();
     const player = readPlayer();
     if (player) close({ ...player, anonymous: true, email: '' });

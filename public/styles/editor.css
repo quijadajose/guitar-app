@@ -844,7 +844,14 @@
   align-items: center;
   gap: 12px;
   min-width: 0;
-  flex: 1 1 180px;
+  flex: 1 1 320px;
+}
+
+.audio-bar-seek {
+  flex: 1 1 120px;
+  min-width: 72px;
+  display: flex;
+  align-items: center;
 }
 
 .audio-play-toggle-btn {
@@ -894,16 +901,14 @@
 .audio-note-inspector {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
   gap: 8px;
   background: #1c2129;
   border: 1px solid #343b46;
   border-radius: 0;
   padding: 4px 10px;
-  min-height: 36px;
-  height: auto;
-  min-width: 0;
-  flex: 1 1 220px;
+  height: 36px;
+  flex: 0 0 auto;
   max-width: 100%;
 }
 
@@ -920,15 +925,24 @@
   font-size: 14px;
   font-weight: 900;
   color: #ffb089;
-  min-width: 90px;
+  width: 15rem;
+  flex: 0 0 15rem;
   letter-spacing: 0.3px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-variant-numeric: tabular-nums;
 }
 
 .inspector-freq-readout {
   font-size: 11px;
   font-family: monospace;
   color: #94a3b8;
-  min-width: 55px;
+  width: 4.75rem;
+  flex: 0 0 4.75rem;
+  text-align: right;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
 }
 
 .inspector-add-btn {
@@ -953,13 +967,6 @@
 .inspector-add-btn:disabled {
   opacity: 0.3;
   cursor: not-allowed;
-}
-
-.audio-bar-center {
-  flex: 1 1 120px;
-  min-width: 0;
-  display: flex;
-  align-items: center;
 }
 
 .audio-seeker {
@@ -1350,10 +1357,13 @@
   }
 
   .audio-bar-left,
-  .audio-note-inspector,
-  .audio-bar-center,
   .audio-bar-right {
     flex: 1 1 100%;
+  }
+
+  .audio-note-inspector {
+    flex: 1 1 auto;
+    overflow: hidden;
   }
 
   .audio-track-name {
