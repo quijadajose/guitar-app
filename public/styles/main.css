@@ -1720,6 +1720,10 @@ html, body {
     line-height: 1.2;
     font-weight: 600;
   }
+
+  .btn-fullscreen.is-active::after {
+    content: "Salir";
+  }
 }
 
 @media (max-width: 480px) {

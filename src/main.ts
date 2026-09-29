@@ -16,12 +16,20 @@ document.addEventListener('DOMContentLoaded', () => {
     event.stopPropagation();
     toggleFullscreen();
   });
-  document.addEventListener('fullscreenchange', () => {
-    button?.classList.toggle('is-active', document.fullscreenElement !== null);
+  const updateFullscreenButton = (): void => {
+    const isFs = Boolean(
+      document.fullscreenElement ||
+      (document as unknown as { webkitFullscreenElement?: Element }).webkitFullscreenElement
+    );
+    button?.classList.toggle('is-active', isFs);
     if (button) {
-      button.textContent = document.fullscreenElement ? 'Salir' : 'Pantalla completa';
+      button.textContent = isFs ? 'Salir' : 'Pantalla completa';
     }
-  });
+  };
+
+  updateFullscreenButton();
+  document.addEventListener('fullscreenchange', updateFullscreenButton);
+  document.addEventListener('webkitfullscreenchange', updateFullscreenButton);
 });
 
 export {};
