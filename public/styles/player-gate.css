@@ -11,16 +11,19 @@ body.player-gate-open .app-chrome {
 
 .player-badge {
   display: flex;
-  flex-direction: column;
+  flex-direction: row;
   align-items: stretch;
-  min-width: 9.25rem;
+  height: 36px;
+  min-width: 0;
   padding: 0;
-  border: 0;
-  background: #1a1a1a;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0;
+  background: rgba(18, 24, 36, 0.75);
   color: #f4f4f4;
   cursor: pointer;
-  box-shadow: 0 0 0 0.0625rem #2c2c2c;
+  box-shadow: none;
   font-family: Chivo, Outfit, sans-serif;
+  box-sizing: border-box;
 }
 
 .player-badge[hidden] {
@@ -28,21 +31,26 @@ body.player-gate-open .app-chrome {
 }
 
 .player-badge-name {
-  padding: 0.375rem 1.75rem 0.25rem 0.625rem;
+  display: flex;
+  align-items: center;
+  padding: 0 0.75rem;
   font-size: 0.8125rem;
   font-weight: 700;
   letter-spacing: 0.04em;
-  text-align: right;
+  text-align: center;
+  line-height: 1;
 }
 
 .player-badge-anon {
+  display: flex;
+  align-items: center;
   margin: 0;
-  padding: 0.125rem 0.5rem 0.1875rem;
+  padding: 0 0.5rem;
   background: #c4202a;
   color: #fff;
   font-size: 0.6875rem;
   font-weight: 900;
-  letter-spacing: 0.12em;
+  letter-spacing: 0.08em;
   text-align: center;
 }
 

@@ -1264,3 +1264,26 @@
   }
 }
 
+button:not(.tuner-peg-badge),
+summary,
+.btn-back-menu,
+.vs-btn-primary,
+.vs-btn-secondary,
+.vs-btn-ghost,
+.hud-btn,
+.play-pause-btn,
+.tuner-continue-btn,
+.song-tab-btn,
+.song-create-btn,
+.song-picker-item,
+.song-picker-delete-btn,
+.diff-chip,
+.editor-btn,
+.editor-text-input,
+.editor-preset-select,
+.account-btn-primary,
+.account-btn-ghost,
+.account-btn-danger {
+  border-radius: 0 !important;
+}
+

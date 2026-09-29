@@ -317,37 +317,40 @@ html, body {
 
 .song-picker-tabs {
   display: flex;
-  gap: 8px;
-  background: oklch(18% 0.02 240);
-  padding: 4px;
-  border-radius: 12px;
-  border: 1px solid oklch(90% 0.02 240 / 0.1);
-  margin: 16px 0 20px;
+  gap: 6px;
+  background: transparent;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  margin: 16px 0 12px;
 }
 
 .song-tab-btn {
   flex: 1;
-  border: none;
-  background: transparent;
-  color: oklch(74% 0.02 240);
-  font-family: inherit;
+  border: 1px solid #4a3d62;
+  background: #241c33;
+  color: #efe8f8;
+  font-family: Chivo, Outfit, sans-serif;
   font-size: 13px;
-  font-weight: 600;
-  padding: 8px 12px;
-  border-radius: 8px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 10px 12px;
+  border-radius: 0;
   cursor: pointer;
-  transition: all 0.2s ease;
 }
 
 .song-tab-btn:hover {
+  background: #3a2418;
+  border-color: #e07a2f;
   color: #fff;
-  background: oklch(24% 0.02 240);
 }
 
 .song-tab-btn.active {
   color: #fff;
-  background: oklch(30% 0.04 240);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+  background: #312844;
+  border-color: #e07a2f;
+  box-shadow: none;
 }
 
 .community-filter-bar[hidden],
@@ -368,7 +371,7 @@ html, body {
   box-sizing: border-box;
   background: oklch(20% 0.02 240);
   border: 1px solid oklch(90% 0.02 240 / 0.15);
-  border-radius: 10px;
+  border-radius: 0;
   padding: 10px 14px;
   color: #fff;
   font-family: inherit;
@@ -388,10 +391,10 @@ html, body {
 }
 
 .diff-chip {
-  border: 1px solid oklch(90% 0.02 240 / 0.12);
-  background: oklch(22% 0.02 240);
-  color: oklch(76% 0.02 240);
-  border-radius: 999px;
+  border: 1px solid #4a3d62;
+  background: #241c33;
+  color: #efe8f8;
+  border-radius: 0;
   padding: 5px 12px;
   font-size: 12px;
   font-weight: 600;
@@ -505,9 +508,9 @@ html, body {
 .song-picker-delete-btn {
   width: 44px;
   flex-shrink: 0;
-  border-radius: 12px;
-  border: 1px solid oklch(90% 0.02 240 / 0.1);
-  background: oklch(22% 0.02 240);
+  border-radius: 0;
+  border: 1px solid #4a3d62;
+  background: #241c33;
   color: oklch(78% 0.02 240);
   font-size: 22px;
   line-height: 1;
@@ -526,9 +529,9 @@ html, body {
   justify-content: space-between;
   gap: 16px;
   text-align: left;
-  background: oklch(22% 0.02 240);
-  border: 1px solid oklch(90% 0.02 240 / 0.1);
-  border-radius: 12px;
+  background: #241c33;
+  border: 1px solid #4a3d62;
+  border-radius: 0;
   padding: 14px 16px;
   color: inherit;
   font-family: inherit;
@@ -536,8 +539,8 @@ html, body {
 }
 
 .song-picker-item:hover {
-  border-color: oklch(72% 0.12 165 / 0.55);
-  background: oklch(26% 0.03 165);
+  border-color: #e07a2f;
+  background: #3a2418;
 }
 
 .song-picker-item-title {
@@ -966,14 +969,14 @@ html, body {
 .song-create-btn {
   display: inline-flex;
   margin: 14px 0 4px;
-  font: inherit;
-  font-size: 14px;
-  font-weight: 650;
+  font: 800 13px/1 Chivo, Outfit, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
   border: 0;
-  border-radius: 10px;
-  padding: 10px 16px;
-  background: oklch(78% 0.14 165);
-  color: oklch(18% 0.03 165);
+  border-radius: 0;
+  padding: 12px 16px;
+  background: #2f6bff;
+  color: #fff;
   cursor: pointer;
 }
 
@@ -1187,7 +1190,7 @@ html, body {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 10px;
+  gap: 8px;
   max-width: calc(100% - 32px);
 }
 
@@ -1233,6 +1236,7 @@ html, body {
   place-items: center;
   width: 36px;
   height: 36px;
+  box-sizing: border-box;
   padding: 0;
   background: rgba(18, 24, 36, 0.75);
   border: 1px solid rgba(255, 255, 255, 0.16);
