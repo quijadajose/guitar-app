@@ -112,8 +112,8 @@ html, body {
 }
 
 #view-menu {
-  justify-content: center;
-  padding: 4.5rem 6vw 3rem;
+  justify-content: flex-start;
+  padding: 5.5rem 6vw 3rem;
   background:
     linear-gradient(180deg, rgba(6, 8, 12, 0.55), rgba(6, 8, 12, 0.82)),
     radial-gradient(120% 80% at 70% 40%, #243044 0%, #10141c 55%, #07080c 100%);
@@ -180,7 +180,6 @@ html, body {
 
 .tetra-home {
   margin: 0 0 1.25rem;
-  text-align: center;
   font-family: Silkscreen, Chivo, sans-serif;
   font-size: 1.35rem;
   letter-spacing: 0.14em;
@@ -203,16 +202,17 @@ html, body {
 .tetra-stack-rows .tetra-bar {
   flex-direction: row;
   align-items: center;
-  justify-content: center;
-  text-align: center;
   aspect-ratio: auto;
   min-height: 5.25rem;
   gap: 1.25rem;
   padding: 0.85rem 1.5rem;
-  width: 100%;
-  margin-left: 0;
+  width: calc(100% - 6rem);
   transition: transform 0.16s ease;
 }
+
+.tetra-stack-rows .tetra-bar:nth-child(2) { margin-left: 1.5rem; }
+.tetra-stack-rows .tetra-bar:nth-child(3) { margin-left: 3rem; }
+.tetra-stack-rows .tetra-bar:nth-child(4) { margin-left: 4.5rem; }
 
 .tetra-stack-rows .tetra-bar:hover {
   transform: translateX(2.75rem);
@@ -267,7 +267,6 @@ html, body {
 .tetra-copy {
   display: flex;
   flex-direction: column;
-  align-items: center;
   gap: 0.2rem;
   min-width: 0;
 }
