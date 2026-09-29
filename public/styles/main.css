@@ -559,6 +559,12 @@ html, body {
   color: oklch(90% 0.02 240);
 }
 
+.account-dialog-msg.is-success {
+  background: oklch(28% 0.08 150 / 0.85);
+  border: 1px solid oklch(50% 0.12 150 / 0.5);
+  color: oklch(92% 0.08 150);
+}
+
 .account-btn-danger {
   width: 100%;
   font: inherit;

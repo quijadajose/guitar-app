@@ -69,9 +69,10 @@ export function bindAccount(): void {
   const msg = dialog.querySelector<HTMLElement>('[data-account-msg]');
   if (!form || !msg) return;
 
-  const showMsg = (text: string): void => {
+  const showMsg = (text: string, isSuccess = false): void => {
     msg.hidden = false;
     msg.textContent = text;
+    msg.classList.toggle('is-success', isSuccess);
   };
 
   const emailValue = (): string | null => {
@@ -88,9 +89,14 @@ export function bindAccount(): void {
     const email = emailValue();
     if (!email) return;
     const result = await requestMagicLink(email);
-    showMsg(result.ok
-      ? 'Te mandamos un enlace. Abrilo desde el email para crear la cuenta o entrar. Después podés guardar una passkey.'
-      : (result.error || 'No se pudo enviar el enlace.'));
+    if (result.ok) {
+      showMsg(
+        'Te mandamos un enlace. Abrilo desde el email para crear la cuenta o entrar. Después podés guardar una passkey.',
+        true
+      );
+    } else {
+      showMsg(result.error || 'No se pudo enviar el enlace.');
+    }
   });
 
   dialog.querySelector('[data-account-passkey]')?.addEventListener('click', async () => {
