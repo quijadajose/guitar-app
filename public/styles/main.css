@@ -111,6 +111,11 @@ html, body {
   position: relative;
 }
 
+#view-menu {
+  justify-content: flex-start;
+  padding-top: 108px;
+}
+
 .song-picker {
   width: 100%;
   max-width: 640px;
