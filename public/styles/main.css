@@ -1411,8 +1411,8 @@ body:has(#view-editor.view-active) #editor-tour-btn {
 #view-vs .btn-back-menu {
   position: static;
   align-self: flex-start;
-  margin: 0 0 1rem;
-  width: auto;
+  margin: 0 0 1.25rem;
+  width: fit-content;
   padding: 0.55rem 0.9rem;
   border-radius: 0;
   background: #2a2e36;
@@ -1431,10 +1431,6 @@ body:has(#view-editor.view-active) #editor-tour-btn {
   background:
     linear-gradient(180deg, rgba(6, 8, 12, 0.55), rgba(6, 8, 12, 0.82)),
     radial-gradient(120% 80% at 70% 40%, #243044 0%, #10141c 55%, #07080c 100%);
-}
-
-#view-vs .btn-back-menu {
-  width: fit-content;
 }
 
 #view-vs .vs-container {
@@ -1652,6 +1648,24 @@ body:has(#view-editor.view-active) #editor-tour-btn {
   border: 0;
   background: linear-gradient(90deg, #5a2a18, #8a3d22);
   color: #ffb089;
+}
+
+.tetra-stack-rows .tetra-bar.vs-mode-btn[data-mode="sudden_death"] {
+  background: linear-gradient(90deg, #4a1520, #8a2438);
+  color: #ffb0b8;
+}
+
+.tetra-stack-rows .tetra-bar.vs-mode-btn[data-mode="face_off"] {
+  background: linear-gradient(90deg, #1a3358, #24507a);
+  color: #9fd0ff;
+}
+
+.vs-mode-btn[data-mode="sudden_death"].active {
+  outline-color: #e05a6a;
+}
+
+.vs-mode-btn[data-mode="face_off"].active {
+  outline-color: #7eb6ff;
 }
 
 .vs-mode-btn {

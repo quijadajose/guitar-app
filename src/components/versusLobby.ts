@@ -78,7 +78,7 @@ export class VersusLobby {
     if (local) local.hidden = path !== 'local';
     if (online) online.hidden = path !== 'online';
     if (name) name.hidden = path !== 'online';
-    if (kicker) kicker.textContent = path === 'online' ? 'En línea' : 'En este aparato';
+    if (kicker) kicker.textContent = path === 'online' ? 'En línea' : 'Local';
     if (lead) {
       lead.textContent = path === 'how'
         ? 'Primero elegí con quién tocás. Después la canción.'
@@ -112,9 +112,14 @@ export class VersusLobby {
         this.showPath(path);
       });
     });
-    document.getElementById('vs-step-back')?.addEventListener('click', () => {
-      this.showPath('how');
-    });
+    document.querySelector('#view-vs .btn-back-menu')?.addEventListener('click', (event) => {
+      const how = document.getElementById('vs-step-how');
+      if (how?.hidden) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.showPath('how');
+      }
+    }, true);
 
     document.getElementById('vs-btn-refresh-rooms')?.addEventListener('click', () => {
       void this.refreshPublicRooms();
