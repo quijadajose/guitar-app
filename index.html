@@ -28,6 +28,24 @@
   <link rel="stylesheet" href="/styles/editor.css">
 </head>
 <body>
+  <svg class="note-shapes" width="0" height="0" aria-hidden="true" focusable="false">
+    <symbol id="note-quarter" viewBox="0 0 36 72">
+      <ellipse cx="13" cy="58" rx="11" ry="7.2" transform="rotate(-26 13 58)"/>
+      <rect x="21.2" y="6" width="3.1" height="52"/>
+    </symbol>
+    <symbol id="note-eighth" viewBox="0 0 52 72">
+      <ellipse cx="13" cy="58" rx="11" ry="7.2" transform="rotate(-26 13 58)"/>
+      <rect x="21.2" y="6" width="3.1" height="52"/>
+      <path d="M24.3 7.2c14 6 20 16 16 26-8-6-14-6-16-2 0-8 0-16 0-24z"/>
+    </symbol>
+    <symbol id="note-beamed" viewBox="0 0 70 72">
+      <ellipse cx="13" cy="58" rx="11" ry="7.2" transform="rotate(-26 13 58)"/>
+      <ellipse cx="45" cy="50" rx="11" ry="7.2" transform="rotate(-26 45 50)"/>
+      <rect x="21.2" y="14" width="3.1" height="44"/>
+      <rect x="53.2" y="8" width="3.1" height="42"/>
+      <polygon points="21.2,14 56.3,8 56.3,13.2 21.2,19.2"/>
+    </symbol>
+  </svg>
 
   <div class="player-gate" id="player-gate" hidden>
     <div class="player-gate-sky" aria-hidden="true"></div>
@@ -66,6 +84,7 @@
   <!-- Master Application Container -->
   <main class="app-container" id="guitar-app">
     <div class="app-chrome">
+      <button class="btn-fullscreen" id="editor-tour-btn" type="button" aria-label="Guía" title="Recorrido de cómo usar el editor">?</button>
       <button class="btn-fullscreen" id="btn-fullscreen" type="button" aria-label="Pantalla completa">
         <svg class="fs-icon fs-enter" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">
           <path d="M4 9V4h5M15 4h5v5M20 15v5h-5M9 20H4v-5"/>
@@ -109,24 +128,6 @@
            PANTALLA 0: MENÚ PRINCIPAL (HUB SELECCIÓN DE MODO)
            =================================================================== -->
       <section class="screen-view view-active" id="view-menu" aria-label="Inicio">
-        <svg class="note-shapes" hidden aria-hidden="true">
-          <symbol id="note-quarter" viewBox="0 0 36 72">
-            <ellipse cx="13" cy="58" rx="11" ry="7.2" transform="rotate(-26 13 58)"/>
-            <rect x="21.2" y="6" width="3.1" height="52"/>
-          </symbol>
-          <symbol id="note-eighth" viewBox="0 0 52 72">
-            <ellipse cx="13" cy="58" rx="11" ry="7.2" transform="rotate(-26 13 58)"/>
-            <rect x="21.2" y="6" width="3.1" height="52"/>
-            <path d="M24.3 7.2c14 6 20 16 16 26-8-6-14-6-16-2 0-8 0-16 0-24z"/>
-          </symbol>
-          <symbol id="note-beamed" viewBox="0 0 70 72">
-            <ellipse cx="13" cy="58" rx="11" ry="7.2" transform="rotate(-26 13 58)"/>
-            <ellipse cx="45" cy="50" rx="11" ry="7.2" transform="rotate(-26 45 50)"/>
-            <rect x="21.2" y="14" width="3.1" height="44"/>
-            <rect x="53.2" y="8" width="3.1" height="42"/>
-            <polygon points="21.2,14 56.3,8 56.3,13.2 21.2,19.2"/>
-          </symbol>
-        </svg>
         <div class="note-field" aria-hidden="true">
           <svg class="float-note n1"><use href="#note-quarter"/></svg>
           <svg class="float-note n2"><use href="#note-eighth"/></svg>
@@ -1078,7 +1079,7 @@
         <!-- Editor Top Toolbar -->
         <header class="editor-toolbar">
           <div class="editor-toolbar-left">
-            <button class="btn-back-menu" data-target="menu" style="position: static; margin-right: 8px;" title="Volver al Menú Principal">
+            <button class="btn-back-menu" data-target="menu" title="Volver al Menú Principal">
               <svg viewBox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
               Menú
             </button>
@@ -1116,7 +1117,7 @@
               <span id="editor-play-seq-text">Pista</span>
             </button>
 
-            <button class="editor-btn" id="editor-play-both-btn" title="Audio original y guitarra a la vez">
+            <button class="editor-btn" id="editor-play-both-btn" title="Audio original y guitarra a la vez" hidden>
               <svg viewBox="0 0 24 24" width="16" height="16" fill="currentColor" id="editor-play-both-icon">
                 <polygon points="6,4 20,12 6,20"/>
               </svg>
@@ -1131,7 +1132,6 @@
               Probar
             </button>
 
-            <button class="editor-btn" id="editor-tour-btn" type="button" title="Recorrido de cómo usar el editor">Guía</button>
             <details class="editor-more">
               <summary class="editor-btn">Más</summary>
               <div class="editor-more-menu">

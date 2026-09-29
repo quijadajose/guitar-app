@@ -811,6 +811,7 @@ export class SongEditor {
 
     this.referenceAudio = new Audio(audioSrc);
     this.isReferenceAudioPlaying = false;
+    document.getElementById('editor-play-both-btn')?.removeAttribute('hidden');
 
     if (playIcon) {
       this.setSvgIcon(playIcon, 'play');
@@ -992,6 +993,7 @@ export class SongEditor {
     this.isReferenceAudioPlaying = false;
     const playerBar = document.getElementById('editor-audio-player-bar');
     if (playerBar) playerBar.style.display = 'none';
+    document.getElementById('editor-play-both-btn')?.setAttribute('hidden', '');
   }
 
   private formatAudioTime(seconds: number): string {

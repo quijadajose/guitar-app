@@ -119,6 +119,14 @@ html, body {
     radial-gradient(120% 80% at 70% 40%, #243044 0%, #10141c 55%, #07080c 100%);
 }
 
+.note-shapes {
+  position: absolute;
+  width: 0;
+  height: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
 .note-field {
   position: absolute;
   inset: 0;
@@ -1260,28 +1268,43 @@ html, body {
   color: #2ee59a;
 }
 
+#editor-tour-btn {
+  display: none;
+  font-size: 18px;
+  font-weight: 800;
+  line-height: 1;
+}
+
+body:has(#view-editor.view-active) #editor-tour-btn {
+  display: grid;
+}
+
 /* Generic Omitir (Skip) Button in top right */
 .btn-skip {
   position: absolute;
-  top: 26px;
-  right: 46px;
+  top: auto;
+  bottom: 28px;
+  left: 50%;
+  right: auto;
   z-index: 100;
-  background: transparent;
-  border: none;
+  transform: translateX(-50%);
+  background: rgba(18, 24, 36, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0;
   color: #ffffff;
-  font-size: 18px;
-  font-weight: 600;
+  font-size: 13px;
+  font-weight: 800;
   font-family: inherit;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 10px 16px;
   cursor: pointer;
-  letter-spacing: 0.4px;
-  opacity: 0.95;
-  transition: var(--transition-smooth);
 }
 
 .btn-skip:hover {
-  opacity: 1;
-  transform: translateX(2px);
-  text-shadow: 0 0 10px rgba(255, 255, 255, 0.5);
+  border-color: #e07a2f;
+  background: #3a2418;
+  transform: translateX(-50%);
 }
 
 /* Global Finger Legend Hand Icon (bottom-right) */

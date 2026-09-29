@@ -311,6 +311,7 @@ export class GameplayEngine {
   public currentActiveChordName: string = 'Am';
 
   public setSpeed(speed: number | string): void {
+    if (this.sessionMode === 'performance') return;
     const val = typeof speed === 'string' ? parseFloat(speed) : speed;
     this.speedMultiplier = Math.max(0.25, Math.min(1.5, val || 1.0));
     this.updateSpeedUI();
@@ -343,6 +344,8 @@ export class GameplayEngine {
     this.sessionMode = mode;
     if (mode === 'performance') {
       this.isLooping = false;
+      this.speedMultiplier = 1;
+      this.updateSpeedUI();
       document.documentElement.requestFullscreen?.().catch(() => {});
     } else if (!this.isPlaying) {
       this.armPracticeLoop();
@@ -448,9 +451,7 @@ export class GameplayEngine {
   }
 
   public toggleLoop(): void {
-    if (this.sessionMode === 'performance') {
-      this.setSessionMode('practice');
-    }
+    if (this.sessionMode === 'performance') return;
     this.isLooping = !this.isLooping;
 
     // If enabling loop and no section is set yet, default to an initial 20%-80% section
@@ -490,8 +491,12 @@ export class GameplayEngine {
       btn.title = this.isLooping ? 'La pista se repetirá al terminar' : 'La pista se detiene al terminar';
     });
 
-    document.querySelectorAll('.hud-speed-controller-pill').forEach(pill => {
-      pill.classList.remove('performance-locked');
+    const locked = this.sessionMode === 'performance';
+    document.querySelectorAll('.hud-speed-controller-pill, .hud-loop-toggle-btn').forEach(el => {
+      el.classList.toggle('performance-locked', locked);
+    });
+    document.querySelectorAll<HTMLInputElement>('.gameplay-speed-slider').forEach(slider => {
+      slider.disabled = locked;
     });
     this.updateLoopRegionUI();
   }
@@ -1965,6 +1970,7 @@ export class GameplayEngine {
         guitarAudio.playClickSound();
       });
     });
+    this.updateSessionModeUI();
 
     // Performance Results Modal buttons
     const retryBtn = document.getElementById('perf-btn-retry');

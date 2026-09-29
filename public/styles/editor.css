@@ -16,7 +16,7 @@
    -------------------------------------------------------------------------- */
 .editor-toolbar {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
   background: #16141c;
   border: 1px solid #3a3348;
@@ -30,19 +30,27 @@
 }
 
 #view-editor .btn-back-menu {
+  position: fixed;
+  top: 14px;
+  left: 16px;
+  z-index: 1300;
+  height: 36px;
+  margin: 0;
+  padding: 0 12px;
   border-radius: 0;
-  background: #2a2433;
-  border: 0;
+  background: rgba(18, 24, 36, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.16);
   box-shadow: none;
   backdrop-filter: none;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   font-weight: 800;
+  box-sizing: border-box;
 }
 
 .editor-toolbar-left {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   flex-wrap: wrap;
   gap: 14px;
   min-width: 0;
@@ -66,6 +74,8 @@
   background: #241c33;
   border: 1px solid #4a3d62;
   border-radius: 0;
+  height: 36px;
+  box-sizing: border-box;
   color: #ffffff;
   padding: 6px 12px;
   font-family: inherit;
@@ -144,7 +154,7 @@
 /* Toolbar Right: Action Buttons */
 .editor-toolbar-right {
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   flex-wrap: wrap;
   gap: 10px;
   min-width: 0;
@@ -153,6 +163,8 @@
 .editor-btn {
   display: inline-flex;
   align-items: center;
+  height: 36px;
+  box-sizing: border-box;
   gap: 6px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   background: rgba(255, 255, 255, 0.08);
@@ -229,6 +241,8 @@
   background: #241c33;
   border: 1px solid #4a3d62;
   border-radius: 0;
+  height: 36px;
+  box-sizing: border-box;
   color: #ffffff;
   padding: 6px 10px;
   font-family: inherit;
@@ -783,13 +797,12 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: rgba(16, 24, 38, 0.95);
-  border: 1px solid rgba(16, 185, 129, 0.35);
-  border-radius: 12px;
-  padding: 8px 18px;
+  background: #16141c;
+  border: 1px solid #343b46;
+  border-radius: 0;
+  padding: 8px 12px;
   margin-bottom: 14px;
-  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
-  gap: 16px;
+  gap: 12px;
   z-index: 25;
 }
 
@@ -803,21 +816,20 @@
 .audio-play-toggle-btn {
   width: 36px;
   height: 36px;
-  border-radius: 50%;
-  border: none;
-  background: #10b981;
-  color: #ffffff;
+  border-radius: 0;
+  border: 1px solid #343b46;
+  background: #1c2129;
+  color: #e7ebf0;
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(16, 185, 129, 0.4);
-  transition: transform 0.15s, background 0.15s;
 }
 
 .audio-play-toggle-btn:hover {
-  transform: scale(1.08);
-  background: #059669;
+  background: #3a2418;
+  border-color: #e07a2f;
+  color: #ffb089;
 }
 
 .audio-track-info {
@@ -827,8 +839,10 @@
 
 .audio-track-name {
   font-size: 12px;
-  font-weight: 700;
-  color: #f1f5f9;
+  font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #e7ebf0;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -846,11 +860,11 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: rgba(0, 0, 0, 0.45);
-  border: 1px solid rgba(47, 231, 182, 0.3);
-  border-radius: 10px;
-  padding: 4px 12px;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.4);
+  background: #1c2129;
+  border: 1px solid #343b46;
+  border-radius: 0;
+  padding: 4px 10px;
+  height: 36px;
 }
 
 .inspector-badge {
@@ -864,7 +878,7 @@
 .inspector-note-readout {
   font-size: 14px;
   font-weight: 900;
-  color: #2fe7b6;
+  color: #ffb089;
   min-width: 90px;
   letter-spacing: 0.3px;
 }
@@ -877,19 +891,21 @@
 }
 
 .inspector-add-btn {
-  background: linear-gradient(135deg, #10b981, #059669);
-  border: none;
+  background: #2a5fbf;
+  border: 1px solid #2a5fbf;
   color: #ffffff;
   font-size: 11px;
   font-weight: 800;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
   padding: 4px 10px;
-  border-radius: 6px;
+  height: 26px;
+  border-radius: 0;
   cursor: pointer;
-  transition: transform 0.15s, opacity 0.15s;
 }
 
 .inspector-add-btn:hover:not(:disabled) {
-  transform: scale(1.05);
+  background: #3a74d6;
 }
 
 .inspector-add-btn:disabled {
@@ -906,8 +922,8 @@
 .audio-seeker {
   width: 100%;
   height: 6px;
-  border-radius: 3px;
-  accent-color: #10b981;
+  border-radius: 0;
+  accent-color: #e07a2f;
   cursor: pointer;
 }
 
@@ -918,15 +934,19 @@
 }
 
 .audio-sync-badge {
-  background: rgba(168, 85, 247, 0.2);
-  border: 1px solid rgba(168, 85, 247, 0.5);
-  color: #c084fc;
+  background: #1c2129;
+  border: 1px solid #343b46;
+  color: #ffb089;
   font-size: 11px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 20px;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 10px;
+  height: 36px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0;
   white-space: nowrap;
-  animation: pulseDual 2s infinite ease-in-out;
 }
 
 @keyframes pulseDual {
@@ -964,18 +984,27 @@
 .audio-volume {
   width: 80px;
   height: 5px;
-  accent-color: #10b981;
+  accent-color: #e07a2f;
   cursor: pointer;
 }
 
 .audio-remove-btn {
-  background: transparent;
-  border: none;
-  color: #ef4444;
-  font-size: 20px;
+  width: 36px;
+  height: 36px;
+  background: #1c2129;
+  border: 1px solid #343b46;
+  border-radius: 0;
+  color: #e7ebf0;
+  font-size: 18px;
   cursor: pointer;
-  padding: 0 4px;
+  padding: 0;
   line-height: 1;
+}
+
+.audio-remove-btn:hover {
+  background: #3a2418;
+  border-color: #e07a2f;
+  color: #ffb089;
 }
 
 /* --------------------------------------------------------------------------
@@ -993,10 +1022,14 @@
   padding: 24px;
 }
 
+#editor-play-both-btn[hidden] {
+  display: none !important;
+}
+
 .audio-extract-card {
-  background: oklch(22% 0.018 250);
-  border: 1px solid oklch(90% 0.02 250 / 0.12);
-  border-radius: 18px;
+  background: #16141c;
+  border: 1px solid #343b46;
+  border-radius: 0;
   width: 100%;
   max-width: 440px;
   box-shadow: 0 28px 70px oklch(10% 0.03 250 / 0.55);
@@ -1035,10 +1068,11 @@
 
 .extract-card-title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  color: oklch(96% 0.01 250);
+  font-size: 18px;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #e7ebf0;
 }
 
 .extract-card-subtitle {
@@ -1052,7 +1086,7 @@
   flex-shrink: 0;
   width: 32px;
   height: 32px;
-  border-radius: 999px;
+  border-radius: 0;
   background: oklch(100% 0.01 250 / 0.06);
   border: 1px solid oklch(100% 0.01 250 / 0.1);
   font-size: 20px;
@@ -1074,8 +1108,8 @@
 }
 
 .extract-dropzone {
-  border: 1px dashed oklch(80% 0.04 165 / 0.35);
-  border-radius: 14px;
+  border: 1px dashed #343b46;
+  border-radius: 0;
   padding: 18px 16px;
   text-align: left;
   cursor: pointer;
@@ -1100,8 +1134,8 @@
   width: 40px;
   height: 40px;
   flex-shrink: 0;
-  border-radius: 10px;
-  color: oklch(78% 0.14 165);
+  border-radius: 0;
+  color: #8ee7a0;
   background: oklch(40% 0.08 165 / 0.22);
 }
 
@@ -1147,9 +1181,9 @@
   width: 100%;
   max-width: 100%;
   min-width: 0;
-  background: oklch(16% 0.02 250);
-  border: 1px solid oklch(90% 0.02 250 / 0.14);
-  border-radius: 10px;
+  border: 1px solid #343b46;
+  border-radius: 0;
+  background: #1c2129;
   color: oklch(95% 0.01 250);
   padding: 10px 12px;
   font-size: 13px;
@@ -1212,9 +1246,11 @@
   border: 1px solid oklch(100% 0.01 250 / 0.1);
   color: oklch(88% 0.02 250);
   padding: 10px 16px;
-  border-radius: 10px;
+  border-radius: 0;
   font-size: 13px;
-  font-weight: 650;
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   font-family: inherit;
   cursor: pointer;
 }
@@ -1228,7 +1264,9 @@
   border: none;
   color: oklch(18% 0.04 165);
   padding: 10px 18px;
-  border-radius: 10px;
+  border-radius: 0;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   font-size: 13px;
   font-weight: 750;
   font-family: inherit;
