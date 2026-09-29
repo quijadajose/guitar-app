@@ -131,6 +131,8 @@ html, body {
   position: absolute;
   width: 2.4rem;
   height: 3.8rem;
+  max-width: 3.2rem;
+  max-height: 5rem;
   color: oklch(94% 0.03 85 / 0.82);
   fill: currentColor;
   stroke: currentColor;
@@ -1232,16 +1234,13 @@ html, body {
   cursor: pointer;
 }
 
-.btn-fullscreen .fs-exit {
-  display: none;
+.btn-fullscreen::before,
+.btn-fullscreen::after {
+  content: none !important;
 }
 
-.btn-fullscreen.is-active .fs-enter {
-  display: none;
-}
-
-.btn-fullscreen.is-active .fs-exit {
-  display: block;
+.btn-fullscreen svg[hidden] {
+  display: none !important;
 }
 
 .btn-fullscreen.is-active {
