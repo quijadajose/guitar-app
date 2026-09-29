@@ -106,6 +106,12 @@ export class VersusLobby {
     });
     document.querySelector('#view-vs .btn-back-menu')?.addEventListener('click', (event) => {
       const how = document.getElementById('vs-step-how');
+      if (this.client || this.currentRoomCode) {
+        event.preventDefault();
+        event.stopPropagation();
+        this.leaveRoom();
+        return;
+      }
       if (how?.hidden) {
         event.preventDefault();
         event.stopPropagation();
@@ -256,9 +262,6 @@ export class VersusLobby {
     });
 
     // Salir de sala
-    document.getElementById('vs-btn-leave-room')?.addEventListener('click', () => {
-      this.leaveRoom();
-    });
   }
 
   private async ensureClient(): Promise<MultiplayerClient> {
@@ -401,7 +404,7 @@ export class VersusLobby {
           },
         ]);
         this.preloadSong();
-        this.setStatus('Sala creada. La canción ya está cargada. Comparte el código.');
+        this.clearStatus();
         break;
       }
 
@@ -829,7 +832,7 @@ export class VersusLobby {
     if (this.lobbyViewSection) this.lobbyViewSection.hidden = true;
     if (this.lobbyConfigSection) this.lobbyConfigSection.hidden = false;
     this.showPath('how');
-    this.setStatus('Has salido de la sala.');
+    this.clearStatus();
   }
 
   private setStatus(msg: string, isError = false): void {
@@ -837,6 +840,12 @@ export class VersusLobby {
     this.statusMsgEl.textContent = msg;
     this.statusMsgEl.className = `vs-status-box ${isError ? 'error' : 'info'}`;
     this.statusMsgEl.hidden = false;
+  }
+
+  private clearStatus(): void {
+    if (!this.statusMsgEl) return;
+    this.statusMsgEl.textContent = '';
+    this.statusMsgEl.hidden = true;
   }
 
   private showLiveNotice(msg: string): void {
