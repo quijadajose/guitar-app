@@ -1739,6 +1739,10 @@ html, body {
     padding: 8px 12px;
   }
 
+  .hub-account-btn[data-account="in"]::after {
+    content: "Perfil";
+  }
+
   .hub-account-btn::after {
     content: "Entrar";
     font-size: 13px;

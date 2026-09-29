@@ -18,12 +18,13 @@ export function bindAccount(): void {
 
   const paint = async (): Promise<void> => {
     const email = await currentAccountEmail();
+    status.hidden = true;
     if (email) {
-      status.textContent = `Sesión iniciada como ${email}`;
-      button.textContent = 'Tu cuenta';
+      button.textContent = 'Perfil';
+      button.dataset.account = 'in';
     } else {
-      status.textContent = 'Iniciaste como anónimo.';
       button.textContent = 'Iniciar sesión';
+      button.dataset.account = 'out';
     }
   };
 
