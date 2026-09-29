@@ -43,8 +43,6 @@ export function bindPlayerGate(): void {
     paintBadge(player);
     root.hidden = true;
     document.body.classList.remove('player-gate-open');
-    const guest = document.getElementById('vs-player-name') as HTMLInputElement | null;
-    if (guest) guest.value = player.name;
   };
 
   const existing = readPlayer();

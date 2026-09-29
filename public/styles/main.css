@@ -1404,10 +1404,6 @@ body:has(#view-editor.view-active) #editor-tour-btn {
 /* ==========================================================================
    Modo Versus / Multiplayer Online CSS (Estilo Lichess & Cyberpunk)
    ========================================================================== */
-#view-vs:has(#vs-step-how:not([hidden])) .vs-header {
-  display: none;
-}
-
 #view-vs .btn-back-menu {
   position: static;
   align-self: flex-start;

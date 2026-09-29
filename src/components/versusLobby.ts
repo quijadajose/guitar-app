@@ -2,6 +2,7 @@ import { MultiplayerClient } from '../services/network/multiplayerClient';
 import { multiplayerOrigin, multiplayerWsUrl } from '../services/network/serverStatus';
 import type { GameMode, PlayerRole, PlayerSummary, ServerMessage } from '../types/multiplayer';
 import { goToScreen } from '../screens';
+import { readPlayer } from '../player';
 import { gameplayEngine } from './gameplay';
 import { furEliseSong } from '../songs/furElise';
 
@@ -19,7 +20,6 @@ export class VersusLobby {
 
   // DOM Elements
   private container: HTMLElement | null = null;
-  private guestNameInput: HTMLInputElement | null = null;
   private roomCodeInput: HTMLInputElement | null = null;
   private roomCodeDisplay: HTMLElement | null = null;
   private roomLinkInput: HTMLInputElement | null = null;
@@ -34,7 +34,6 @@ export class VersusLobby {
     this.container = document.getElementById('view-vs');
     if (!this.container) return;
 
-    this.guestNameInput = document.getElementById('vs-player-name') as HTMLInputElement;
     this.roomCodeInput = document.getElementById('vs-room-code-input') as HTMLInputElement;
     this.roomCodeDisplay = document.getElementById('vs-display-room-code');
     this.roomLinkInput = document.getElementById('vs-room-link-copy') as HTMLInputElement;
@@ -45,24 +44,13 @@ export class VersusLobby {
     this.lobbyConfigSection = document.getElementById('vs-room-creation');
     this.statusMsgEl = document.getElementById('vs-status-msg');
 
-    // Recuperar o generar nombre de invitado
-    if (this.guestNameInput) {
-      let savedName = localStorage.getItem('guitar_guest_name');
-      if (!savedName) {
-        savedName = `Guitarrista_${Math.floor(1000 + Math.random() * 9000)}`;
-        localStorage.setItem('guitar_guest_name', savedName);
-      }
-      this.guestNameInput.value = savedName;
-      this.guestNameInput.addEventListener('change', () => {
-        if (this.guestNameInput?.value.trim()) {
-          localStorage.setItem('guitar_guest_name', this.guestNameInput.value.trim());
-        }
-      });
-    }
-
     this.setupListeners();
     this.showPath('how');
     this.checkUrlForRoomCode();
+  }
+
+  private playerName(): string {
+    return readPlayer()?.name || 'Invitado';
   }
 
   private showPath(path: 'how' | 'local' | 'online'): void {
@@ -70,20 +58,10 @@ export class VersusLobby {
     const setup = document.getElementById('vs-step-setup');
     const local = document.getElementById('vs-step-local');
     const online = document.getElementById('vs-step-online');
-    const name = document.getElementById('vs-online-name');
-    const kicker = document.getElementById('vs-step-kicker');
-    const lead = document.getElementById('vs-header-lead');
     if (how) how.hidden = path !== 'how';
     if (setup) setup.hidden = path === 'how';
     if (local) local.hidden = path !== 'local';
     if (online) online.hidden = path !== 'online';
-    if (name) name.hidden = path !== 'online';
-    if (kicker) kicker.textContent = path === 'online' ? 'En línea' : 'Local';
-    if (lead) {
-      lead.textContent = path === 'how'
-        ? 'Primero elegí con quién tocás. Después la canción.'
-        : 'Elegí el modo y la canción.';
-    }
     if (path === 'online') void this.refreshPublicRooms();
   }
 
@@ -246,7 +224,7 @@ export class VersusLobby {
     try {
       this.setStatus('Creando sala en el servidor...');
       const client = await this.ensureClient();
-      const playerName = this.guestNameInput?.value.trim() || 'Invitado';
+      const playerName = this.playerName();
 
       client.send({
         type: 'create_room',
@@ -312,7 +290,7 @@ export class VersusLobby {
     try {
       this.setStatus(`Uniéndose a la sala ${code}...`);
       const client = await this.ensureClient();
-      const playerName = this.guestNameInput?.value.trim() || 'Invitado';
+      const playerName = this.playerName();
 
       client.send({
         type: 'join_room',
@@ -339,7 +317,7 @@ export class VersusLobby {
         this.showActiveRoom(msg.payload.room_code, msg.payload.role, [
           {
             session_id: msg.payload.session_id,
-            name: this.guestNameInput?.value || 'Host',
+            name: this.playerName(),
             role: 'host',
             ready: false,
             score: 0,
@@ -436,7 +414,7 @@ export class VersusLobby {
   }
 
   private startLocalMatch(): void {
-    const first = this.guestNameInput?.value.trim() || 'Jugador 1';
+    const first = this.playerName();
     const secondInput = document.getElementById('vs-local-name-2') as HTMLInputElement | null;
     const second = secondInput?.value.trim() || 'Jugador 2';
     this.localNames = [first, second];
