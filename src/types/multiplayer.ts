@@ -35,6 +35,7 @@ export type ClientMessage =
     }
   | { type: 'set_ready'; payload: { ready: boolean } }
   | { type: 'update_room'; payload: { song_id: string; mode: GameMode; is_public: boolean } }
+  | { type: 'chat'; payload: { text: string } }
   | { type: 'start_game'; payload?: Record<string, never> }
   | {
       type: 'player_progress';
@@ -122,6 +123,7 @@ export type ServerMessage =
         is_public: boolean;
       };
     }
+  | { type: 'chat'; payload: { name: string; text: string } }
   | {
       type: 'game_starting';
       payload: {

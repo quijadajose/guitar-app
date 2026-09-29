@@ -158,6 +158,14 @@ export class VersusLobby {
         this.pushRoomSettings();
       });
     });
+    document.getElementById('vs-chat-form')?.addEventListener('submit', (event) => {
+      event.preventDefault();
+      const input = document.getElementById('vs-chat-input') as HTMLInputElement | null;
+      const text = input?.value.trim() ?? '';
+      if (!text || !this.client) return;
+      this.client.send({ type: 'chat', payload: { text } });
+      if (input) input.value = '';
+    });
     document.getElementById('vs-room-live-public')?.addEventListener('change', (event) => {
       if (this.myRole !== 'host') return;
       this.roomPublic = (event.target as HTMLInputElement).checked;
@@ -417,6 +425,11 @@ export class VersusLobby {
         break;
       }
 
+      case 'chat': {
+        this.appendChat(msg.payload.name, msg.payload.text);
+        break;
+      }
+
       case 'room_settings': {
         this.selectedSongId = msg.payload.song_id;
         this.selectedMode = msg.payload.mode;
@@ -618,6 +631,8 @@ export class VersusLobby {
   private showActiveRoom(code: string, role: PlayerRole, players: PlayerSummary[]): void {
     if (this.lobbyConfigSection) this.lobbyConfigSection.hidden = true;
     if (this.lobbyViewSection) this.lobbyViewSection.hidden = false;
+    const chat = document.getElementById('vs-chat-log');
+    if (chat) chat.replaceChildren();
 
     if (this.roomCodeDisplay) this.roomCodeDisplay.textContent = code;
     const songBadge = document.getElementById('vs-room-song-badge');
@@ -633,6 +648,18 @@ export class VersusLobby {
     }
     this.paintRoomSettings();
     this.updatePlayersUI(players);
+  }
+
+  private appendChat(name: string, text: string): void {
+    const log = document.getElementById('vs-chat-log');
+    if (!log) return;
+    const line = document.createElement('p');
+    line.className = 'vs-chat-line';
+    const who = document.createElement('strong');
+    who.textContent = name;
+    line.append(who, document.createTextNode(`: ${text}`));
+    log.append(line);
+    log.scrollTop = log.scrollHeight;
   }
 
   private paintRoomSettings(): void {

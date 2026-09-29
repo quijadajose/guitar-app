@@ -1430,7 +1430,7 @@ body:has(#view-editor.view-active) #editor-tour-btn {
 }
 
 #view-vs .vs-container {
-  width: min(52rem, 92%);
+  width: min(72rem, 96%);
 }
 
 #view-vs .vs-container {
@@ -1804,9 +1804,80 @@ body:has(#view-editor.view-active) #editor-tour-btn {
   border-color: #2ee59a;
 }
 
-.vs-room-active-box {
-  max-width: 600px;
+.vs-room-board {
+  width: min(1080px, 100%);
   margin: 0 auto;
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr) 240px;
+  grid-template-areas:
+    "top top top"
+    "players config chat";
+  gap: 16px 18px;
+  align-items: start;
+}
+
+.vs-room-top {
+  grid-area: top;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: start;
+}
+
+.vs-room-top .vs-copy-code {
+  align-items: center;
+}
+
+.vs-room-top .vs-btn-ghost {
+  justify-self: start;
+}
+
+.vs-room-col {
+  min-width: 0;
+  background: #16141c;
+  border: 1px solid #343b46;
+  padding: 14px;
+}
+
+.vs-room-config { grid-area: config; }
+.vs-room-board > aside:first-of-type { grid-area: players; }
+.vs-room-chat { grid-area: chat; display: flex; flex-direction: column; min-height: 360px; }
+
+.vs-chat-log {
+  flex: 1;
+  min-height: 220px;
+  max-height: 420px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 8px 0 12px;
+}
+
+.vs-chat-line {
+  font-size: 13px;
+  line-height: 1.35;
+  color: #e7ebf0;
+  word-break: break-word;
+}
+
+.vs-chat-line strong {
+  color: #ffb089;
+  font-weight: 800;
+}
+
+.vs-chat-form .vs-input {
+  width: 100%;
+}
+
+@media (max-width: 900px) {
+  .vs-room-board {
+    grid-template-columns: 1fr;
+    grid-template-areas:
+      "top"
+      "config"
+      "players"
+      "chat";
+  }
 }
 
 .vs-room-header {
