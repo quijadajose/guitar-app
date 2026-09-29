@@ -187,7 +187,7 @@ async function postAuth(path: string, body: Record<string, string>): Promise<{ o
     const res = await fetch(`${multiplayerOrigin()}${path}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ ...body, redirect_to: window.location.origin })
+      body: JSON.stringify(body)
     });
     const data = await res.json().catch(() => ({} as { ok?: boolean; error?: string }));
     if (!res.ok || data.ok === false) {
