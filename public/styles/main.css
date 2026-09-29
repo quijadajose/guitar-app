@@ -1601,7 +1601,8 @@ body:has(#view-editor.view-active) #editor-tour-btn {
 #vs-step-setup[hidden],
 #vs-step-local[hidden],
 #vs-step-online[hidden],
-#vs-online-name[hidden] {
+#vs-online-name[hidden],
+#vs-active-room[hidden] {
   display: none !important;
 }
 
