@@ -129,10 +129,11 @@ html, body {
 
 .float-note {
   position: absolute;
-  width: 2.4rem;
-  height: 3.8rem;
-  max-width: 3.2rem;
-  max-height: 5rem;
+  width: auto;
+  height: 3.6rem;
+  max-width: none;
+  max-height: none;
+  overflow: visible;
   color: oklch(94% 0.03 85 / 0.82);
   fill: currentColor;
   stroke: none;
@@ -140,12 +141,12 @@ html, body {
 }
 
 .float-note.n1 { left: 8%; top: 70%; animation-duration: 32s; }
-.float-note.n2 { left: 22%; top: 88%; width: 2.8rem; animation-duration: 26s; animation-delay: -8s; }
+.float-note.n2 { left: 22%; top: 88%; animation-duration: 26s; animation-delay: -8s; }
 .float-note.n3 { left: 78%; top: 80%; animation-duration: 36s; animation-delay: -14s; }
-.float-note.n4 { left: 88%; top: 60%; width: 3.2rem; animation-duration: 30s; animation-delay: -4s; }
+.float-note.n4 { left: 88%; top: 60%; height: 3.2rem; animation-duration: 30s; animation-delay: -4s; }
 .float-note.n5 { left: 62%; top: 92%; animation-duration: 34s; animation-delay: -18s; }
 .float-note.n6 { left: 40%; top: 96%; animation-duration: 40s; animation-delay: -22s; }
-.float-note.n7 { left: 6%; top: 40%; width: 2rem; animation-duration: 38s; animation-delay: -11s; }
+.float-note.n7 { left: 6%; top: 40%; height: 3rem; animation-duration: 38s; animation-delay: -11s; }
 .float-note.n8 { left: 70%; top: 30%; animation-duration: 42s; animation-delay: -27s; }
 
 .float-note.is-click {
@@ -327,9 +328,9 @@ html, body {
 
 .song-tab-btn {
   flex: 1;
-  border: 1px solid #4a3d62;
-  background: #241c33;
-  color: #efe8f8;
+  border: 1px solid #343b46;
+  background: #1c2129;
+  color: #e7ebf0;
   font-family: Chivo, Outfit, sans-serif;
   font-size: 13px;
   font-weight: 800;
@@ -348,7 +349,7 @@ html, body {
 
 .song-tab-btn.active {
   color: #fff;
-  background: #312844;
+  background: #2a313b;
   border-color: #e07a2f;
   box-shadow: none;
 }
@@ -391,9 +392,9 @@ html, body {
 }
 
 .diff-chip {
-  border: 1px solid #4a3d62;
-  background: #241c33;
-  color: #efe8f8;
+  border: 1px solid #343b46;
+  background: #1c2129;
+  color: #e7ebf0;
   border-radius: 0;
   padding: 5px 12px;
   font-size: 12px;
@@ -509,8 +510,8 @@ html, body {
   width: 44px;
   flex-shrink: 0;
   border-radius: 0;
-  border: 1px solid #4a3d62;
-  background: #241c33;
+  border: 1px solid #343b46;
+  background: #1c2129;
   color: oklch(78% 0.02 240);
   font-size: 22px;
   line-height: 1;
@@ -529,8 +530,8 @@ html, body {
   justify-content: space-between;
   gap: 16px;
   text-align: left;
-  background: #241c33;
-  border: 1px solid #4a3d62;
+  background: #1c2129;
+  border: 1px solid #343b46;
   border-radius: 0;
   padding: 14px 16px;
   color: inherit;

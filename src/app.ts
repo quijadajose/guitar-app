@@ -372,22 +372,16 @@ export class GuitarApp {
 
     const menu = document.getElementById('view-menu');
     const noteField = menu?.querySelector('.note-field');
-    const noteShapes = [
-      'M18 62c8 3 16-1 16-8 0-6-6-9-14-7-2 8-6 14-2 15zm12-14V10h4v40c-2 4-8 6-12 4 2-2 6-4 8-6z',
-      'M16 64c8 3 15-1 15-8 0-5-5-8-13-6-2 7-6 13-2 14zm11-15V14h3.5v33c6-2 14 0 18 6 2 3 1 6-2 7-6 2-12-1-16-6v-5z',
-      'M14 58c7 4 18 1 18-7 0-6-7-10-16-7l2-8c10-2 20 3 20 13 0 12-14 18-24 12v-3zm16-12V8h4v36c-1 1-3 2-4 2z',
-      'M14 66c7 3 14-1 14-7s-5-8-12-6c-2 6-5 12-2 13zm28-8c7 3 14-1 14-7s-5-8-12-6c-2 6-5 12-2 13zM24 56V16h4v38c-1 1-3 2-4 2zm28-6V10h4v38c-1 1-3 2-4 2zM28 16h28v5H28z'
-    ];
+    const noteShapes = ['#note-quarter', '#note-eighth', '#note-beamed'];
     menu?.addEventListener('click', (event) => {
       if (!(event.target instanceof Element) || !noteField) return;
       if (event.target.closest('button, a, input, select')) return;
       const bounds = menu.getBoundingClientRect();
       const note = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       note.setAttribute('class', 'float-note is-click');
-      note.setAttribute('viewBox', '0 0 78 80');
-      const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
-      path.setAttribute('d', noteShapes[Math.floor(Math.random() * noteShapes.length)] || noteShapes[0]);
-      note.appendChild(path);
+      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
+      use.setAttribute('href', noteShapes[Math.floor(Math.random() * noteShapes.length)] || noteShapes[0]);
+      note.appendChild(use);
       note.style.left = `${event.clientX - bounds.left - 18}px`;
       note.style.top = `${event.clientY - bounds.top - 28}px`;
       note.addEventListener('animationend', () => note.remove());
