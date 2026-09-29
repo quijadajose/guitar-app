@@ -61,8 +61,30 @@ export class VersusLobby {
     }
 
     this.setupListeners();
+    this.showPath('how');
     this.checkUrlForRoomCode();
-    void this.refreshPublicRooms();
+  }
+
+  private showPath(path: 'how' | 'local' | 'online'): void {
+    const how = document.getElementById('vs-step-how');
+    const setup = document.getElementById('vs-step-setup');
+    const local = document.getElementById('vs-step-local');
+    const online = document.getElementById('vs-step-online');
+    const name = document.getElementById('vs-online-name');
+    const kicker = document.getElementById('vs-step-kicker');
+    const lead = document.getElementById('vs-header-lead');
+    if (how) how.hidden = path !== 'how';
+    if (setup) setup.hidden = path === 'how';
+    if (local) local.hidden = path !== 'local';
+    if (online) online.hidden = path !== 'online';
+    if (name) name.hidden = path !== 'online';
+    if (kicker) kicker.textContent = path === 'online' ? 'En línea' : 'En este aparato';
+    if (lead) {
+      lead.textContent = path === 'how'
+        ? 'Primero elegí con quién tocás. Después la canción.'
+        : 'Elegí el modo y la canción.';
+    }
+    if (path === 'online') void this.refreshPublicRooms();
   }
 
   private setupListeners(): void {
@@ -82,6 +104,16 @@ export class VersusLobby {
 
     document.getElementById('vs-btn-local')?.addEventListener('click', () => {
       this.startLocalMatch();
+    });
+
+    this.container?.querySelectorAll<HTMLElement>('[data-vs-path]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const path = btn.dataset.vsPath === 'online' ? 'online' : 'local';
+        this.showPath(path);
+      });
+    });
+    document.getElementById('vs-step-back')?.addEventListener('click', () => {
+      this.showPath('how');
     });
 
     document.getElementById('vs-btn-refresh-rooms')?.addEventListener('click', () => {
@@ -676,8 +708,8 @@ export class VersusLobby {
 
     if (this.lobbyViewSection) this.lobbyViewSection.hidden = true;
     if (this.lobbyConfigSection) this.lobbyConfigSection.hidden = false;
+    this.showPath('how');
     this.setStatus('Has salido de la sala.');
-    void this.refreshPublicRooms();
   }
 
   private setStatus(msg: string, isError = false): void {

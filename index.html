@@ -22,16 +22,61 @@
 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="/styles/main.css">
+  <link rel="stylesheet" href="/styles/player-gate.css">
   <link rel="stylesheet" href="/styles/tuner.css">
   <link rel="stylesheet" href="/styles/gameplay.css">
   <link rel="stylesheet" href="/styles/editor.css">
 </head>
 <body>
 
+  <div class="player-gate" id="player-gate" hidden>
+    <div class="player-gate-sky" aria-hidden="true"></div>
+    <p class="player-wordmark">GUITAR</p>
+    <section class="player-panel" data-step="welcome">
+      <h2>BIENVENIDO</h2>
+      <p>Entrá con un nombre para que la app sepa quién está tocando. Si lo dejás vacío, te damos uno al azar.</p>
+      <label class="player-field">
+        <input id="player-name" type="text" maxlength="16" autocomplete="nickname" placeholder="usuario" spellcheck="false">
+      </label>
+      <button class="player-join" type="button" data-join>Unirme</button>
+    </section>
+    <section class="player-panel" data-step="claim" hidden>
+      <h2>¿QUERÉS UNIRTE?</h2>
+      <p data-claim-copy></p>
+      <div class="player-actions">
+        <button class="is-back" type="button" data-back-welcome>Volver</button>
+        <button class="is-anon" type="button" data-anon>Seguir anónimo</button>
+        <button class="is-reg" type="button" data-to-register>Registrar</button>
+      </div>
+    </section>
+    <section class="player-panel" data-step="register" hidden>
+      <h2>HAGÁMOSLO OFICIAL</h2>
+      <p>Elegí una contraseña para quedarte con este nombre en este aparato.</p>
+      <label class="player-field">
+        <input id="player-email" type="email" autocomplete="email" placeholder="email (opcional)">
+      </label>
+      <label class="player-field">
+        <input id="player-pass" type="password" autocomplete="new-password" placeholder="contraseña">
+      </label>
+      <label class="player-field">
+        <input id="player-pass-again" type="password" autocomplete="new-password" placeholder="contraseña otra vez">
+      </label>
+      <p class="player-register-msg" data-register-msg hidden></p>
+      <div class="player-actions">
+        <button class="is-back" type="button" data-back-claim>Volver</button>
+        <button class="is-reg" type="button" data-register>Registrar</button>
+      </div>
+    </section>
+  </div>
+
   <!-- Master Application Container -->
   <main class="app-container" id="guitar-app">
     <div class="app-chrome">
       <button class="btn-fullscreen" id="btn-fullscreen" type="button">Pantalla completa</button>
+      <button class="player-badge" id="player-badge" type="button" hidden>
+        <span class="player-badge-name" id="player-badge-name"></span>
+        <span class="player-badge-anon" id="player-badge-anon">ANÓNIMO</span>
+      </button>
       <div class="hub-account" id="hub-account">
         <p id="hub-account-status" hidden>Iniciaste como anónimo.</p>
         <button type="button" id="hub-account-btn" class="hub-account-btn">Iniciar sesión</button>
@@ -172,78 +217,89 @@
           <header class="vs-header">
             <p class="hub-kicker" style="color: #7eb6ff;">Multijugador en tiempo real</p>
             <h1 class="vs-title">Modo Versus ⚡</h1>
-            <p class="hub-lead">Partidas directas sin registro estilo Lichess. Comparte el código o enlace para jugar.</p>
+            <p class="hub-lead" id="vs-header-lead">Primero elegí con quién tocás. Después la canción.</p>
           </header>
 
           <div id="vs-status-msg" class="vs-status-box" hidden></div>
 
-          <!-- Formulario de Configuración y Búsqueda -->
-          <div id="vs-room-creation" class="vs-grid">
-            <div class="vs-card">
-              <h2>Tu Perfil</h2>
-              <label for="vs-player-name">Tu apodo:</label>
-              <input type="text" id="vs-player-name" class="vs-input" maxlength="20" placeholder="Guitarrista_123">
-
-              <h2 style="margin-top: 20px;">Modo de Duelo</h2>
-              <div class="vs-mode-options">
-                <button type="button" class="vs-mode-btn active" data-mode="classic">
-                  <strong>Clásico</strong>
-                  <span>Gana quien obtenga más puntos.</span>
-                </button>
-                <button type="button" class="vs-mode-btn" data-mode="sudden_death">
-                  <strong>Muerte Súbita</strong>
-                  <span>3 fallos seguidos o &lt; 70% = Knockout.</span>
-                </button>
-                <button type="button" class="vs-mode-btn" data-mode="face_off">
-                  <strong>Ataques (Face-Off)</strong>
-                  <span>Rachas desbloquean trampas al rival.</span>
-                </button>
-              </div>
-
-              <h2 style="margin-top: 20px;">Canción del Duelo</h2>
-              <label for="vs-song-select">Selecciona la canción:</label>
-              <select id="vs-song-select" class="vs-input" style="width: 100%; box-sizing: border-box; background: #171a21; margin-bottom: 14px;">
-                <option value="sultans_swing">🎸 Melodía de Guitarra (8 notas)</option>
-                <option value="fur_elise">🎼 Für Elise - Beethoven (24 notas)</option>
-                <option value="chords_progression">🎶 Progresión de Acordes (Am, C, Em)</option>
-              </select>
-
-              <h2 style="margin-top: 20px;">En este aparato</h2>
-              <label for="vs-local-name-2">Segundo jugador:</label>
-              <input type="text" id="vs-local-name-2" class="vs-input" maxlength="20" placeholder="El otro guitarrista" style="width: 100%; box-sizing: border-box; margin-bottom: 10px;">
-              <button type="button" id="vs-btn-local" class="vs-btn-secondary">
-                Tocar de a uno
+          <div id="vs-room-creation">
+            <div id="vs-step-how" class="vs-choice-grid">
+              <button type="button" class="vs-choice" data-vs-path="local">
+                <strong>En este aparato</strong>
+                <span>Un amigo al lado, la misma guitarra. Primero toca uno y después el otro.</span>
               </button>
-              <p style="color: #9aa3ab; font-size: 13px; margin-top: 8px;">Primero toca una persona y después la otra, la misma canción. Gana el puntaje más alto.</p>
-
-              <label class="vs-public-toggle" for="vs-room-public">
-                <input type="checkbox" id="vs-room-public">
-                Mostrar la sala en la lista pública
-              </label>
-              <button type="button" id="vs-btn-create-room" class="vs-btn-primary" style="margin-top: 16px;">
-                Crear sala
+              <button type="button" class="vs-choice" data-vs-path="online">
+                <strong>En línea</strong>
+                <span>Otro dispositivo. Creá una sala o unite con un código.</span>
               </button>
             </div>
 
-            <div class="vs-card">
-              <h2>Unirse a una Sala</h2>
-              <p style="color: #9aa3ab; font-size: 14px;">Ingresa el código de 5 caracteres que te compartió tu rival:</p>
-              <div class="vs-join-group">
-                <input type="text" id="vs-room-code-input" class="vs-input vs-code-input" maxlength="5" placeholder="EJ: X8K9Q">
-                <button type="button" id="vs-btn-join-room" class="vs-btn-secondary">Unirme</button>
-              </div>
+            <div id="vs-step-setup" hidden>
+              <button type="button" id="vs-step-back" class="vs-btn-ghost">Volver</button>
+              <p class="vs-step-kicker" id="vs-step-kicker">En este aparato</p>
 
-              <div class="vs-public-rooms">
-                <div class="vs-public-head">
-                  <h2>Salas públicas</h2>
-                  <button type="button" id="vs-btn-refresh-rooms" class="vs-btn-ghost">Actualizar</button>
+              <div class="vs-card" style="margin-top: 14px;">
+                <div id="vs-online-name">
+                  <label for="vs-player-name">Tu apodo</label>
+                  <input type="text" id="vs-player-name" class="vs-input" maxlength="20" placeholder="Guitarrista_123">
                 </div>
-                <ul id="vs-public-rooms" class="vs-public-list"></ul>
+
+                <h2 style="margin-top: 20px;">Modo de duelo</h2>
+                <div class="vs-mode-options">
+                  <button type="button" class="vs-mode-btn active" data-mode="classic">
+                    <strong>Clásico</strong>
+                    <span>Gana quien obtenga más puntos.</span>
+                  </button>
+                  <button type="button" class="vs-mode-btn" data-mode="sudden_death">
+                    <strong>Muerte súbita</strong>
+                    <span>3 fallos seguidos o &lt; 70% = knockout.</span>
+                  </button>
+                  <button type="button" class="vs-mode-btn" data-mode="face_off">
+                    <strong>Ataques</strong>
+                    <span>Rachas desbloquean trampas al rival.</span>
+                  </button>
+                </div>
+
+                <h2 style="margin-top: 20px;">Canción</h2>
+                <label for="vs-song-select">Selecciona la canción</label>
+                <select id="vs-song-select" class="vs-input" style="width: 100%; box-sizing: border-box; background: #171a21;">
+                  <option value="sultans_swing">Melodía de guitarra (8 notas)</option>
+                  <option value="fur_elise">Für Elise (24 notas)</option>
+                  <option value="chords_progression">Progresión de acordes (Am, C, Em)</option>
+                </select>
+
+                <div id="vs-step-local" hidden>
+                  <h2 style="margin-top: 20px;">El otro jugador</h2>
+                  <label for="vs-local-name-2">Nombre</label>
+                  <input type="text" id="vs-local-name-2" class="vs-input" maxlength="20" placeholder="El otro guitarrista">
+                  <button type="button" id="vs-btn-local" class="vs-btn-primary" style="margin-top: 16px;">Empezar</button>
+                </div>
               </div>
 
-              <div class="vs-card-tip" style="margin-top: 32px;">
-                <strong>🎮 ¿Cómo funciona?</strong>
-                <p>El audio de la guitarra se procesa 100% en tu navegador. El servidor en Rust sincroniza el inicio de la canción al milisegundo y transmite los puntajes en tiempo real con latencia mínima.</p>
+              <div id="vs-step-online" class="vs-grid" hidden style="margin-top: 16px;">
+                <div class="vs-card">
+                  <h2>Crear sala</h2>
+                  <label class="vs-public-toggle" for="vs-room-public">
+                    <input type="checkbox" id="vs-room-public">
+                    Mostrar la sala en la lista pública
+                  </label>
+                  <button type="button" id="vs-btn-create-room" class="vs-btn-primary" style="margin-top: 16px;">Crear sala</button>
+                </div>
+                <div class="vs-card">
+                  <h2>Unirse a una sala</h2>
+                  <p style="color: #9aa3ab; font-size: 14px;">Código de 5 caracteres.</p>
+                  <div class="vs-join-group">
+                    <input type="text" id="vs-room-code-input" class="vs-input vs-code-input" maxlength="5" placeholder="EJ: X8K9Q">
+                    <button type="button" id="vs-btn-join-room" class="vs-btn-secondary">Unirme</button>
+                  </div>
+                  <div class="vs-public-rooms">
+                    <div class="vs-public-head">
+                      <h2>Salas públicas</h2>
+                      <button type="button" id="vs-btn-refresh-rooms" class="vs-btn-ghost">Actualizar</button>
+                    </div>
+                    <ul id="vs-public-rooms" class="vs-public-list"></ul>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

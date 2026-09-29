@@ -1,0 +1,205 @@
+@import url('https://fonts.googleapis.com/css2?family=Silkscreen:wght@400;700&family=Chivo:wght@500;700;900&display=swap');
+
+body.player-gate-open .app-chrome {
+  visibility: hidden;
+}
+
+.player-badge {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  min-width: 148px;
+  padding: 0;
+  border: 0;
+  background: #1a1a1a;
+  color: #f4f4f4;
+  cursor: pointer;
+  box-shadow: 0 0 0 1px #2c2c2c;
+  font-family: Chivo, Outfit, sans-serif;
+}
+
+.player-badge[hidden] {
+  display: none;
+}
+
+.player-badge-name {
+  padding: 6px 28px 4px 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-align: right;
+}
+
+.player-badge-anon {
+  margin: 0;
+  padding: 2px 8px 3px;
+  background: #c4202a;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 900;
+  letter-spacing: 0.12em;
+  text-align: center;
+}
+
+.player-badge-anon[hidden] {
+  display: none;
+}
+
+.player-gate {
+  position: fixed;
+  inset: 0;
+  z-index: 2000;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px 48px;
+  background: #070707;
+  color: #111;
+  font-family: Chivo, Outfit, sans-serif;
+}
+
+.player-gate[hidden] {
+  display: none;
+}
+
+.player-gate-sky {
+  position: absolute;
+  inset: 0 0 auto 0;
+  height: 42%;
+  background:
+    linear-gradient(#141414, #141414) 4% 78% / 18px 28px no-repeat,
+    linear-gradient(#101010, #101010) 8% 62% / 34px 70px no-repeat,
+    linear-gradient(#181818, #181818) 14% 70% / 22px 48px no-repeat,
+    linear-gradient(#0e0e0e, #0e0e0e) 22% 58% / 46px 90px no-repeat,
+    linear-gradient(#161616, #161616) 31% 74% / 16px 36px no-repeat,
+    linear-gradient(#121212, #121212) 38% 66% / 28px 58px no-repeat,
+    linear-gradient(#1a1a1a, #1a1a1a) 48% 60% / 40px 86px no-repeat,
+    linear-gradient(#111, #111) 58% 72% / 20px 42px no-repeat,
+    linear-gradient(#171717, #171717) 66% 64% / 36px 74px no-repeat,
+    linear-gradient(#0d0d0d, #0d0d0d) 76% 68% / 24px 52px no-repeat,
+    linear-gradient(#151515, #151515) 86% 56% / 52px 96px no-repeat,
+    linear-gradient(#121212, #121212) 94% 74% / 18px 34px no-repeat,
+    linear-gradient(180deg, #101114 0%, #070707 100%);
+  mask-image: linear-gradient(#000 55%, transparent);
+  pointer-events: none;
+}
+
+.player-wordmark {
+  position: absolute;
+  top: 28px;
+  left: 28px;
+  margin: 0;
+  font-family: Silkscreen, monospace;
+  font-size: clamp(28px, 4vw, 52px);
+  letter-spacing: 0.04em;
+  color: #f7f7f7;
+  text-shadow: 4px 0 #9a9a9a, -2px 0 #3a3a3a;
+}
+
+.player-panel {
+  position: relative;
+  width: min(640px, 100%);
+  background: #ececec;
+  box-shadow: 0 0 0 1px #fff, 0 18px 50px rgba(0, 0, 0, 0.45);
+}
+
+.player-panel h2 {
+  margin: 0;
+  padding: 18px 22px 0;
+  font-size: 22px;
+  font-weight: 900;
+  letter-spacing: 0.04em;
+}
+
+.player-panel p {
+  margin: 8px 0 0;
+  padding: 0 22px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.45;
+  text-transform: uppercase;
+}
+
+.player-field {
+  display: block;
+  margin: 16px 18px 0;
+}
+
+.player-field input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 2px solid #3a3a3a;
+  background: #2a2a2a;
+  color: #d0d0d0;
+  font: 700 16px/1 Chivo, Outfit, sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  padding: 12px 14px;
+}
+
+.player-field input::placeholder {
+  color: #8d8d8d;
+  text-transform: lowercase;
+  letter-spacing: 0.02em;
+}
+
+.player-field input[type="email"],
+.player-field input[type="password"] {
+  text-transform: none;
+  letter-spacing: 0.04em;
+}
+
+.player-field input:focus {
+  outline: 2px solid #3b82f6;
+  outline-offset: 1px;
+}
+
+.player-join,
+.player-actions button {
+  border: 0;
+  cursor: pointer;
+  font: 900 18px/1 Chivo, Outfit, sans-serif;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.player-join {
+  display: block;
+  width: calc(100% - 36px);
+  margin: 18px 18px 18px;
+  padding: 16px;
+  background: #d7d7d7;
+  color: #111;
+}
+
+.player-join:hover,
+.player-actions button:hover {
+  filter: brightness(1.06);
+}
+
+.player-actions {
+  display: flex;
+  gap: 10px;
+  padding: 18px;
+}
+
+.player-actions button {
+  flex: 1;
+  padding: 14px 8px;
+  color: #fff;
+}
+
+.player-actions .is-back { background: #9a9a9a; color: #1a1a1a; }
+.player-actions .is-anon { background: #ef6a4a; }
+.player-actions .is-reg { background: #2f6bff; }
+
+.player-register-msg {
+  color: #9b1c1c;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+@media (max-width: 720px) {
+  .player-wordmark { left: 16px; top: 16px; font-size: 22px; }
+  .player-actions { flex-direction: column; }
+}

@@ -18,6 +18,7 @@ import {
   type DifficultyLevel
 } from './services/supabase';
 import { bindAccount } from './screens/account';
+import { bindPlayerGate } from './screens/playerGate';
 import { applyNoteNaming, readNoteNaming, readNotationView, writeNoteNaming, writeNotationView, type NoteNaming, type NotationView } from './notation/notationPreference';
 import type { SongProject } from './types/editor.types';
 
@@ -135,6 +136,7 @@ export class GuitarApp {
     gameplayEngine.setupScrubbingListeners();
     this.setupNotationSettings();
     this.setupAccount();
+    bindPlayerGate();
     void this.refreshBackends();
 
     this.hasGrantedMicPermission =
