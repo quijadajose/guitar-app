@@ -14,7 +14,7 @@ export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
 
 export async function probeSupabase(): Promise<boolean> {
   const controller = new AbortController();
-  const timer = window.setTimeout(() => controller.abort(), 2500);
+  const timer = window.setTimeout(() => controller.abort(), 6000);
   try {
     const res = await fetch(`${supabaseUrl}/auth/v1/health`, {
       headers: { apikey: supabaseAnonKey },
