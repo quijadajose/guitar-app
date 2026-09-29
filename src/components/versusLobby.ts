@@ -11,6 +11,7 @@ export class VersusLobby {
   public currentRoomCode: string | null = null;
   private mySessionId: string | null = null;
   private myRole: PlayerRole | null = null;
+  private publicRooms: Array<{ code: string; song_id: string; mode: GameMode; host_name: string }> = [];
   private selectedMode: GameMode = 'classic';
   private selectedSongId = 'sultans_swing';
   private songPrepared = false;
@@ -67,12 +68,21 @@ export class VersusLobby {
 
   private setupListeners(): void {
     // Modo selector
-    const modeButtons = this.container?.querySelectorAll('.vs-mode-btn');
+    const modeButtons = this.container?.querySelectorAll<HTMLElement>('#vs-step-online [data-mode]');
     modeButtons?.forEach((btn) => {
       btn.addEventListener('click', () => {
         modeButtons.forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
         this.selectedMode = (btn.getAttribute('data-mode') as GameMode) || 'classic';
+        this.renderPublicRooms();
+      });
+    });
+    const localModes = this.container?.querySelectorAll<HTMLElement>('#vs-step-local [data-local-mode]');
+    localModes?.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        localModes.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.selectedMode = (btn.getAttribute('data-local-mode') as GameMode) || 'classic';
       });
     });
 
@@ -145,6 +155,7 @@ export class VersusLobby {
       songSelect.value = this.selectedSongId;
       songSelect.addEventListener('change', () => {
         this.selectedSongId = songSelect.value;
+        this.renderPublicRooms();
       });
     }
 
@@ -251,38 +262,46 @@ export class VersusLobby {
       const body = (await res.json()) as {
         rooms?: Array<{ code: string; song_id: string; mode: GameMode; host_name: string }>;
       };
-      const rooms = body.rooms ?? [];
-      if (rooms.length === 0) {
-        const empty = document.createElement('li');
-        empty.className = 'vs-public-empty';
-        empty.textContent = 'No hay salas públicas esperando rival.';
-        list.append(empty);
-        return;
-      }
-      const modes: Record<GameMode, string> = {
-        classic: 'Clásico',
-        sudden_death: 'Muerte súbita',
-        face_off: 'Ataques',
-      };
-      for (const room of rooms) {
-        const item = document.createElement('li');
-        const label = document.createElement('span');
-        label.textContent = `${room.host_name} · ${modes[room.mode] ?? room.mode} · ${room.code}`;
-        const join = document.createElement('button');
-        join.type = 'button';
-        join.className = 'vs-btn-secondary';
-        join.textContent = 'Unirme';
-        join.addEventListener('click', () => {
-          void this.joinRoom(room.code);
-        });
-        item.append(label, join);
-        list.append(item);
-      }
+      this.publicRooms = body.rooms ?? [];
+      this.renderPublicRooms();
     } catch {
       const empty = document.createElement('p');
       empty.className = 'vs-public-empty';
       empty.textContent = 'No se pudo cargar la lista de salas.';
       list.replaceChildren(empty);
+    }
+  }
+
+  private renderPublicRooms(): void {
+    const list = document.getElementById('vs-public-rooms');
+    if (!list) return;
+    list.replaceChildren();
+    const rooms = this.publicRooms.filter((room) => room.mode === this.selectedMode && room.song_id === this.selectedSongId);
+    if (rooms.length === 0) {
+      const empty = document.createElement('li');
+      empty.className = 'vs-public-empty';
+      empty.textContent = 'No hay salas públicas con ese modo y esa canción.';
+      list.append(empty);
+      return;
+    }
+    const modes: Record<GameMode, string> = {
+      classic: 'Clásico',
+      sudden_death: 'Muerte súbita',
+      face_off: 'Ataques',
+    };
+    for (const room of rooms) {
+      const item = document.createElement('li');
+      const label = document.createElement('span');
+      label.textContent = `${room.host_name} · ${modes[room.mode] ?? room.mode} · ${room.code}`;
+      const join = document.createElement('button');
+      join.type = 'button';
+      join.className = 'vs-btn-secondary';
+      join.textContent = 'Unirme';
+      join.addEventListener('click', () => {
+        void this.joinRoom(room.code);
+      });
+      item.append(label, join);
+      list.append(item);
     }
   }
 
@@ -414,6 +433,10 @@ export class VersusLobby {
   }
 
   private startLocalMatch(): void {
+    const localSong = document.getElementById('vs-local-song') as HTMLSelectElement | null;
+    const localMode = document.querySelector<HTMLElement>('#vs-step-local [data-local-mode].active');
+    if (localSong) this.selectedSongId = localSong.value;
+    if (localMode) this.selectedMode = (localMode.getAttribute('data-local-mode') as GameMode) || 'classic';
     const first = this.playerName();
     const secondInput = document.getElementById('vs-local-name-2') as HTMLInputElement | null;
     const second = secondInput?.value.trim() || 'Jugador 2';
