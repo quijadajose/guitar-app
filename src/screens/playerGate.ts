@@ -43,6 +43,7 @@ export function bindPlayerGate(): void {
     paintBadge(player);
     root.hidden = true;
     document.body.classList.remove('player-gate-open');
+    window.dispatchEvent(new CustomEvent('player-ready'));
   };
 
   const existing = readPlayer();

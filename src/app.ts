@@ -19,6 +19,7 @@ import {
 } from './services/supabase';
 import { bindAccount } from './screens/account';
 import { bindPlayerGate } from './screens/playerGate';
+import { readPlayer } from './player';
 import { applyNoteNaming, readNoteNaming, readNotationView, writeNoteNaming, writeNotationView, type NoteNaming, type NotationView } from './notation/notationPreference';
 import type { SongProject } from './types/editor.types';
 
@@ -95,6 +96,7 @@ export class GuitarApp {
   private communityDebounceTimer: number | null = null;
   private loadedSheet: Promise<typeof import('./notation/sheetView')> | null = null;
   private versusReady: Promise<{ joinFromLocation: () => void }> | null = null;
+  private waitingForPlayerToJoin = false;
 
   private loadSheet(): Promise<typeof import('./notation/sheetView')> {
     this.loadedSheet ??= import('./notation/sheetView');
@@ -274,7 +276,8 @@ export class GuitarApp {
     document.querySelectorAll<HTMLElement>('[data-supabase]').forEach(el => {
       el.hidden = !supabaseUp;
     });
-    if (!multiplayer && this.currentScreenId === 'vs') this.switchScreen('menu');
+    const roomLink = /(?:^|[?&])code=/i.test(window.location.hash);
+    if (!multiplayer && this.currentScreenId === 'vs' && !roomLink) this.switchScreen('menu');
     if (!supabaseUp && this.activeSongTab === 'community') {
       document.querySelector<HTMLButtonElement>('.song-tab-btn[data-tab="lessons"]')?.click();
     }
@@ -703,6 +706,23 @@ export class GuitarApp {
     }
   }
 
+  private joinRoomWhenReady(): void {
+    const enter = (): void => {
+      void this.ensureVersus().then((lobby) => lobby.joinFromLocation());
+    };
+    const gateOpen = document.body.classList.contains('player-gate-open');
+    if (readPlayer() && !gateOpen) {
+      enter();
+      return;
+    }
+    if (this.waitingForPlayerToJoin) return;
+    this.waitingForPlayerToJoin = true;
+    window.addEventListener('player-ready', () => {
+      this.waitingForPlayerToJoin = false;
+      enter();
+    }, { once: true });
+  }
+
   private checkHash(): void {
     const raw = window.location.hash.replace(/^#/, '');
     const hash = raw.split('?')[0] || 'menu';
@@ -713,7 +733,7 @@ export class GuitarApp {
     if (this.screens[hash]) {
       this.switchScreen(hash);
       if (hash === 'vs' && roomCode) {
-        void this.ensureVersus().then((lobby) => lobby.joinFromLocation());
+        this.joinRoomWhenReady();
       }
     } else {
       this.switchScreen('menu');
