@@ -89,6 +89,14 @@ export class VersusLobby {
         this.selectedMode = (btn.getAttribute('data-local-mode') as GameMode) || 'classic';
       });
     });
+    const localSongs = this.container?.querySelectorAll<HTMLElement>('#vs-step-local [data-local-song]');
+    localSongs?.forEach((btn) => {
+      btn.addEventListener('click', () => {
+        localSongs.forEach((b) => b.classList.remove('active'));
+        btn.classList.add('active');
+        this.selectedSongId = btn.getAttribute('data-local-song') || 'sultans_swing';
+      });
+    });
 
     document.getElementById('vs-btn-create-room')?.addEventListener('click', () => {
       this.createRoom();
@@ -507,9 +515,9 @@ export class VersusLobby {
   }
 
   private startLocalMatch(): void {
-    const localSong = document.getElementById('vs-local-song') as HTMLSelectElement | null;
+    const localSong = document.querySelector<HTMLElement>('#vs-step-local [data-local-song].active');
     const localMode = document.querySelector<HTMLElement>('#vs-step-local [data-local-mode].active');
-    if (localSong) this.selectedSongId = localSong.value;
+    if (localSong) this.selectedSongId = localSong.getAttribute('data-local-song') || 'sultans_swing';
     if (localMode) this.selectedMode = (localMode.getAttribute('data-local-mode') as GameMode) || 'classic';
     const first = this.playerName();
     const secondInput = document.getElementById('vs-local-name-2') as HTMLInputElement | null;

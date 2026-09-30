@@ -341,42 +341,27 @@
             </div>
 
             <div id="vs-step-setup" hidden>
-              <div id="vs-step-local" class="vs-card" hidden>
-                <h2>Modo de duelo</h2>
-                <div class="vs-mode-options tetra-stack tetra-stack-rows">
-                  <button type="button" class="vs-mode-btn tetra-bar is-vs active" data-local-mode="classic">
-                    <span class="tetra-mark">CL</span>
-                    <span class="tetra-copy">
-                      <span class="tetra-title">Clásico</span>
-                      <span class="tetra-desc">Gana quien obtenga más puntos</span>
-                    </span>
-                  </button>
-                  <button type="button" class="vs-mode-btn tetra-bar is-vs" data-local-mode="sudden_death">
-                    <span class="tetra-mark">MS</span>
-                    <span class="tetra-copy">
-                      <span class="tetra-title">Muerte súbita</span>
-                      <span class="tetra-desc">3 fallos seguidos o menos de 70% es knockout</span>
-                    </span>
-                  </button>
-                  <button type="button" class="vs-mode-btn tetra-bar is-vs" data-local-mode="face_off">
-                    <span class="tetra-mark">AT</span>
-                    <span class="tetra-copy">
-                      <span class="tetra-title">Ataques</span>
-                      <span class="tetra-desc">Rachas desbloquean trampas al rival</span>
-                    </span>
-                  </button>
+              <div id="vs-step-local" hidden>
+                <header class="song-picker-header">
+                  <p class="hub-kicker">Local</p>
+                  <h1 class="song-picker-title">Misma guitarra</h1>
+                  <p class="hub-lead">Elegí el modo y la canción. Se turnan en el mismo aparato.</p>
+                </header>
+
+                <div class="song-picker-tabs" role="tablist" aria-label="Modo de duelo">
+                  <button type="button" class="song-tab-btn active" data-local-mode="classic">Clásico</button>
+                  <button type="button" class="song-tab-btn" data-local-mode="sudden_death">Muerte súbita</button>
+                  <button type="button" class="song-tab-btn" data-local-mode="face_off">Ataques</button>
                 </div>
-                <h2 style="margin-top: 20px;">Canción</h2>
-                <label for="vs-local-song">Selecciona la canción</label>
-                <select id="vs-local-song" class="vs-input" style="width: 100%; box-sizing: border-box; background: #171a21;">
-                  <option value="sultans_swing">Melodía de guitarra (8 notas)</option>
-                  <option value="fur_elise">Für Elise (24 notas)</option>
-                  <option value="chords_progression">Progresión de acordes (Am, C, Em)</option>
-                </select>
-                <h2 style="margin-top: 20px;">El otro jugador</h2>
-                <label for="vs-local-name-2">Nombre</label>
+                <div class="song-picker-tabs" role="tablist" aria-label="Canción">
+                  <button type="button" class="song-tab-btn active" data-local-song="sultans_swing">Melodía</button>
+                  <button type="button" class="song-tab-btn" data-local-song="fur_elise">Für Elise</button>
+                  <button type="button" class="song-tab-btn" data-local-song="chords_progression">Acordes</button>
+                </div>
+
+                <label for="vs-local-name-2">El otro jugador</label>
                 <input type="text" id="vs-local-name-2" class="vs-input" maxlength="20" placeholder="El otro guitarrista">
-                <button type="button" id="vs-btn-local" class="vs-btn-primary" style="margin-top: 16px;">Empezar</button>
+                <button type="button" id="vs-btn-local" class="song-create-btn">Empezar</button>
               </div>
 
               <div id="vs-step-online" hidden>
