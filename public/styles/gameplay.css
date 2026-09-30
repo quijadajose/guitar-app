@@ -377,10 +377,7 @@
 }
 
 .target-score {
-  font-size: 20px;
-  font-weight: 600;
-  color: rgba(255, 255, 255, 0.88);
-  margin-top: 2px;
+  display: none;
 }
 
 /* The band and hit zone guide line are hidden so the bouncing circle itself is the guide */
@@ -1387,6 +1384,10 @@
   .perf-btn {
     padding: 10px 10px;
   }
+}
+
+.perf-actions-row .perf-btn[hidden] {
+  display: none !important;
 }
 
 .perf-btn {

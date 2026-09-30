@@ -978,6 +978,10 @@ export class GameplayEngine {
     // Resultados específicos del Modo Versus
     const vsBox = document.getElementById('perf-vs-comparison');
     const rematchBtn = document.getElementById('perf-btn-rematch');
+    const practiceBtn = document.getElementById('perf-btn-practice');
+    if (practiceBtn && (this.isVersusActive || this.isLocalHotseat)) {
+      practiceBtn.hidden = true;
+    }
     if (vsBox && rematchBtn) {
       vsBox.hidden = !this.isVersusActive;
       rematchBtn.hidden = !this.isVersusActive;

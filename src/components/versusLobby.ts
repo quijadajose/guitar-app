@@ -567,12 +567,16 @@ export class VersusLobby {
       if (verdict) verdict.textContent = `${names[0]} hizo ${score} pts. Pasá el aparato: le toca a ${names[1]}.`;
       if (retryLabel) retryLabel.textContent = `Turno de ${names[1]}`;
       if (practice) practice.hidden = true;
+      const rematch = document.getElementById('perf-btn-rematch');
+      if (rematch) rematch.hidden = true;
       if (vsBox) vsBox.hidden = true;
       return;
     }
     const first = this.localFirst;
     gameplayEngine.localPassHandoff = false;
-    if (practice) practice.hidden = false;
+    if (practice) practice.hidden = true;
+    const rematch = document.getElementById('perf-btn-rematch');
+    if (rematch) rematch.hidden = false;
     if (retryLabel) retryLabel.textContent = 'Otra vez';
     if (!first || !vsBox) return;
     vsBox.hidden = false;
