@@ -2023,14 +2023,18 @@ export class GameplayEngine {
         const modal = document.getElementById('performance-results-modal');
         if (modal) modal.style.display = 'none';
 
+        const fromDuel = this.isLocalHotseat || this.isVersusActive;
         this.isLocalHotseat = false;
+        this.isVersusActive = false;
         this.localPassHandoff = false;
         this.onLocalRetry = null;
         const practice = document.getElementById('perf-btn-practice');
         if (practice) practice.hidden = false;
+        const rematch = document.getElementById('perf-btn-rematch');
+        if (rematch) rematch.hidden = true;
         const retryLabel = document.querySelector('#perf-btn-retry span');
         if (retryLabel) retryLabel.textContent = 'Reintentar';
-        goToScreen(this.isCustomSongLoaded ? 'editor' : 'menu');
+        goToScreen(fromDuel ? 'vs' : this.isCustomSongLoaded ? 'editor' : 'menu');
       });
     }
   }
