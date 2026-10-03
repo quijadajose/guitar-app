@@ -6,12 +6,28 @@ import { readPlayer } from '../player';
 import { gameplayEngine } from './gameplay';
 import { furEliseSong } from '../songs/furElise';
 
+const ROOM_CODE = /^[A-Z0-9]{4,8}$/;
+const GAME_MODES: readonly GameMode[] = ['classic', 'sudden_death', 'face_off'];
+const SONG_IDS = ['sultans_swing', 'fur_elise', 'chords_progression'] as const;
+
+type PublicRoomRow = { code: string; song_id: string; mode: GameMode; host_name: string };
+
+function asPublicRoom(raw: unknown): PublicRoomRow | null {
+  if (!raw || typeof raw !== 'object') return null;
+  const r = raw as Record<string, unknown>;
+  if (typeof r.code !== 'string' || !ROOM_CODE.test(r.code)) return null;
+  if (typeof r.song_id !== 'string' || typeof r.host_name !== 'string') return null;
+  if (!GAME_MODES.includes(r.mode as GameMode)) return null;
+  return { code: r.code, song_id: r.song_id, mode: r.mode as GameMode, host_name: r.host_name.slice(0, 24) };
+}
+
 export class VersusLobby {
   private client: MultiplayerClient | null = null;
+  private connecting: Promise<MultiplayerClient> | null = null;
   public currentRoomCode: string | null = null;
   private mySessionId: string | null = null;
   private myRole: PlayerRole | null = null;
-  private publicRooms: Array<{ code: string; song_id: string; mode: GameMode; host_name: string }> = [];
+  private publicRooms: PublicRoomRow[] = [];
   private roomPublic = false;
   private selectedMode: GameMode = 'classic';
   private selectedSongId = 'sultans_swing';
@@ -19,6 +35,8 @@ export class VersusLobby {
   private localNames: [string, string] | null = null;
   private localTurn: 0 | 1 = 0;
   private localFirst: { score: number; accuracy: number; combo: number } | null = null;
+  private rematchPending = false;
+  private syncCheckInterval: number | null = null;
 
   // DOM Elements
   private container: HTMLElement | null = null;
@@ -77,7 +95,7 @@ export class VersusLobby {
       btn.addEventListener('click', () => {
         modeButtons.forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
-        this.selectedMode = (btn.getAttribute('data-mode') as GameMode) || 'classic';
+        this.selectedMode = this.readMode(btn.getAttribute('data-mode'));
         this.renderPublicRooms();
       });
     });
@@ -86,7 +104,7 @@ export class VersusLobby {
       btn.addEventListener('click', () => {
         localModes.forEach((b) => b.classList.remove('active'));
         btn.classList.add('active');
-        this.selectedMode = (btn.getAttribute('data-local-mode') as GameMode) || 'classic';
+        this.selectedMode = this.readMode(btn.getAttribute('data-local-mode'));
       });
     });
     const localSongs = this.container?.querySelectorAll<HTMLElement>('#vs-step-local [data-local-song]');
@@ -99,7 +117,7 @@ export class VersusLobby {
     });
 
     document.getElementById('vs-btn-create-room')?.addEventListener('click', () => {
-      this.createRoom();
+      void this.createRoom();
     });
 
     document.getElementById('vs-btn-local')?.addEventListener('click', () => {
@@ -133,11 +151,11 @@ export class VersusLobby {
 
     // Unirse a sala
     document.getElementById('vs-btn-join-room')?.addEventListener('click', () => {
-      const code = this.roomCodeInput?.value.trim();
-      if (code) {
-        this.joinRoom(code);
+      const code = this.roomCodeInput?.value.trim().toUpperCase() ?? '';
+      if (ROOM_CODE.test(code)) {
+        void this.joinRoom(code);
       } else {
-        this.setStatus('Ingresa un código de 5 letras', true);
+        this.setStatus('Ingresá un código de 5 letras o números', true);
       }
     });
 
@@ -145,7 +163,11 @@ export class VersusLobby {
     document.getElementById('vs-copy-code')?.addEventListener('click', () => {
       const link = this.roomLinkInput?.value;
       if (!link) return;
-      void navigator.clipboard.writeText(link).then(() => {
+      if (!navigator.clipboard) {
+        this.setStatus(`Copiá este enlace: ${link}`);
+        return;
+      }
+      navigator.clipboard.writeText(link).then(() => {
         const button = document.getElementById('vs-copy-code');
         const label = button?.querySelector('.hub-kicker');
         button?.classList.add('is-copied');
@@ -154,12 +176,14 @@ export class VersusLobby {
           button?.classList.remove('is-copied');
           if (label) label.textContent = 'Clic para copiar';
         }, 1400);
+      }).catch(() => {
+        this.setStatus(`No se pudo copiar. Enlace: ${link}`, true);
       });
     });
     document.querySelectorAll<HTMLButtonElement>('#vs-active-room [data-room-mode]').forEach((btn) => {
       btn.addEventListener('click', () => {
         if (this.myRole !== 'host') return;
-        this.selectedMode = (btn.dataset.roomMode as GameMode) || 'classic';
+        this.selectedMode = this.readMode(btn.dataset.roomMode);
         this.paintRoomSettings();
         this.pushRoomSettings();
       });
@@ -175,7 +199,7 @@ export class VersusLobby {
     document.getElementById('vs-chat-form')?.addEventListener('submit', (event) => {
       event.preventDefault();
       const input = document.getElementById('vs-chat-input') as HTMLInputElement | null;
-      const text = input?.value.trim() ?? '';
+      const text = input?.value.trim().slice(0, 180) ?? '';
       if (!text || !this.client) return;
       this.client.send({ type: 'chat', payload: { text } });
       if (input) input.value = '';
@@ -193,10 +217,8 @@ export class VersusLobby {
         this.setStatus('No se pudo cargar la canción de la sala', true);
         return;
       }
-      const isReady = this.readyBtn?.classList.toggle('ready-active') ?? false;
-      if (this.readyBtn) {
-        this.readyBtn.textContent = isReady ? '✓ Estoy listo' : 'Listo para tocar';
-      }
+      const isReady = !(this.readyBtn?.classList.contains('ready-active') ?? false);
+      // El estado real llega con room_updated; acá solo se pide el cambio.
       this.client.send({
         type: 'set_ready',
         payload: { ready: isReady },
@@ -222,8 +244,8 @@ export class VersusLobby {
     // Tecla Espacio para disparar ataque en Face-Off cuando esté cargado
     window.addEventListener('keydown', (e) => {
       if (e.code === 'Space' && gameplayEngine.isVersusActive && gameplayEngine.isFaceOffMode) {
+        e.preventDefault();
         if (gameplayEngine.attackStreak >= gameplayEngine.attackThreshold) {
-          e.preventDefault();
           gameplayEngine.launchAttack();
         }
       }
@@ -240,47 +262,61 @@ export class VersusLobby {
 
     // Botón Revancha Rápida (Modal de Resultados)
     document.getElementById('perf-btn-rematch')?.addEventListener('click', () => {
-      if (this.client) {
-        const rematchStatusEl = document.getElementById('perf-vs-rematch-status');
-        const rematchBtn = document.getElementById('perf-btn-rematch') as HTMLButtonElement;
-        if (rematchStatusEl) {
-          rematchStatusEl.textContent = 'Solicitud de revancha enviada...';
-          rematchStatusEl.hidden = false;
-        }
-        if (rematchBtn) {
-          rematchBtn.disabled = true;
-          rematchBtn.textContent = 'Esperando rival...';
-        }
-
-        this.client.send({
-          type: 'request_rematch',
-        });
-
-        // Si es el host, o ambos acuerdan, disparar inicio sincronizado
-        if (this.myRole === 'host') {
-          setTimeout(() => {
-            const modal = document.getElementById('performance-results-modal');
-            if (modal) modal.style.display = 'none';
-            this.client?.send({
-              type: 'start_game',
-            });
-          }, 1200);
-        }
+      if (!this.client) return;
+      const rematchStatusEl = document.getElementById('perf-vs-rematch-status');
+      const rematchBtn = document.getElementById('perf-btn-rematch') as HTMLButtonElement | null;
+      if (rematchStatusEl) {
+        rematchStatusEl.textContent = 'Solicitud de revancha enviada...';
+        rematchStatusEl.hidden = false;
       }
-    });
+      if (rematchBtn) {
+        rematchBtn.disabled = true;
+        rematchBtn.textContent = 'Esperando rival...';
+      }
 
-    // Salir de sala
+      // Antes el anfitrión mandaba start_game a ciegas a los 1,2 s, aunque el rival
+      // no hubiera aceptado. Ahora cada uno se marca listo y el anfitrión arranca
+      // cuando el servidor confirma que ambos lo están (ver room_updated).
+      this.rematchPending = true;
+      this.client.send({ type: 'request_rematch' });
+      this.client.send({ type: 'set_ready', payload: { ready: true } });
+    });
+  }
+
+  private readMode(raw: string | null | undefined): GameMode {
+    return GAME_MODES.includes(raw as GameMode) ? (raw as GameMode) : 'classic';
   }
 
   private async ensureClient(): Promise<MultiplayerClient> {
-    if (this.client) return this.client;
-    // Conectar por WebSocket
-    const client = new MultiplayerClient(multiplayerWsUrl());
-    await client.connect();
+    if (this.client?.isOpen) return this.client;
+    // Doble clic en «Crear sala» abría dos sockets: compartir la conexión en curso.
+    if (this.connecting) return this.connecting;
+    this.connecting = (async () => {
+      const client = new MultiplayerClient(multiplayerWsUrl());
+      await client.connect();
+      client.subscribe((msg: ServerMessage) => this.handleServerMessage(msg));
+      client.onClose(() => this.handleDisconnect(client));
+      this.client = client;
+      return client;
+    })();
+    try {
+      return await this.connecting;
+    } finally {
+      this.connecting = null;
+    }
+  }
 
-    client.subscribe((msg: ServerMessage) => this.handleServerMessage(msg));
-    this.client = client;
-    return client;
+  /** El socket se cerró sin que el usuario saliera (servidor caído, red, timeout). */
+  private handleDisconnect(client: MultiplayerClient): void {
+    if (this.client !== client) return;
+    this.client = null;
+    this.clearSyncCheck();
+    const wasInRoom = this.currentRoomCode !== null;
+    this.resetRoomState();
+    if (wasInRoom) {
+      this.setStatus('Se perdió la conexión con el servidor de salas.', true);
+      this.showLiveNotice('Conexión perdida');
+    }
   }
 
   private async createRoom(): Promise<void> {
@@ -288,6 +324,7 @@ export class VersusLobby {
       this.setStatus('Creando sala en el servidor...');
       const client = await this.ensureClient();
       const playerName = this.playerName();
+      this.roomPublic = (document.getElementById('vs-room-public') as HTMLInputElement | null)?.checked ?? false;
 
       client.send({
         type: 'create_room',
@@ -295,7 +332,7 @@ export class VersusLobby {
           song_id: this.selectedSongId,
           mode: this.selectedMode,
           player_name: playerName,
-          is_public: this.roomPublic = (document.getElementById('vs-room-public') as HTMLInputElement | null)?.checked ?? false,
+          is_public: this.roomPublic,
         },
       });
     } catch (e) {
@@ -309,12 +346,18 @@ export class VersusLobby {
     if (!list) return;
     list.replaceChildren();
     try {
-      const res = await fetch(`${multiplayerOrigin()}/rooms`, { cache: 'no-store' });
+      const res = await fetch(`${multiplayerOrigin()}/rooms`, {
+        cache: 'no-store',
+        credentials: 'omit',
+        signal: AbortSignal.timeout(8000)
+      });
       if (!res.ok) throw new Error(String(res.status));
-      const body = (await res.json()) as {
-        rooms?: Array<{ code: string; song_id: string; mode: GameMode; host_name: string }>;
-      };
-      this.publicRooms = body.rooms ?? [];
+      const body = (await res.json()) as { rooms?: unknown };
+      const rows = Array.isArray(body.rooms) ? body.rooms : [];
+      this.publicRooms = rows
+        .map(asPublicRoom)
+        .filter((room): room is PublicRoomRow => room !== null)
+        .slice(0, 100);
       this.renderPublicRooms();
     } catch {
       const empty = document.createElement('p');
@@ -372,15 +415,20 @@ export class VersusLobby {
   }
 
   private async joinRoom(code: string): Promise<void> {
+    const normalized = code.trim().toUpperCase();
+    if (!ROOM_CODE.test(normalized)) {
+      this.setStatus('Código de sala inválido', true);
+      return;
+    }
     try {
-      this.setStatus(`Uniéndose a la sala ${code}...`);
+      this.setStatus(`Uniéndose a la sala ${normalized}...`);
       const client = await this.ensureClient();
       const playerName = this.playerName();
 
       client.send({
         type: 'join_room',
         payload: {
-          room_code: code,
+          room_code: normalized,
           player_name: playerName,
           as_spectator: false,
         },
@@ -425,9 +473,13 @@ export class VersusLobby {
         if (typeof msg.payload.is_public === 'boolean') this.roomPublic = msg.payload.is_public;
         this.showActiveRoom(msg.payload.room_code, msg.payload.role, msg.payload.players);
         this.preloadSong();
-        this.setStatus(this.songPrepared
-          ? 'Unido. La canción ya está cargada. Marcate como listo.'
-          : 'Unido, pero no se pudo cargar la canción.', !this.songPrepared);
+        if (msg.payload.role === 'spectator') {
+          this.setStatus('La sala ya tiene dos jugadores: entraste como espectador.');
+        } else {
+          this.setStatus(this.songPrepared
+            ? 'Unido. La canción ya está cargada. Marcate como listo.'
+            : 'Unido, pero no se pudo cargar la canción.', !this.songPrepared);
+        }
         break;
       }
 
@@ -447,10 +499,13 @@ export class VersusLobby {
         this.roomPublic = msg.payload.is_public;
         this.paintRoomSettings();
         this.preloadSong();
+        const songBadge = document.getElementById('vs-room-song-badge');
+        if (songBadge) songBadge.textContent = this.songLabel(this.selectedSongId);
         break;
       }
 
       case 'game_starting': {
+        this.rematchPending = false;
         this.handleGameStarting(msg.payload.start_at_epoch_ms, msg.payload.countdown_ms);
         break;
       }
@@ -464,26 +519,25 @@ export class VersusLobby {
 
       case 'apply_attack': {
         if (msg.payload.from_session_id !== this.mySessionId) {
-          gameplayEngine.applyAttackEffect(msg.payload.attack_type, msg.payload.duration_ms);
+          gameplayEngine.applyAttackEffect(msg.payload.attack_type, Math.min(30_000, Math.max(0, msg.payload.duration_ms)));
         }
         break;
       }
 
       case 'rematch_requested': {
+        if (msg.payload.by_session_id === this.mySessionId) break;
         const rematchStatusEl = document.getElementById('perf-vs-rematch-status');
-        const rematchBtn = document.getElementById('perf-btn-rematch');
         if (rematchStatusEl) {
-          rematchStatusEl.textContent = '¡El rival aceptó la revancha! Reiniciando...';
+          rematchStatusEl.textContent = this.rematchPending
+            ? '¡El rival aceptó la revancha! Reiniciando...'
+            : 'El rival pide revancha. Tocá «Revancha» para aceptar.';
           rematchStatusEl.hidden = false;
-        }
-        if (rematchBtn) {
-          rematchBtn.textContent = 'Revancha Aceptada ✓';
         }
         break;
       }
 
       case 'error': {
-        this.setStatus(msg.payload.message, true);
+        this.setStatus(String(msg.payload.message).slice(0, 200), true);
         break;
       }
 
@@ -502,12 +556,7 @@ export class VersusLobby {
           ? 'La sala se borró porque quedó vacía.'
           : 'La sala se borró por inactividad.';
         this.showLiveNotice(text);
-        this.currentRoomCode = null;
-        this.mySessionId = null;
-        this.myRole = null;
-        gameplayEngine.isVersusActive = false;
-        if (this.lobbyViewSection) this.lobbyViewSection.hidden = true;
-        if (this.lobbyConfigSection) this.lobbyConfigSection.hidden = false;
+        this.resetRoomState();
         this.setStatus(text, true);
         break;
       }
@@ -518,10 +567,10 @@ export class VersusLobby {
     const localSong = document.querySelector<HTMLElement>('#vs-step-local [data-local-song].active');
     const localMode = document.querySelector<HTMLElement>('#vs-step-local [data-local-mode].active');
     if (localSong) this.selectedSongId = localSong.getAttribute('data-local-song') || 'sultans_swing';
-    if (localMode) this.selectedMode = (localMode.getAttribute('data-local-mode') as GameMode) || 'classic';
+    if (localMode) this.selectedMode = this.readMode(localMode.getAttribute('data-local-mode'));
     const first = this.playerName();
     const secondInput = document.getElementById('vs-local-name-2') as HTMLInputElement | null;
-    const second = secondInput?.value.trim() || 'Jugador 2';
+    const second = secondInput?.value.trim().slice(0, 20) || 'Jugador 2';
     this.localNames = [first, second];
     this.localTurn = 0;
     this.localFirst = null;
@@ -575,8 +624,9 @@ export class VersusLobby {
     const first = this.localFirst;
     gameplayEngine.localPassHandoff = false;
     if (practice) practice.hidden = true;
+    // La revancha rápida es del modo en línea; en local se usa «Otra vez».
     const rematch = document.getElementById('perf-btn-rematch');
-    if (rematch) rematch.hidden = false;
+    if (rematch) rematch.hidden = true;
     if (retryLabel) retryLabel.textContent = 'Otra vez';
     if (!first || !vsBox) return;
     vsBox.hidden = false;
@@ -655,11 +705,15 @@ export class VersusLobby {
       songBadge.textContent = this.songLabel(this.selectedSongId);
     }
     if (this.roomLinkInput) {
-      this.roomLinkInput.value = `${window.location.origin}${window.location.pathname}#vs?code=${code}`;
+      this.roomLinkInput.value = `${window.location.origin}${window.location.pathname}#vs?code=${encodeURIComponent(code)}`;
     }
 
     if (this.startBtn) {
       this.startBtn.hidden = role !== 'host';
+    }
+    if (this.readyBtn) {
+      // Los espectadores no juegan.
+      this.readyBtn.hidden = role === 'spectator';
     }
     this.paintRoomSettings();
     this.updatePlayersUI(players);
@@ -671,9 +725,11 @@ export class VersusLobby {
     const line = document.createElement('p');
     line.className = 'vs-chat-line';
     const who = document.createElement('strong');
-    who.textContent = name;
-    line.append(who, document.createTextNode(`: ${text}`));
+    who.textContent = String(name).slice(0, 24);
+    line.append(who, document.createTextNode(`: ${String(text).slice(0, 180)}`));
     log.append(line);
+    // Sin tope, una sala larga acumula nodos para siempre.
+    while (log.childElementCount > 200) log.firstElementChild?.remove();
     log.scrollTop = log.scrollHeight;
   }
 
@@ -696,6 +752,7 @@ export class VersusLobby {
 
   private pushRoomSettings(): void {
     if (this.myRole !== 'host' || !this.client) return;
+    if (!(SONG_IDS as readonly string[]).includes(this.selectedSongId)) return;
     this.client.send({
       type: 'update_room',
       payload: {
@@ -708,12 +765,20 @@ export class VersusLobby {
 
   private updatePlayersUI(players: PlayerSummary[]): void {
     if (!this.playersListEl) return;
-    this.playersListEl.innerHTML = '';
+    this.playersListEl.replaceChildren();
+    const list = Array.isArray(players) ? players.slice(0, 2) : [];
 
-    let allReady = players.length >= 2;
+    let allReady = list.length >= 2;
 
-    for (const p of players) {
+    for (const p of list) {
       if (!p.ready) allReady = false;
+
+      // Si el anfitrión se fue, el servidor promueve al invitado: reflejarlo.
+      if (p.session_id === this.mySessionId && p.role !== this.myRole) {
+        this.myRole = p.role;
+        if (this.startBtn) this.startBtn.hidden = p.role !== 'host';
+        this.paintRoomSettings();
+      }
 
       const card = document.createElement('div');
       card.className = `vs-player-card${p.role === 'host' ? ' is-host' : ''}`;
@@ -724,21 +789,40 @@ export class VersusLobby {
       info.className = 'vs-player-info';
       const name = document.createElement('strong');
       const you = p.session_id === this.mySessionId ? ' (Tú)' : '';
-      name.textContent = `${p.name}${you}`;
+      name.textContent = `${String(p.name).slice(0, 24)}${you}`;
       const role = document.createElement('span');
       role.className = 'vs-player-role';
-      role.textContent = p.role.toUpperCase();
+      role.textContent = String(p.role).toUpperCase();
       info.append(name, role);
       const status = document.createElement('div');
       status.className = `vs-player-status ${p.ready ? 'ready' : 'waiting'}`;
       status.textContent = p.ready ? '✓ Listo' : 'Esperando...';
       card.append(avatar, info, status);
       this.playersListEl.appendChild(card);
+
+      // El botón «Listo» refleja lo que el servidor tiene, no lo que creemos haber mandado.
+      if (p.session_id === this.mySessionId && this.readyBtn) {
+        this.readyBtn.classList.toggle('ready-active', p.ready);
+        this.readyBtn.textContent = p.ready ? '✓ Estoy listo' : 'Listo para tocar';
+      }
     }
 
     if (this.startBtn && this.myRole === 'host') {
       this.startBtn.disabled = !allReady;
       this.startBtn.title = allReady ? 'Iniciar partida' : 'Esperando a que ambos jugadores estén listos';
+    }
+
+    // Revancha: el anfitrión arranca solo cuando los dos aceptaron.
+    if (this.rematchPending && allReady && this.myRole === 'host' && this.client) {
+      this.rematchPending = false;
+      this.client.send({ type: 'start_game' });
+    }
+  }
+
+  private clearSyncCheck(): void {
+    if (this.syncCheckInterval !== null) {
+      window.clearInterval(this.syncCheckInterval);
+      this.syncCheckInterval = null;
     }
   }
 
@@ -747,10 +831,21 @@ export class VersusLobby {
    */
   private handleGameStarting(startAtEpochMs: number, _countdownMs: number): void {
     if (!this.client) return;
+    if (this.myRole === 'spectator') {
+      this.setStatus('La partida empezó. Los espectadores todavía no pueden verla en vivo.');
+      return;
+    }
 
     // Cerrar modal de resultados si venimos de una revancha
     const modal = document.getElementById('performance-results-modal');
     if (modal) modal.style.display = 'none';
+    const rematchBtn = document.getElementById('perf-btn-rematch') as HTMLButtonElement | null;
+    if (rematchBtn) {
+      rematchBtn.disabled = false;
+      rematchBtn.textContent = 'Revancha Rápida ⚡';
+    }
+    const rematchStatusEl = document.getElementById('perf-vs-rematch-status');
+    if (rematchStatusEl) rematchStatusEl.hidden = true;
 
     this.setStatus('¡Partida sincronizada! Comenzando...');
 
@@ -788,7 +883,7 @@ export class VersusLobby {
     gameplayEngine.onNoteHitCallback = (noteId, rating, centsOffset) => {
       this.client?.send({
         type: 'note_hit',
-        payload: { note_id: noteId, rating, cents_offset: centsOffset },
+        payload: { note_id: noteId, rating, cents_offset: Math.round(centsOffset) },
       });
     };
     gameplayEngine.onNoteMissCallback = (noteId) => {
@@ -798,8 +893,10 @@ export class VersusLobby {
       });
     };
     gameplayEngine.onMatchFinished = (finalScore, maxCombo, accuracy, hits, totalNotes) => {
-      // Checksum anti-cheat ligero: hash FNV-1a (score + hits + combo + songId)
-      const raw = `${this.selectedSongId}:${finalScore}:${maxCombo}:${accuracy.toFixed(1)}:${hits}:${totalNotes}`;
+      // El servidor recalcula este hash con accuracy redondeada a 1 decimal:
+      // mandar el mismo valor redondeado para que ambos lados coincidan.
+      const acc = Math.round(Math.max(0, Math.min(100, accuracy)) * 10) / 10;
+      const raw = `${this.selectedSongId}:${finalScore}:${maxCombo}:${acc.toFixed(1)}:${hits}:${totalNotes}`;
       let hash = 0x811c9dc5;
       for (let i = 0; i < raw.length; i++) {
         hash ^= raw.charCodeAt(i);
@@ -812,7 +909,7 @@ export class VersusLobby {
         payload: {
           final_score: finalScore,
           max_combo: maxCombo,
-          accuracy,
+          accuracy: acc,
           hits,
           total_notes: totalNotes,
           checksum,
@@ -821,15 +918,34 @@ export class VersusLobby {
     };
 
     // Intervalo de espera de sincronización exacta con reloj NTP
-    const syncCheckInterval = window.setInterval(() => {
+    this.clearSyncCheck();
+    const deadline = Date.now() + 15_000;
+    this.syncCheckInterval = window.setInterval(() => {
       const serverNow = this.client?.getServerNow() ?? Date.now();
       const diff = startAtEpochMs - serverNow;
 
-      if (diff <= 3000) {
-        window.clearInterval(syncCheckInterval);
+      if (diff <= 3000 || Date.now() > deadline) {
+        this.clearSyncCheck();
         gameplayEngine.beginWithCountdown();
       }
     }, 50);
+  }
+
+  private resetRoomState(): void {
+    this.clearSyncCheck();
+    this.currentRoomCode = null;
+    this.mySessionId = null;
+    this.myRole = null;
+    this.rematchPending = false;
+    gameplayEngine.isVersusActive = false;
+    gameplayEngine.isFaceOffMode = false;
+    gameplayEngine.onTriggerAttack = null;
+    gameplayEngine.onProgressUpdate = null;
+    gameplayEngine.onNoteHitCallback = null;
+    gameplayEngine.onNoteMissCallback = null;
+    gameplayEngine.onMatchFinished = null;
+    if (this.lobbyViewSection) this.lobbyViewSection.hidden = true;
+    if (this.lobbyConfigSection) this.lobbyConfigSection.hidden = false;
   }
 
   private leaveRoom(): void {
@@ -837,12 +953,7 @@ export class VersusLobby {
       this.client.disconnect();
       this.client = null;
     }
-    this.currentRoomCode = null;
-    this.mySessionId = null;
-    this.myRole = null;
-
-    if (this.lobbyViewSection) this.lobbyViewSection.hidden = true;
-    if (this.lobbyConfigSection) this.lobbyConfigSection.hidden = false;
+    this.resetRoomState();
     this.showPath('how');
     this.clearStatus();
   }
@@ -862,7 +973,8 @@ export class VersusLobby {
 
   private showLiveNotice(msg: string): void {
     const rival = document.getElementById('hud-vs-rival');
-    const badge = document.getElementById('hud-vs-rival-badge');
+    // El badge tiene clase, no id: antes getElementById devolvía null y el aviso nunca se veía.
+    const badge = rival?.querySelector<HTMLElement>('.hud-vs-rival-badge');
     if (!rival || !badge || !gameplayEngine.isVersusActive) return;
     rival.hidden = false;
     badge.textContent = msg;
@@ -871,7 +983,7 @@ export class VersusLobby {
   private checkUrlForRoomCode(): void {
     const raw = window.location.hash.replace(/^#/, '');
     const code = new URLSearchParams(raw.split('?')[1] || '').get('code')?.trim().toUpperCase();
-    if (!code || !/^[A-Z0-9]{4,8}$/.test(code)) return;
+    if (!code || !ROOM_CODE.test(code)) return;
     if (this.currentRoomCode === code && this.client) return;
     if (this.roomCodeInput) this.roomCodeInput.value = code;
     this.showPath('online');

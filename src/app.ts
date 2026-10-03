@@ -44,6 +44,8 @@ function demoSheetProject(notes: Array<{ string: number; fret: number }>, title:
   };
 }
 
+const DIFFICULTY_LEVELS: readonly DifficultyLevel[] = ['all', 'easy', 'medium', 'hard', 'expert'];
+
 export class GuitarApp {
   public screens: Record<string, HTMLElement | null> = {};
   public navBtns: NodeListOf<HTMLElement>;
@@ -94,6 +96,8 @@ export class GuitarApp {
   public communitySearch: string = '';
   public communityTotalPages: number = 1;
   private communityDebounceTimer: number | null = null;
+  /** Cada render del selector incrementa esto; una respuesta vieja de la red no pisa la vista actual. */
+  private songPickerGeneration = 0;
   private loadedSheet: Promise<typeof import('./notation/sheetView')> | null = null;
   private versusReady: Promise<{ joinFromLocation: () => void }> | null = null;
   private waitingForPlayerToJoin = false;
@@ -160,7 +164,8 @@ export class GuitarApp {
       void this.ensureVersus();
     }
 
-    if (!this.screens[targetId]) {
+    // Solo ids propios: evita que un hash raro (#__proto__, #constructor) llegue a this.screens[...].
+    if (!Object.prototype.hasOwnProperty.call(this.screens, targetId) || !this.screens[targetId]) {
       console.warn(`Screen ${targetId} not found`);
       return;
     }
@@ -200,7 +205,7 @@ export class GuitarApp {
     });
 
     if (targetId === 'songs') {
-      this.renderSongPicker();
+      void this.renderSongPicker();
     }
 
     const notesView = this.screens.notes;
@@ -383,6 +388,8 @@ export class GuitarApp {
     menu?.addEventListener('click', (event) => {
       if (!(event.target instanceof Element) || !noteField) return;
       if (event.target.closest('button, a, input, select')) return;
+      // Tope de notas flotantes: clics rápidos no deben llenar el DOM.
+      if (noteField.querySelectorAll('.float-note.is-click').length > 40) return;
       const bounds = menu.getBoundingClientRect();
       const note = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
       note.setAttribute('class', 'float-note is-click');
@@ -478,7 +485,8 @@ export class GuitarApp {
         document.querySelectorAll('#play-kind-tabs .song-tab-btn').forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
         this.playKind = btn.dataset.kind === 'chords' ? 'chords' : 'notes';
-        this.renderSongPicker();
+        this.communityPage = 1;
+        void this.renderSongPicker();
       });
     });
 
@@ -489,18 +497,20 @@ export class GuitarApp {
     const diffChips = document.querySelectorAll<HTMLButtonElement>('.diff-chip');
     const prevBtn = document.getElementById('comm-prev-page') as HTMLButtonElement | null;
     const nextBtn = document.getElementById('comm-next-page') as HTMLButtonElement | null;
+    if (searchInput) searchInput.maxLength = 80;
 
     tabBtns.forEach(btn => {
       btn.addEventListener('click', () => {
         tabBtns.forEach(b => b.classList.remove('active'));
         btn.classList.add('active');
-        const tab = (btn.dataset.tab as 'lessons' | 'yours' | 'community') || 'lessons';
+        const raw = btn.dataset.tab;
+        const tab = raw === 'yours' || raw === 'community' ? raw : 'lessons';
         this.activeSongTab = tab;
 
         if (filterBar) filterBar.hidden = tab !== 'community';
         if (pagination) pagination.hidden = tab !== 'community';
 
-        this.renderSongPicker();
+        void this.renderSongPicker();
       });
     });
 
@@ -510,7 +520,7 @@ export class GuitarApp {
         this.communityPage = 1;
         if (this.communityDebounceTimer) clearTimeout(this.communityDebounceTimer);
         this.communityDebounceTimer = window.setTimeout(() => {
-          this.renderSongPicker();
+          void this.renderSongPicker();
         }, 300);
       });
     }
@@ -519,9 +529,10 @@ export class GuitarApp {
       chip.addEventListener('click', () => {
         diffChips.forEach(c => c.classList.remove('active'));
         chip.classList.add('active');
-        this.communityDifficulty = (chip.dataset.diff as DifficultyLevel) || 'all';
+        const diff = chip.dataset.diff as DifficultyLevel;
+        this.communityDifficulty = DIFFICULTY_LEVELS.includes(diff) ? diff : 'all';
         this.communityPage = 1;
-        this.renderSongPicker();
+        void this.renderSongPicker();
       });
     });
 
@@ -529,7 +540,7 @@ export class GuitarApp {
       prevBtn.addEventListener('click', () => {
         if (this.communityPage > 1) {
           this.communityPage--;
-          this.renderSongPicker();
+          void this.renderSongPicker();
         }
       });
     }
@@ -538,7 +549,7 @@ export class GuitarApp {
       nextBtn.addEventListener('click', () => {
         if (this.communityPage < this.communityTotalPages) {
           this.communityPage++;
-          this.renderSongPicker();
+          void this.renderSongPicker();
         }
       });
     }
@@ -547,6 +558,7 @@ export class GuitarApp {
   private async renderSongPicker(): Promise<void> {
     const list = document.getElementById('song-picker-list');
     if (!list) return;
+    const generation = ++this.songPickerGeneration;
     list.replaceChildren();
 
     if (this.activeSongTab === 'community') {
@@ -555,12 +567,17 @@ export class GuitarApp {
       loading.textContent = 'Cargando canciones de la comunidad…';
       list.appendChild(loading);
 
+      const kind = this.playKind;
       const res = await fetchCommunitySongs({
         page: this.communityPage,
         pageSize: 6,
         difficulty: this.communityDifficulty,
-        searchQuery: this.communitySearch
+        searchQuery: this.communitySearch,
+        mode: kind
       });
+
+      // Mientras esperábamos, el usuario cambió de pestaña, filtro o página.
+      if (generation !== this.songPickerGeneration) return;
 
       list.replaceChildren();
 
@@ -595,9 +612,8 @@ export class GuitarApp {
 
         const meta = document.createElement('span');
         meta.className = 'song-picker-item-meta';
-        if (item.mode !== this.playKind) return;
         const diffEmoji = item.difficulty === 'easy' ? '🟢 Fácil' : item.difficulty === 'medium' ? '🟡 Media' : item.difficulty === 'hard' ? '🔴 Difícil' : '🟣 Experto';
-        const count = this.playKind === 'chords' ? `${item.chords.length} acordes` : `${item.notes.length} notas`;
+        const count = kind === 'chords' ? `${item.chords.length} acordes` : `${item.notes.length} notas`;
         meta.textContent = `Por ${item.creator_name} · ${diffEmoji} · ${count}`;
         textWrap.append(title, meta);
 
@@ -609,7 +625,7 @@ export class GuitarApp {
         btn.addEventListener('click', () => {
           const songProject = communityRecordToSongProject(item);
           queueGameplaySong(songProject);
-          this.switchScreen(this.playKind === 'chords' ? 'chords' : 'notes');
+          this.switchScreen(songProject.mode === 'chords' ? 'chords' : 'notes');
         });
 
         row.appendChild(btn);
@@ -639,8 +655,10 @@ export class GuitarApp {
         clearBtn.title = 'Borrar las canciones guardadas en este dispositivo';
         clearBtn.addEventListener('click', (e) => {
           e.stopPropagation();
+          // Borra todo sin poder deshacer: pedir confirmación.
+          if (!window.confirm('¿Borrar todas tus canciones guardadas en este dispositivo?')) return;
           clearLibrary();
-          this.renderSongPicker();
+          void this.renderSongPicker();
         });
         heading.appendChild(clearBtn);
       }
@@ -690,7 +708,7 @@ export class GuitarApp {
           del.addEventListener('click', (e) => {
             e.stopPropagation();
             removeLibrarySong(item.id);
-            this.renderSongPicker();
+            void this.renderSongPicker();
           });
           row.appendChild(del);
         }
@@ -727,10 +745,11 @@ export class GuitarApp {
     const raw = window.location.hash.replace(/^#/, '');
     const hash = raw.split('?')[0] || 'menu';
     const roomCode = new URLSearchParams(raw.split('?')[1] || '').get('code');
-    if (hash === this.currentScreenId && this.screens[hash]?.classList.contains('view-active') && !roomCode) {
+    const known = Object.prototype.hasOwnProperty.call(this.screens, hash);
+    if (known && hash === this.currentScreenId && this.screens[hash]?.classList.contains('view-active') && !roomCode) {
       return;
     }
-    if (this.screens[hash]) {
+    if (known && this.screens[hash]) {
       this.switchScreen(hash);
       if (hash === 'vs' && roomCode) {
         this.joinRoomWhenReady();
@@ -749,7 +768,7 @@ export class GuitarApp {
     pegButtons.forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
-        const pegNum = parseInt(btn.getAttribute('data-peg') || '0');
+        const pegNum = parseInt(btn.getAttribute('data-peg') || '0', 10);
         this.activatePeg(pegNum, undefined, true, true, false);
       });
     });
@@ -786,7 +805,7 @@ export class GuitarApp {
     }
 
     document.querySelectorAll<HTMLElement>('.tuner-peg-badge').forEach(b => {
-      const bPeg = parseInt(b.getAttribute('data-peg') || '0');
+      const bPeg = parseInt(b.getAttribute('data-peg') || '0', 10);
       b.classList.toggle('active', bPeg === pegNum);
     });
 
@@ -824,7 +843,11 @@ export class GuitarApp {
 
     const tunerCentsLabel = document.getElementById('tuner-cents-label');
     if (tunerCentsLabel) {
-      if (isInTune) {
+      if (!hasReading) {
+        // Al tocar la clavija sin micrófono no hay lectura: no mostrar «0 cents (Demasiado bajo)».
+        tunerCentsLabel.textContent = 'Escuchá la nota de referencia';
+        tunerCentsLabel.style.color = 'rgba(255, 255, 255, 0.6)';
+      } else if (isInTune) {
         tunerCentsLabel.textContent = '¡AFINADO!';
         tunerCentsLabel.style.color = '#00d68f';
       } else if (effectiveCents > 0) {
@@ -882,7 +905,7 @@ export class GuitarApp {
     }
 
     if (this.tunedStrings.size === 6) {
-      this.showTunerComplete();
+      if (isNew) this.showTunerComplete();
     } else if (isNew) {
       if (this.autoProgressTimer) clearTimeout(this.autoProgressTimer);
       this.autoProgressTimer = window.setTimeout(() => {
@@ -938,7 +961,7 @@ export class GuitarApp {
     }
 
     const tunerCentsLabel = document.getElementById('tuner-cents-label');
-    if (tunerCentsLabel) {
+    if (tunerCentsLabel && this.tunedStrings.size < 6) {
       tunerCentsLabel.textContent = 'En espera de pulsación...';
       tunerCentsLabel.style.color = 'rgba(255, 255, 255, 0.6)';
     }
@@ -958,7 +981,11 @@ export class GuitarApp {
   private rememberMicGranted(): void {
     this.hasGrantedMicPermission = true;
     guitarAudio.hasMicPermission = true;
-    sessionStorage.setItem('guitar_mic_granted', '1');
+    try {
+      sessionStorage.setItem('guitar_mic_granted', '1');
+    } catch {
+      // modo privado / almacenamiento bloqueado
+    }
   }
 
   private async syncMicForScreen(targetId: string): Promise<void> {
@@ -976,11 +1003,14 @@ export class GuitarApp {
     const perm = await this.queryMicPermissionState();
     if (gen !== this.micGateGen) return;
 
+    // Si el navegador dice «denied», no fiarse del recuerdo de la sesión: mostrar el aviso.
     const alreadyAllowed =
       perm === 'granted' ||
-      this.hasGrantedMicPermission ||
-      guitarAudio.hasMicPermission ||
-      sessionStorage.getItem('guitar_mic_granted') === '1';
+      (perm !== 'denied' && (
+        this.hasGrantedMicPermission ||
+        guitarAudio.hasMicPermission ||
+        sessionStorage.getItem('guitar_mic_granted') === '1'
+      ));
 
     if (alreadyAllowed) {
       this.rememberMicGranted();
@@ -1053,6 +1083,15 @@ export class GuitarApp {
       return true;
     }
 
+    // El permiso recordado ya no vale (lo revocaron): volver a pedirlo.
+    this.hasGrantedMicPermission = false;
+    guitarAudio.hasMicPermission = false;
+    try {
+      sessionStorage.removeItem('guitar_mic_granted');
+    } catch {
+      // ignore
+    }
+    document.getElementById('tuner-mic-overlay')?.classList.remove('hidden');
     const errEl = document.getElementById('tuner-mic-error');
     if (errEl) {
       errEl.hidden = false;
@@ -1169,6 +1208,8 @@ export class GuitarApp {
   }
 
   private onTunerPitch = (data: PitchMatchResult): void => {
+    // Antes se leía data.rms antes de comprobar que data existiera.
+    if (!data) return;
     this.tunerDebugRms = data.rms;
     this.tunerDebugFreq = data.freq;
     publishLiveFrame({
@@ -1184,7 +1225,6 @@ export class GuitarApp {
       this.tunerDebugReadings.push(`${data.rms.toFixed(4)} ${data.freq ? data.freq.toFixed(1) : '—'}Hz ${note}`);
       if (this.tunerDebugReadings.length > 400) this.tunerDebugReadings.shift();
     }
-    if (!data) return;
     const now = performance.now();
 
     if (data.freq && data.stringMatch) {
@@ -1330,7 +1370,9 @@ export class GuitarApp {
       if (e.key === '4' && e.altKey) this.switchScreen('editor');
 
       const onGameplay = this.currentScreenId === 'notes' || this.currentScreenId === 'chords';
-      if (onGameplay && (e.key === 'Escape' || e.key === 'p' || e.key === 'P' || e.key === ' ')) {
+      // En Face-Off la barra espaciadora lanza el ataque (versusLobby); no pausar a la vez.
+      const spaceIsAttack = e.key === ' ' && gameplayEngine.isVersusActive && gameplayEngine.isFaceOffMode;
+      if (onGameplay && !spaceIsAttack && (e.key === 'Escape' || e.key === 'p' || e.key === 'P' || e.key === ' ')) {
         e.preventDefault();
         if (sessionCalibrator.isActive) {
           if (e.key === 'Escape') sessionCalibrator.skip();
@@ -1407,6 +1449,9 @@ function triggerDownload(blob: Blob, name: string): void {
   const link = document.createElement('a');
   link.href = url;
   link.download = name;
+  document.body.appendChild(link);
   link.click();
-  URL.revokeObjectURL(url);
+  link.remove();
+  // Revocar en el acto cancela la descarga en algunos navegadores (Firefox/Safari).
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
