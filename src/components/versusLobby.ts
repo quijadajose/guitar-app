@@ -689,7 +689,7 @@ export class VersusLobby {
     switch (songId) {
       case 'fur_elise': return '🎼 Für Elise';
       case 'chords_progression': return '🎶 Acordes (Am, C, Em)';
-      default: return '🎸 Melodía';
+      default: return 'Melodía';
     }
   }
 
@@ -784,7 +784,7 @@ export class VersusLobby {
       card.className = `vs-player-card${p.role === 'host' ? ' is-host' : ''}`;
       const avatar = document.createElement('div');
       avatar.className = 'vs-avatar';
-      avatar.textContent = p.role === 'host' ? '👑' : '🎸';
+      avatar.textContent = String(p.name).trim().charAt(0) || '?';
       const info = document.createElement('div');
       info.className = 'vs-player-info';
       const name = document.createElement('strong');
@@ -792,18 +792,18 @@ export class VersusLobby {
       name.textContent = `${String(p.name).slice(0, 24)}${you}`;
       const role = document.createElement('span');
       role.className = 'vs-player-role';
-      role.textContent = String(p.role).toUpperCase();
+      role.textContent = p.role === 'host' ? 'Anfitrión' : 'Invitado';
       info.append(name, role);
       const status = document.createElement('div');
       status.className = `vs-player-status ${p.ready ? 'ready' : 'waiting'}`;
-      status.textContent = p.ready ? '✓ Listo' : 'Esperando...';
+      status.textContent = p.ready ? 'Listo' : 'No listo';
       card.append(avatar, info, status);
       this.playersListEl.appendChild(card);
 
       // El botón «Listo» refleja lo que el servidor tiene, no lo que creemos haber mandado.
       if (p.session_id === this.mySessionId && this.readyBtn) {
         this.readyBtn.classList.toggle('ready-active', p.ready);
-        this.readyBtn.textContent = p.ready ? '✓ Estoy listo' : 'Listo para tocar';
+        this.readyBtn.textContent = p.ready ? 'Estoy listo' : 'Listo para tocar';
       }
     }
 
@@ -842,7 +842,7 @@ export class VersusLobby {
     const rematchBtn = document.getElementById('perf-btn-rematch') as HTMLButtonElement | null;
     if (rematchBtn) {
       rematchBtn.disabled = false;
-      rematchBtn.textContent = 'Revancha Rápida ⚡';
+      rematchBtn.textContent = 'Revancha rápida';
     }
     const rematchStatusEl = document.getElementById('perf-vs-rematch-status');
     if (rematchStatusEl) rematchStatusEl.hidden = true;

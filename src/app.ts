@@ -823,12 +823,12 @@ export class GuitarApp {
 
     const hasReading = manualCents !== undefined;
     const effectiveCents = hasReading ? manualCents : 0;
-    const pxOffset = hasReading ? (Math.max(-40, Math.min(40, effectiveCents)) / 40) * 90 : 0;
+    const meterOffset = hasReading ? Math.max(-40, Math.min(40, effectiveCents)) / 40 : 0;
     const isInTune = hasReading && Math.abs(effectiveCents) <= 15;
 
     const pitchIndicator = document.getElementById('tuner-pitch-indicator');
     if (pitchIndicator) {
-      pitchIndicator.style.transform = `translateX(${pxOffset}px)`;
+      pitchIndicator.style.setProperty('--tuner-offset', String(meterOffset));
       pitchIndicator.classList.toggle('in-tune', isInTune);
     }
 
@@ -846,16 +846,16 @@ export class GuitarApp {
       if (!hasReading) {
         // Al tocar la clavija sin micrófono no hay lectura: no mostrar «0 cents (Demasiado bajo)».
         tunerCentsLabel.textContent = 'Escuchá la nota de referencia';
-        tunerCentsLabel.style.color = 'rgba(255, 255, 255, 0.6)';
+        tunerCentsLabel.style.color = 'var(--text-muted)';
       } else if (isInTune) {
-        tunerCentsLabel.textContent = '¡AFINADO!';
-        tunerCentsLabel.style.color = '#00d68f';
+        tunerCentsLabel.textContent = '¡Afinada!';
+        tunerCentsLabel.style.color = 'var(--accent)';
       } else if (effectiveCents > 0) {
         tunerCentsLabel.textContent = `+${effectiveCents} cents (Demasiado alto)`;
-        tunerCentsLabel.style.color = '#e74c3c';
+        tunerCentsLabel.style.color = 'var(--danger)';
       } else {
         tunerCentsLabel.textContent = `${effectiveCents} cents (Demasiado bajo)`;
-        tunerCentsLabel.style.color = '#e74c3c';
+        tunerCentsLabel.style.color = 'var(--danger)';
       }
     }
 
@@ -930,7 +930,7 @@ export class GuitarApp {
     if (tunerPromptText) tunerPromptText.style.display = 'none';
     if (tunerCentsLabel) {
       tunerCentsLabel.textContent = 'Todas las cuerdas afinadas correctamente';
-      tunerCentsLabel.style.color = '#00d68f';
+      tunerCentsLabel.style.color = 'var(--accent)';
     }
     if (tunerContinueBtn) tunerContinueBtn.classList.add('visible');
 
@@ -951,7 +951,7 @@ export class GuitarApp {
 
     const pitchIndicator = document.getElementById('tuner-pitch-indicator');
     if (pitchIndicator) {
-      pitchIndicator.style.transform = 'translateX(0px)';
+      pitchIndicator.style.setProperty('--tuner-offset', '0');
       pitchIndicator.classList.remove('in-tune');
     }
 
@@ -963,7 +963,7 @@ export class GuitarApp {
     const tunerCentsLabel = document.getElementById('tuner-cents-label');
     if (tunerCentsLabel && this.tunedStrings.size < 6) {
       tunerCentsLabel.textContent = 'En espera de pulsación...';
-      tunerCentsLabel.style.color = 'rgba(255, 255, 255, 0.6)';
+      tunerCentsLabel.style.color = 'var(--text-muted)';
     }
   }
 

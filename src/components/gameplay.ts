@@ -128,7 +128,7 @@ export class GameplayEngine {
     btn.disabled = !isReady;
     if (isReady) {
       btn.classList.add('attack-ready');
-      label.textContent = '¡LANZAR ATAQUE! ⚡';
+      label.textContent = '¡Lanzar ataque!';
     } else {
       btn.classList.remove('attack-ready');
       label.textContent = `Cargando ${this.attackStreak}/${this.attackThreshold}`;
@@ -909,15 +909,15 @@ export class GameplayEngine {
     if (accuracy >= 90) {
       stars = 3;
       verdict = accuracy === 100 ? '¡INTERPRETACIÓN PERFECTA! IMPECABLE' : '¡MAGNÍFICO! CASI PERFECTO';
-      badgeText = '⭐ ⭐ ⭐ 3 ESTRELLAS (EXCELENTE)';
+      badgeText = '3 estrellas · Excelente';
     } else if (accuracy >= 70) {
       stars = 2;
       verdict = '¡MUY BUENA INTERPRETACIÓN!';
-      badgeText = '⭐ ⭐ 2 ESTRELLAS (MUY BIEN)';
+      badgeText = '2 estrellas · Muy bien';
     } else if (accuracy >= 40) {
       stars = 1;
       verdict = '¡BUEN INTENTO! VAS POR BUEN CAMINO';
-      badgeText = '⭐ 1 ESTRELLA (BUENO)';
+      badgeText = '1 estrella · Bueno';
     } else {
       stars = 0;
       verdict = 'PRACTICA MÁS DESPACIO PARA MEJORAR';
@@ -997,14 +997,14 @@ export class GameplayEngine {
         const rivalScore = this.rivalLastScore || 0;
         if (bannerEl) {
           if (this.score > rivalScore) {
-            bannerEl.textContent = '¡VICTORIA! 🏆';
-            bannerEl.style.color = '#f0c14a';
+            bannerEl.textContent = '¡Victoria!';
+            bannerEl.style.color = 'var(--accent)';
           } else if (this.score < rivalScore) {
-            bannerEl.textContent = 'DERROTA ⚔️';
-            bannerEl.style.color = '#ff6b6b';
+            bannerEl.textContent = 'Derrota';
+            bannerEl.style.color = 'var(--danger)';
           } else {
-            bannerEl.textContent = '¡EMPATE! 🤝';
-            bannerEl.style.color = '#7eb6ff';
+            bannerEl.textContent = '¡Empate!';
+            bannerEl.style.color = 'var(--text)';
           }
         }
         if (this.onMatchFinished) {

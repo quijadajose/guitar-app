@@ -2,7 +2,7 @@ class TunerMotion {
   private timer = 0;
 
   pluck(_stringNum: number, sustain = false): void {
-    const photo = document.getElementById('tuner-headstock-photo');
+    const photo = document.getElementById('tuner-pitch-label');
     photo?.classList.add('vibrating');
     if (this.timer) window.clearTimeout(this.timer);
     if (!sustain) {
@@ -15,7 +15,7 @@ class TunerMotion {
       window.clearTimeout(this.timer);
       this.timer = 0;
     }
-    document.getElementById('tuner-headstock-photo')?.classList.remove('vibrating');
+    document.getElementById('tuner-pitch-label')?.classList.remove('vibrating');
   }
 
   stop(): void {

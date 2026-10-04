@@ -652,7 +652,7 @@ export class SongEditor {
 
     if (mainText) {
       mainText.textContent = `Archivo seleccionado: ${file.name} (${(file.size / (1024 * 1024)).toFixed(2)} MB)`;
-      mainText.style.color = '#34d399';
+      mainText.style.color = 'var(--accent)';
     }
 
     if (confirmBtn) {
@@ -893,7 +893,7 @@ export class SongEditor {
 
         if (noteReadout) {
           noteReadout.textContent = `${noteName} [C${tab.string} T${tab.fret}]`;
-          noteReadout.style.color = '#2fe7b6';
+          noteReadout.style.color = 'var(--accent)';
         }
         if (freqReadout) {
           freqReadout.textContent = `${this.currentInspectedNote.freq} Hz`;
@@ -908,7 +908,7 @@ export class SongEditor {
     // Silence or non-tonal background
     if (noteReadout) {
       noteReadout.textContent = '-- (Silencio / Ruido)';
-      noteReadout.style.color = '#64748b';
+      noteReadout.style.color = 'var(--text-muted)';
     }
     if (freqReadout) {
       freqReadout.textContent = '-- Hz';
@@ -964,7 +964,7 @@ export class SongEditor {
     const addBtn = document.getElementById('inspector-add-btn');
     if (addBtn) {
       const origText = addBtn.textContent;
-      addBtn.textContent = '✓ ¡Insertada!';
+      addBtn.textContent = '¡Insertada!';
       setTimeout(() => {
         if (addBtn) addBtn.textContent = origText;
       }, 1000);

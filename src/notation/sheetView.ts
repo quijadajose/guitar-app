@@ -84,7 +84,7 @@ export function renderSheet(song: SongProject): void {
         barNumberColor: '#d5efe4',
         scoreInfoColor: '#f4f7f2',
         mainGlyphColor: '#f4f7f2',
-        tablatureFont: '700 16px Outfit, sans-serif'
+        tablatureFont: '700 16px Instrument Sans, sans-serif'
       }
     }
   });
@@ -205,7 +205,7 @@ export function renderEditorSheet(song: SongProject): void {
         barNumberColor: '#d5efe4',
         scoreInfoColor: '#f4f7f2',
         mainGlyphColor: '#f4f7f2',
-        tablatureFont: '700 15px Outfit, sans-serif'
+        tablatureFont: '700 15px Instrument Sans, sans-serif'
       }
     }
   });

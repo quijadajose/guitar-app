@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-  <meta name="theme-color" content="#0d0e10">
+  <meta name="theme-color" content="#0d0e12">
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -27,10 +27,10 @@
   <link rel="icon" href="/favicon.ico" sizes="any">
   <link rel="apple-touch-icon" href="/apple-touch-icon.png">
 
-  <!-- Google Font: Outfit -->
+  <!-- Google Fonts -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 
   <!-- Stylesheets -->
   <link rel="stylesheet" href="/styles/main.css">
@@ -60,37 +60,47 @@
   </svg>
 
   <div class="player-gate" id="player-gate" hidden>
-    <div class="player-gate-sky" aria-hidden="true"></div>
-    <p class="player-wordmark">GUITAR</p>
-    <section class="player-panel" data-step="welcome">
-      <h2>BIENVENIDO</h2>
-      <p>Entrá con un nombre para que la app sepa quién está tocando. Si lo dejás vacío, te damos uno al azar.</p>
-      <label class="player-field">
-        <input id="player-name" type="text" maxlength="16" autocomplete="nickname" placeholder="usuario" spellcheck="false">
-      </label>
-      <button class="player-join" type="button" data-join>Unirme</button>
-    </section>
-    <section class="player-panel" data-step="claim" hidden>
-      <h2>¿QUERÉS UNIRTE?</h2>
-      <p data-claim-copy></p>
-      <div class="player-actions">
-        <button class="is-back" type="button" data-back-welcome>Volver</button>
-        <button class="is-anon" type="button" data-anon>Seguir anónimo</button>
-        <button class="is-reg" type="button" data-to-register>Registrar</button>
+    <p class="wordmark">guitar</p>
+    <div class="player-gate-body">
+      <div class="player-hero">
+        <p class="player-hero-title">Enchufá,<br>afiná,<br><span>tocá.</span></p>
+        <span class="strings" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b>0</b><b>2</b><b>3</b><b>0</b><b>2</b><b>3</b></span>
       </div>
-    </section>
-    <section class="player-panel" data-step="register" hidden>
-      <h2>HAGÁMOSLO OFICIAL</h2>
-      <p>Te mandamos un enlace al email. Abrilo para quedar con este nombre.</p>
-      <label class="player-field">
-        <input id="player-email" type="email" autocomplete="email" placeholder="tu@email.com" required>
-      </label>
-      <p class="player-register-msg" data-register-msg hidden></p>
-      <div class="player-actions">
-        <button class="is-back" type="button" data-back-claim>Volver</button>
-        <button class="is-reg" type="button" data-register>Registrar</button>
+      <div class="player-panels">
+        <section class="player-panel" data-step="welcome">
+          <h2>Bienvenido</h2>
+          <p>Entrá con un nombre para que la app sepa quién está tocando.</p>
+          <label class="player-field">
+            <span>Tu nombre</span>
+            <input id="player-name" type="text" maxlength="16" autocomplete="nickname" placeholder="usuario" spellcheck="false">
+            <small>Si lo dejás vacío, te damos uno al azar.</small>
+          </label>
+          <button class="player-join" type="button" data-join>Entrar</button>
+        </section>
+        <section class="player-panel" data-step="claim" hidden>
+          <h2>¿Querés unirte?</h2>
+          <p data-claim-copy></p>
+          <div class="player-actions">
+            <button class="is-back" type="button" data-back-welcome>Volver</button>
+            <button class="is-anon" type="button" data-anon>Seguir anónimo</button>
+            <button class="is-reg" type="button" data-to-register>Registrar</button>
+          </div>
+        </section>
+        <section class="player-panel" data-step="register" hidden>
+          <h2>Hagámoslo oficial</h2>
+          <p>Te mandamos un enlace al email. Abrilo para quedar con este nombre.</p>
+          <label class="player-field">
+            <span>Email</span>
+            <input id="player-email" type="email" autocomplete="email" placeholder="tu@email.com" required>
+          </label>
+          <p class="player-register-msg" data-register-msg hidden></p>
+          <div class="player-actions">
+            <button class="is-back" type="button" data-back-claim>Volver</button>
+            <button class="is-reg" type="button" data-register>Registrar</button>
+          </div>
+        </section>
       </div>
-    </section>
+    </div>
   </div>
 
   <!-- Master Application Container -->
@@ -107,7 +117,7 @@
       </button>
       <button class="player-badge" id="player-badge" type="button" hidden>
         <span class="player-badge-name" id="player-badge-name"></span>
-        <span class="player-badge-anon" id="player-badge-anon">ANÓNIMO</span>
+        <span class="player-badge-anon" id="player-badge-anon">Anónimo</span>
       </button>
     </div>
     <dialog class="account-delete-dialog" id="player-delete-dialog">
@@ -128,7 +138,7 @@
     <dialog class="player-menu" id="player-menu">
       <form method="dialog">
         <header class="player-menu-head">
-          <h2 data-menu-title>USUARIO</h2>
+          <h2 data-menu-title>Usuario</h2>
           <button type="button" class="player-menu-close" data-menu-close aria-label="Cerrar">×</button>
         </header>
         <p data-menu-copy></p>
@@ -165,95 +175,132 @@
           <svg class="float-note n7"><use href="#note-eighth"/></svg>
           <svg class="float-note n8"><use href="#note-beamed"/></svg>
         </div>
-        <div class="tetra-menu" data-tetra-panel="root">
-          <p class="tetra-home">Inicio</p>
-          <nav class="tetra-stack tetra-stack-rows" aria-label="Menú principal">
-            <button class="tetra-bar is-play" type="button" data-tetra-open="play">
-              <span class="tetra-mark">1P</span>
-              <span class="tetra-copy">
-                <span class="tetra-title">Tocar</span>
-                <span class="tetra-desc">Afiná y tocá lecciones</span>
+        <p class="wordmark">guitar</p>
+        <div class="menu-panel" data-tetra-panel="root">
+          <header>
+            <p class="hub-kicker">Inicio</p>
+            <h1 class="menu-title">¿Qué tocamos hoy?</h1>
+          </header>
+          <nav class="menu-grid" aria-label="Menú principal">
+            <button class="menu-card is-primary" type="button" data-tetra-open="play">
+              <span class="menu-card-top"><span>01</span><span>Un jugador</span></span>
+              <span class="strings" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><b>0</b><b>2</b><b>3</b><b>0</b><b>2</b><b>3</b></span>
+              <span class="menu-card-bottom">
+                <span>
+                  <span class="menu-card-title">Tocar</span>
+                  <span class="menu-card-desc">Afiná y tocá lecciones</span>
+                </span>
+                <span class="menu-card-go">Empezar <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg></span>
               </span>
             </button>
-            <button class="tetra-bar is-create" type="button" data-tetra-open="create">
-              <span class="tetra-mark">ED</span>
-              <span class="tetra-copy">
-                <span class="tetra-title">Crear</span>
-                <span class="tetra-desc">Escribí tus propias lecciones</span>
+            <div class="menu-side">
+            <button class="menu-card" type="button" data-tetra-open="create">
+              <span class="menu-card-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></span>
+              <span class="menu-card-copy">
+                <span class="menu-card-num">02</span>
+                <span class="menu-card-title">Crear</span>
+                <span class="menu-card-desc">Escribí tus propias lecciones</span>
               </span>
+              <svg class="menu-card-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
-            <button class="tetra-bar is-vs" type="button" data-tetra-open="versus" data-multiplayer hidden>
-              <span class="tetra-mark">VS</span>
-              <span class="tetra-copy">
-                <span class="tetra-title">Versus</span>
-                <span class="tetra-desc">Duelo en tiempo real</span>
+            <button class="menu-card" type="button" data-tetra-open="versus" data-multiplayer hidden>
+              <span class="menu-card-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z"/></svg></span>
+              <span class="menu-card-copy">
+                <span class="menu-card-num">03</span>
+                <span class="menu-card-title">Versus</span>
+                <span class="menu-card-desc">Duelo en tiempo real</span>
               </span>
+              <svg class="menu-card-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
-            <button class="tetra-bar is-cfg" type="button" data-tetra-open="config">
-              <span class="tetra-mark">CFG</span>
-              <span class="tetra-copy">
-                <span class="tetra-title">Config</span>
-                <span class="tetra-desc">Cómo se ve la lección</span>
+            <button class="menu-card" type="button" data-tetra-open="config">
+              <span class="menu-card-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h2M10 17h10"/><circle cx="16" cy="7" r="2"/><circle cx="8" cy="17" r="2"/></svg></span>
+              <span class="menu-card-copy">
+                <span class="menu-card-num">04</span>
+                <span class="menu-card-title">Config</span>
+                <span class="menu-card-desc">Cómo se ve la lección</span>
               </span>
+              <svg class="menu-card-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+            </div>
+          </nav>
+        </div>
+
+        <div class="menu-panel is-sub" data-tetra-panel="play" hidden>
+          <button class="menu-back" type="button" data-tetra-open="root"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Volver</button>
+          <header>
+            <p class="hub-kicker">Tocar</p>
+            <h1 class="menu-title">Afinar o tocar</h1>
+          </header>
+          <nav class="menu-list" aria-label="Tocar">
+            <button class="menu-card" type="button" data-nav="tuner">
+              <span class="menu-card-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v8M5 20a8 8 0 0114 0M4 12h2M18 12h2M7 6.5l1.4 1.4M17 6.5l-1.4 1.4"/></svg></span>
+              <span class="menu-card-copy">
+                <span class="menu-card-title">Afinar</span>
+                <span class="menu-card-desc">Seis cuerdas, Hz y cents</span>
+              </span>
+              <svg class="menu-card-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+            <button class="menu-card" type="button" data-nav="songs">
+              <span class="menu-card-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 5l12 7-12 7z"/></svg></span>
+              <span class="menu-card-copy">
+                <span class="menu-card-title">Tocar</span>
+                <span class="menu-card-desc">Cuerdas o acordes, elegí la canción</span>
+              </span>
+              <svg class="menu-card-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
           </nav>
         </div>
 
-        <div class="tetra-menu" data-tetra-panel="play" hidden>
-          <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
-          <nav class="tetra-stack tetra-stack-rows" aria-label="Tocar">
-            <button class="tetra-bar is-play" type="button" data-nav="tuner">
-              <span class="tetra-mark">AF</span>
-              <span class="tetra-copy">
-                <span class="tetra-title">Afinar</span>
-                <span class="tetra-desc">Seis cuerdas, Hz y cents</span>
+        <div class="menu-panel is-sub" data-tetra-panel="create" hidden>
+          <button class="menu-back" type="button" data-tetra-open="root"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Volver</button>
+          <header>
+            <p class="hub-kicker">Crear</p>
+            <h1 class="menu-title">Tus lecciones</h1>
+          </header>
+          <nav class="menu-list" aria-label="Crear">
+            <button class="menu-card" type="button" data-nav="editor">
+              <span class="menu-card-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z"/></svg></span>
+              <span class="menu-card-copy">
+                <span class="menu-card-title">Editor de lecciones</span>
+                <span class="menu-card-desc">Tablatura, prueba y exportar JSON</span>
               </span>
-            </button>
-            <button class="tetra-bar is-play" type="button" data-nav="songs">
-              <span class="tetra-mark">GO</span>
-              <span class="tetra-copy">
-                <span class="tetra-title">Tocar</span>
-                <span class="tetra-desc">Cuerdas o acordes, elegí la canción</span>
-              </span>
+              <svg class="menu-card-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
           </nav>
         </div>
 
-        <div class="tetra-menu" data-tetra-panel="create" hidden>
-          <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
-          <nav class="tetra-stack tetra-stack-rows" aria-label="Crear">
-            <button class="tetra-bar is-create" type="button" data-nav="editor">
-              <span class="tetra-mark">ED</span>
-              <span class="tetra-copy">
-                <span class="tetra-title">Editor de lecciones</span>
-                <span class="tetra-desc">Tablatura, prueba y exportar JSON</span>
+        <div class="menu-panel is-sub" data-tetra-panel="versus" hidden>
+          <button class="menu-back" type="button" data-tetra-open="root"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Volver</button>
+          <header>
+            <p class="hub-kicker">Versus</p>
+            <h1 class="menu-title">Duelo</h1>
+          </header>
+          <nav class="menu-list" aria-label="Versus">
+            <button class="menu-card" type="button" data-nav="vs">
+              <span class="menu-card-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z"/></svg></span>
+              <span class="menu-card-copy">
+                <span class="menu-card-title">Modo versus</span>
+                <span class="menu-card-desc">Creá una sala o entrá con el enlace</span>
               </span>
+              <svg class="menu-card-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
           </nav>
         </div>
 
-        <div class="tetra-menu" data-tetra-panel="versus" hidden>
-          <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
-          <nav class="tetra-stack tetra-stack-rows" aria-label="Versus">
-            <button class="tetra-bar is-vs" type="button" data-nav="vs">
-              <span class="tetra-mark">VS</span>
-              <span class="tetra-copy">
-                <span class="tetra-title">Modo versus</span>
-                <span class="tetra-desc">Creá una sala o entrá con el enlace</span>
+        <div class="menu-panel is-sub" data-tetra-panel="config" hidden>
+          <button class="menu-back" type="button" data-tetra-open="root"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>Volver</button>
+          <header>
+            <p class="hub-kicker">Config</p>
+            <h1 class="menu-title">Ajustes</h1>
+          </header>
+          <nav class="menu-list" aria-label="Config">
+            <button class="menu-card" type="button" id="btn-notation-settings">
+              <span class="menu-card-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg></span>
+              <span class="menu-card-copy">
+                <span class="menu-card-title">Vista al tocar</span>
+                <span class="menu-card-desc">Mástil o partitura</span>
               </span>
-            </button>
-          </nav>
-        </div>
-
-        <div class="tetra-menu" data-tetra-panel="config" hidden>
-          <button class="tetra-back" type="button" data-tetra-open="root">Volver</button>
-          <nav class="tetra-stack tetra-stack-rows" aria-label="Configuración">
-            <button class="tetra-bar is-cfg" type="button" id="btn-notation-settings">
-              <span class="tetra-mark">CFG</span>
-              <span class="tetra-copy">
-                <span class="tetra-title">Vista al tocar</span>
-                <span class="tetra-desc">Mástil o partitura</span>
-              </span>
+              <svg class="menu-card-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
             </button>
           </nav>
         </div>
@@ -281,7 +328,7 @@
           <div class="song-picker-tabs" id="song-category-tabs" role="tablist">
             <button type="button" class="song-tab-btn active" data-tab="lessons">Lecciones</button>
             <button type="button" class="song-tab-btn" data-tab="yours">Tus Canciones</button>
-            <button type="button" class="song-tab-btn" data-tab="community" data-supabase>Comunidad 🌐</button>
+            <button type="button" class="song-tab-btn" data-tab="community" data-supabase>Comunidad</button>
           </div>
 
           <button type="button" class="song-create-btn" data-nav="editor">Crear o subir canción</button>
@@ -293,10 +340,10 @@
             </div>
             <div class="community-difficulty-chips" id="community-difficulty-chips">
               <button type="button" class="diff-chip active" data-diff="all">Todas</button>
-              <button type="button" class="diff-chip" data-diff="easy">Fácil 🟢</button>
-              <button type="button" class="diff-chip" data-diff="medium">Media 🟡</button>
-              <button type="button" class="diff-chip" data-diff="hard">Difícil 🔴</button>
-              <button type="button" class="diff-chip" data-diff="expert">Experto 🟣</button>
+              <button type="button" class="diff-chip" data-diff="easy">Fácil</button>
+              <button type="button" class="diff-chip" data-diff="medium">Media</button>
+              <button type="button" class="diff-chip" data-diff="hard">Difícil</button>
+              <button type="button" class="diff-chip" data-diff="expert">Experto</button>
             </div>
           </div>
 
@@ -318,26 +365,33 @@
       <section class="screen-view view-hidden" id="view-vs" aria-label="Modo Versus Online">
         <div class="vs-container">
           <button class="btn-back-menu" data-target="menu" type="button" title="Volver al menú">
-            <span>Volver</span>
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M19 12H5M11 6l-6 6 6 6"/></svg>
+            <span>Menú</span>
           </button>
           <div id="vs-status-msg" class="vs-status-box" hidden></div>
 
           <div id="vs-room-creation">
-            <div id="vs-step-how" class="tetra-stack tetra-stack-rows">
-              <button type="button" class="tetra-bar is-vs" data-vs-path="local">
-                <span class="tetra-mark">AQ</span>
-                <span class="tetra-copy">
-                  <span class="tetra-title">Local</span>
-                  <span class="tetra-desc">Un amigo al lado, la misma guitarra</span>
-                </span>
-              </button>
-              <button type="button" class="tetra-bar is-vs" data-vs-path="online">
-                <span class="tetra-mark">ON</span>
-                <span class="tetra-copy">
-                  <span class="tetra-title">En línea</span>
-                  <span class="tetra-desc">Creá una sala o unite con un código</span>
-                </span>
-              </button>
+            <div id="vs-step-how" class="menu-list">
+              <header>
+                <p class="hub-kicker">Versus</p>
+                <h1 class="song-picker-title">¿Cómo juegan?</h1>
+              </header>
+            <button class="menu-card" type="button" data-vs-path="local">
+              <span class="menu-card-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0112 0M16 5.5a3 3 0 010 5.5M17 14.5a6 6 0 014 5.5"/></svg></span>
+              <span class="menu-card-copy">
+                <span class="menu-card-title">Local</span>
+                <span class="menu-card-desc">Un amigo al lado, la misma guitarra</span>
+              </span>
+              <svg class="menu-card-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
+            <button class="menu-card" type="button" data-vs-path="online">
+              <span class="menu-card-icon"><svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c3 3.5 3 14.5 0 18M12 3c-3 3.5-3 14.5 0 18"/></svg></span>
+              <span class="menu-card-copy">
+                <span class="menu-card-title">En línea</span>
+                <span class="menu-card-desc">Creá una sala o unite con un código</span>
+              </span>
+              <svg class="menu-card-arrow" viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+            </button>
             </div>
 
             <div id="vs-step-setup" hidden>
@@ -365,37 +419,52 @@
               </div>
 
               <div id="vs-step-online" hidden>
-                <header class="song-picker-header">
-                  <p class="hub-kicker">En línea</p>
-                  <h1 class="song-picker-title">Salas públicas <span id="vs-public-count" class="vs-public-count">0</span></h1>
-                  <p class="hub-lead">Elegí el modo y la canción, unite a una sala o creá la tuya.</p>
+                <header class="vs-online-head">
+                  <div>
+                    <p class="hub-kicker">Versus · en línea</p>
+                    <h1 class="song-picker-title">Salas públicas <span id="vs-public-count" class="vs-public-count">0</span></h1>
+                    <p class="hub-lead">Elegí el modo y la canción, unite a una sala o creá la tuya.</p>
+                  </div>
+                  <button type="button" id="vs-btn-create-room" class="song-create-btn">Crear sala</button>
                 </header>
 
-                <div class="song-picker-tabs" role="tablist" aria-label="Modo de duelo">
-                  <button type="button" class="song-tab-btn active" data-mode="classic">Clásico</button>
-                  <button type="button" class="song-tab-btn" data-mode="sudden_death">Muerte súbita</button>
-                  <button type="button" class="song-tab-btn" data-mode="face_off">Ataques</button>
-                </div>
-                <div class="song-picker-tabs" role="tablist" aria-label="Canción">
-                  <button type="button" class="song-tab-btn active" data-song="sultans_swing">Melodía</button>
-                  <button type="button" class="song-tab-btn" data-song="fur_elise">Für Elise</button>
-                  <button type="button" class="song-tab-btn" data-song="chords_progression">Acordes</button>
-                </div>
+                <div class="vs-online-grid">
+                  <aside class="vs-panel vs-filters">
+                    <span class="vs-field-label">Modo</span>
+                    <div class="song-picker-tabs" role="tablist" aria-label="Modo de duelo">
+                      <button type="button" class="song-tab-btn active" data-mode="classic">Clásico</button>
+                      <button type="button" class="song-tab-btn" data-mode="sudden_death">Muerte súbita</button>
+                      <button type="button" class="song-tab-btn" data-mode="face_off">Ataques</button>
+                    </div>
+                    <span class="vs-field-label">Canción</span>
+                    <div class="song-picker-tabs" role="tablist" aria-label="Canción">
+                      <button type="button" class="song-tab-btn active" data-song="sultans_swing">Melodía</button>
+                      <button type="button" class="song-tab-btn" data-song="fur_elise">Für Elise</button>
+                      <button type="button" class="song-tab-btn" data-song="chords_progression">Acordes</button>
+                    </div>
+                    <label class="vs-public-toggle" for="vs-room-public">
+                      <input type="checkbox" id="vs-room-public">
+                      Mostrar mi sala en la lista pública
+                    </label>
+                  </aside>
 
-                <button type="button" id="vs-btn-create-room" class="song-create-btn">Crear sala</button>
-                <label class="vs-public-toggle" for="vs-room-public">
-                  <input type="checkbox" id="vs-room-public">
-                  Mostrar la sala en la lista pública
-                </label>
-
-                <div class="vs-join-group" style="margin-top: 16px;">
-                  <input type="text" id="vs-room-code-input" class="vs-input vs-code-input" maxlength="5" placeholder="Código">
-                  <button type="button" id="vs-btn-join-room" class="vs-btn-secondary">Unirme</button>
-                  <button type="button" id="vs-btn-refresh-rooms" class="vs-btn-ghost">Actualizar</button>
+                  <section class="vs-rooms">
+                    <div class="vs-panel">
+                      <label class="vs-field-label" for="vs-room-code-input">¿Te pasaron un código?</label>
+                      <div class="vs-join-group">
+                        <input type="text" id="vs-room-code-input" class="vs-input vs-code-input" maxlength="5" placeholder="Código" autocomplete="off">
+                        <button type="button" id="vs-btn-join-room" class="vs-btn-secondary">Unirme</button>
+                      </div>
+                    </div>
+                    <div>
+                      <div class="vs-rooms-head">
+                        <span class="vs-field-label">Salas</span>
+                        <button type="button" id="vs-btn-refresh-rooms" class="vs-btn-ghost">Actualizar</button>
+                      </div>
+                      <div id="vs-public-rooms" class="song-picker-list"></div>
+                    </div>
+                  </section>
                 </div>
-
-                <p class="hub-kicker" style="margin-top: 22px;">Salas</p>
-                <div id="vs-public-rooms" class="song-picker-list"></div>
               </div>
             </div>
           </div>
@@ -407,7 +476,7 @@
                 <span class="hub-kicker">Clic para copiar</span>
                 <span id="vs-display-room-code" class="vs-badge-code">-----</span>
               </button>
-              <span></span>
+              <p class="vs-room-hint">Pasale el código a tu rival. La partida arranca cuando los dos están listos.</p>
             </div>
             <input type="hidden" id="vs-room-link-copy">
 
@@ -417,7 +486,7 @@
             </aside>
 
             <section class="vs-room-col vs-room-config">
-              <p class="hub-kicker">Sala</p>
+              <p class="hub-kicker">Partida</p>
               <div class="song-picker-tabs" role="tablist" aria-label="Modo de la sala">
                 <button type="button" class="song-tab-btn" data-room-mode="classic">Clásico</button>
                 <button type="button" class="song-tab-btn" data-room-mode="sudden_death">Muerte súbita</button>
@@ -443,7 +512,7 @@
               <p class="hub-kicker">Chat</p>
               <div id="vs-chat-log" class="vs-chat-log"></div>
               <form id="vs-chat-form" class="vs-chat-form">
-                <input type="text" id="vs-chat-input" class="vs-input" maxlength="180" placeholder="Mensaje..." autocomplete="off">
+                <input type="text" id="vs-chat-input" class="vs-input" maxlength="180" placeholder="Mensaje…" aria-label="Mensaje" autocomplete="off">
               </form>
             </aside>
           </div>
@@ -458,8 +527,6 @@
           <svg viewBox="0 0 24 24"><path d="M10 19l-7-7m0 0l7-7m-7 7h18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
           Menú
         </button>
-        <button class="btn-skip" id="tuner-skip-btn">Omitir</button>
-
         <div class="tuner-debug-panel" id="tuner-debug-panel" hidden>
           <p class="tuner-debug-title">Micrófono</p>
           <p id="tuner-debug-live">Sin datos</p>
@@ -480,98 +547,87 @@
           </div>
         </div>
 
-        <!-- Top Section: Pitch Scale Meter -->
-        <header class="tuner-top-section">
-          <div class="tuner-meter-container">
-            <div class="tuner-meter-ticks">
+        <div class="tuner-stage">
+          <div class="tuner-complete-title" id="tuner-complete-title">¡Listo, está afinado!</div>
+          <div class="tuner-prompt-text" id="tuner-prompt-text">Activa el micrófono para comenzar</div>
+          <div class="tuner-pitch-label" id="tuner-pitch-label"></div>
+
+          <div class="tuner-meter">
+            <div class="tuner-meter-container">
+              <div class="tuner-meter-ticks">
               <span class="meter-tick tall"></span>
-              <span class="meter-tick medium"></span>
+              <span class="meter-tick short"></span>
+              <span class="meter-tick short"></span>
               <span class="meter-tick short"></span>
               <span class="meter-tick short"></span>
               <span class="meter-tick medium"></span>
               <span class="meter-tick short"></span>
               <span class="meter-tick short"></span>
-              <!-- Center area -->
+              <span class="meter-tick short"></span>
+              <span class="meter-tick short"></span>
+              <span class="meter-tick center"></span>
+              <span class="meter-tick short"></span>
+              <span class="meter-tick short"></span>
               <span class="meter-tick short"></span>
               <span class="meter-tick short"></span>
               <span class="meter-tick medium"></span>
               <span class="meter-tick short"></span>
               <span class="meter-tick short"></span>
-              <span class="meter-tick medium"></span>
+              <span class="meter-tick short"></span>
+              <span class="meter-tick short"></span>
               <span class="meter-tick tall"></span>
-            </div>
-            <div class="tuner-indicator-track">
+              </div>
               <div class="tuner-pitch-indicator" id="tuner-pitch-indicator"></div>
             </div>
+            <div class="tuner-meter-scale" aria-hidden="true"><span>grave</span><span>afinada</span><span>agudo</span></div>
           </div>
 
-          <!-- Tuning Completed Title (Shown when all strings tuned) -->
-          <div class="tuner-complete-title" id="tuner-complete-title">¡Listo, está afinado!</div>
+          <div class="tuner-cents-label" id="tuner-cents-label">En espera de sonido...</div>
 
-          <div class="tuner-feedback-panel">
-            <div class="tuner-prompt-text" id="tuner-prompt-text">Activa el micrófono para comenzar</div>
-            <div class="tuner-pitch-label" id="tuner-pitch-label"></div>
-            <div class="tuner-cents-label" id="tuner-cents-label">En espera de sonido...</div>
+          <div class="tuner-pegs">
+            <div class="tuner-note-slot">
+              <div class="tuner-peg-check" id="tuner-check-6" title="Cuerda 6 afinada">
+                <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <button class="tuner-peg-badge" data-peg="6" aria-label="Cuerda 6, Mi grave">E</button>
+            </div>
+            <div class="tuner-note-slot">
+              <div class="tuner-peg-check" id="tuner-check-5" title="Cuerda 5 afinada">
+                <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <button class="tuner-peg-badge" data-peg="5" aria-label="Cuerda 5, La">A</button>
+            </div>
+            <div class="tuner-note-slot">
+              <div class="tuner-peg-check" id="tuner-check-4" title="Cuerda 4 afinada">
+                <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <button class="tuner-peg-badge" data-peg="4" aria-label="Cuerda 4, Re">D</button>
+            </div>
+            <div class="tuner-note-slot">
+              <div class="tuner-peg-check" id="tuner-check-3" title="Cuerda 3 afinada">
+                <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <button class="tuner-peg-badge" data-peg="3" aria-label="Cuerda 3, Sol">G</button>
+            </div>
+            <div class="tuner-note-slot">
+              <div class="tuner-peg-check" id="tuner-check-2" title="Cuerda 2 afinada">
+                <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <button class="tuner-peg-badge" data-peg="2" aria-label="Cuerda 2, Si">B</button>
+            </div>
+            <div class="tuner-note-slot">
+              <div class="tuner-peg-check" id="tuner-check-1" title="Cuerda 1 afinada">
+                <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
+              </div>
+              <button class="tuner-peg-badge" data-peg="1" aria-label="Cuerda 1, Mi agudo">E</button>
+            </div>
           </div>
-        </header>
 
-        <div class="tuner-headstock-wrapper">
-          <div class="headstock-canvas-container">
-            <div class="tuner-note-col tuner-note-col-left">
-              <div class="tuner-note-slot">
-                <div class="tuner-peg-check" id="tuner-check-4" title="Cuerda 4 afinada">
-                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <button class="tuner-peg-badge" data-peg="4" aria-label="Cuerda 4, Re">D</button>
-              </div>
-              <div class="tuner-note-slot">
-                <div class="tuner-peg-check" id="tuner-check-5" title="Cuerda 5 afinada">
-                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <button class="tuner-peg-badge" data-peg="5" aria-label="Cuerda 5, La">A</button>
-              </div>
-              <div class="tuner-note-slot">
-                <div class="tuner-peg-check" id="tuner-check-6" title="Cuerda 6 afinada">
-                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <button class="tuner-peg-badge" data-peg="6" aria-label="Cuerda 6, Mi grave">E</button>
-              </div>
-            </div>
-
-            <img
-              class="headstock-photo"
-              id="tuner-headstock-photo"
-              src="/images/tuner-headstock.png"
-              alt=""
-              width="941"
-              height="1672"
-            />
-
-            <div class="tuner-note-col tuner-note-col-right">
-              <div class="tuner-note-slot">
-                <div class="tuner-peg-check" id="tuner-check-3" title="Cuerda 3 afinada">
-                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <button class="tuner-peg-badge" data-peg="3" aria-label="Cuerda 3, Sol">G</button>
-              </div>
-              <div class="tuner-note-slot">
-                <div class="tuner-peg-check" id="tuner-check-2" title="Cuerda 2 afinada">
-                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <button class="tuner-peg-badge" data-peg="2" aria-label="Cuerda 2, Si">B</button>
-              </div>
-              <div class="tuner-note-slot">
-                <div class="tuner-peg-check" id="tuner-check-1" title="Cuerda 1 afinada">
-                  <svg viewBox="0 0 24 24"><path d="M5 13l4 4L19 7"/></svg>
-                </div>
-                <button class="tuner-peg-badge" data-peg="1" aria-label="Cuerda 1, Mi agudo">E</button>
-              </div>
-            </div>
+          <div class="tuner-actions">
+            <button class="btn-skip" id="tuner-skip-btn">Omitir</button>
+            <button class="tuner-continue-btn" id="tuner-continue-btn">Continuar</button>
           </div>
         </div>
-
-        <!-- Continue Button (matching reference video completion CTA) -->
-        <button class="tuner-continue-btn" id="tuner-continue-btn">Continuar</button>
       </section>
 
 
@@ -637,7 +693,7 @@
             <!-- Botón de Ataque / Trampas para Face-Off (Visible al cargar poder) -->
             <div class="hud-vs-attack-box" id="hud-vs-attack-box" hidden>
               <button type="button" class="vs-attack-trigger-btn" id="vs-attack-trigger-btn" title="¡Lanza un ataque al rival! (Espacio o clic)" disabled>
-                <span class="attack-icon">⚡</span>
+                <svg class="attack-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M13 3L5 14h6l-1 7 8-11h-6l1-7z"/></svg>
                 <span class="attack-label" id="vs-attack-btn-label">Cargando 0/10</span>
               </button>
             </div>
@@ -1176,7 +1232,7 @@
                   <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
                     <path d="M6 3h8l4 4v14H6z"/>
                     <path d="M14 3v4h4"/>
-                    <text x="12" y="16.5" text-anchor="middle" fill="currentColor" stroke="none" font-size="5.2" font-weight="700" font-family="Outfit, sans-serif">JSON</text>
+                    <text x="12" y="16.5" text-anchor="middle" fill="currentColor" stroke="none" font-size="5.2" font-weight="700" font-family="Instrument Sans, sans-serif">JSON</text>
                   </svg>
                   Exportar
                 </button>
@@ -1521,7 +1577,7 @@
 
         <!-- Versus Rival Comparison & Quick Rematch (Modo VS) -->
         <div id="perf-vs-comparison" class="perf-vs-box" hidden>
-          <div class="perf-vs-banner" id="perf-vs-banner">¡VICTORIA! 🏆</div>
+          <div class="perf-vs-banner" id="perf-vs-banner">¡Victoria!</div>
           <div class="perf-vs-players-row">
             <div class="perf-vs-col player-local">
               <span class="perf-vs-badge">TÚ</span>
@@ -1544,7 +1600,7 @@
             <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5">
               <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
             </svg>
-            <span>Revancha Rápida ⚡</span>
+            <span>Revancha rápida</span>
           </button>
 
           <button class="perf-btn perf-btn-retry" id="perf-btn-retry" title="Intentar de nuevo en modo interpretación">
@@ -1696,13 +1752,13 @@
     <div class="modal-overlay" id="community-publish-modal" style="display: none;" role="dialog" aria-modal="true" aria-labelledby="comm-publish-title">
       <div class="modal-card" style="max-width: 480px;">
         <div class="modal-header">
-          <h3 id="comm-publish-title" style="margin: 0; font-size: 18px; color: #fff;">🌐 Publicar en la Comunidad</h3>
+          <h3 id="comm-publish-title" style="margin: 0; font-family: var(--font-display); font-size: 22px; font-weight: 800;">Publicar en la comunidad</h3>
           <button type="button" id="comm-publish-close" class="modal-close-btn">&times;</button>
         </div>
         <div class="modal-body" style="display: flex; flex-direction: column; gap: 14px; padding: 18px 0;">
           <div id="comm-account-gate" hidden>
-            <p style="margin: 0 0 10px; font-size: 13px; color: #fca5a5;">Tenés que crear una cuenta para cargar una canción.</p>
-            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #cbd5e1;">Email</label>
+            <p style="margin: 0 0 10px; font-size: 13px; color: var(--danger);">Tenés que crear una cuenta para cargar una canción.</p>
+            <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted);">Email</label>
             <input type="email" id="comm-account-email" class="vs-input" autocomplete="email" style="width: 100%; box-sizing: border-box; margin-bottom: 8px;">
             <div style="display: flex; gap: 8px;">
               <button type="button" id="comm-account-passkey" class="vs-btn-primary" data-supabase hidden>Entrar con passkey</button>
@@ -1711,21 +1767,21 @@
           </div>
           <div id="comm-publish-fields" style="display: flex; flex-direction: column; gap: 14px;">
             <div>
-              <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #cbd5e1;">Tu Nombre o Apodo:</label>
+              <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted);">Tu Nombre o Apodo:</label>
               <input type="text" id="comm-creator-name" class="vs-input" maxlength="30" placeholder="Ej: JimmyPage_99" style="width: 100%; box-sizing: border-box;">
             </div>
             <div>
-              <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: #cbd5e1;">Dificultad estimada:</label>
-              <select id="comm-song-difficulty" class="vs-input" style="width: 100%; box-sizing: border-box; background: #171a21;">
-                <option value="easy">Fácil 🟢</option>
-                <option value="medium" selected>Media 🟡</option>
-                <option value="hard">Difícil 🔴</option>
-                <option value="expert">Experto 🟣</option>
+              <label style="display: block; font-size: 13px; font-weight: 600; margin-bottom: 4px; color: var(--text-muted);">Dificultad estimada:</label>
+              <select id="comm-song-difficulty" class="vs-input" style="width: 100%; box-sizing: border-box; ">
+                <option value="easy">Fácil</option>
+                <option value="medium" selected>Media</option>
+                <option value="hard">Difícil</option>
+                <option value="expert">Experto</option>
               </select>
             </div>
             <div style="display: flex; align-items: center; gap: 8px;">
               <input type="checkbox" id="comm-song-is-public" checked style="width: 18px; height: 18px; cursor: pointer;">
-              <label for="comm-song-is-public" style="font-size: 13px; color: #cbd5e1; cursor: pointer;">Hacer pública en el catálogo global de canciones</label>
+              <label for="comm-song-is-public" style="font-size: 13px; color: var(--text-muted); cursor: pointer;">Hacer pública en el catálogo global de canciones</label>
             </div>
           </div>
           <div id="comm-publish-status" style="font-size: 13px; display: none; padding: 8px 12px; border-radius: 8px;"></div>
@@ -1739,7 +1795,7 @@
 
   <template id="tpl-tuner-pitch-label">
     <strong data-slot="name"></strong>
-    <span> (<span data-slot="spanish"></span>) • <span data-slot="freq"></span> Hz</span>
+    <span><span data-slot="spanish"></span> · <span data-slot="freq"></span> Hz</span>
   </template>
 
   <template id="tpl-game-chord-block">
