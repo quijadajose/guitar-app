@@ -41,6 +41,8 @@ export class GameplayEngine {
   public loopEndRatio: number | null = null;
   private loopHandleDrag: 'start' | 'end' | null = null;
   public isCustomSongLoaded: boolean = false;
+  /** Screen the player came from, so "Salir" returns there instead of guessing. */
+  public exitTarget: 'editor' | 'songs' | 'menu' = 'menu';
   /** When set, playback is the sheet cursor instead of the fretboard loop. */
   public sheetClock: { play(): void; pause(): void } | null = null;
   /** Moves the sheet cursor from the gameplay clock. */
@@ -2034,7 +2036,7 @@ export class GameplayEngine {
         if (rematch) rematch.hidden = true;
         const retryLabel = document.querySelector('#perf-btn-retry span');
         if (retryLabel) retryLabel.textContent = 'Reintentar';
-        goToScreen(fromDuel ? 'vs' : this.isCustomSongLoaded ? 'editor' : 'menu');
+        goToScreen(fromDuel ? 'vs' : this.exitTarget);
       });
     }
   }

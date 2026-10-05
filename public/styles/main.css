@@ -1294,13 +1294,30 @@ body:has(#view-editor.view-active) #editor-tour-btn {
   accent-color: var(--accent);
 }
 
-#sheet-host .at-cursor-bar {
-  background: rgba(53, 217, 166, 0.16);
+#sheet-host .at-surface {
+  position: relative;
 }
 
+#sheet-host .at-cursor-bar,
 #sheet-host .at-cursor-beat {
+  display: none;
+}
+
+#sheet-cursor-bar {
+  position: absolute;
+  background: rgba(53, 217, 166, 0.16);
+  pointer-events: none;
+  z-index: 3;
+}
+
+#sheet-cursor {
+  position: absolute;
+  width: 3px;
+  margin-left: -1px;
   background: var(--accent);
-  width: 2px;
+  box-shadow: 0 0 12px var(--accent);
+  pointer-events: none;
+  z-index: 4;
 }
 
 #view-notes.is-sheet .fretboard-track-wrapper,

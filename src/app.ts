@@ -213,6 +213,9 @@ export class GuitarApp {
     notesView?.classList.toggle('is-sheet', useSheet);
 
     if (targetId === 'notes' || targetId === 'chords') {
+      if (fromId !== 'notes' && fromId !== 'chords') {
+        gameplayEngine.exitTarget = fromId === 'editor' ? 'editor' : fromId === 'songs' ? 'songs' : 'menu';
+      }
       if (queued) {
         gameplayEngine.loadCustomSong(queued);
       } else if (fromId === 'editor') {

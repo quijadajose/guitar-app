@@ -69,7 +69,7 @@ export function renderSheet(song: SongProject): void {
     player: {
       enablePlayer: true,
       enableCursor: true,
-      enableUserInteraction: true,
+      enableUserInteraction: false,
       scrollElement: '#sheet-stage',
       soundFont: new URL(`${import.meta.env.BASE_URL}alphatab/soundfont/sonivox.sf2`, window.location.href).href
     },
@@ -89,7 +89,12 @@ export function renderSheet(song: SongProject): void {
     }
   });
   api.scoreLoaded.on((score) => paintNotes(score as never));
-  api.postRenderFinished.on(() => fitSheet(host));
+  api.postRenderFinished.on(() => {
+    fitSheet(host);
+    sheetBeats = collectSheetBeats(api);
+    lastCursorBeat = null;
+    followGameplayClock(api);
+  });
   bindTransport(api);
   gameplayEngine.sheetFrame = () => followGameplayClock(api);
   api.tex(songToAlphaTex(song));
@@ -97,12 +102,95 @@ export function renderSheet(song: SongProject): void {
 
 const LEAD_IN_SECONDS = 1.5;
 
+type PlacedBeat = { tick: number; beat: object };
+
+let sheetBeats: PlacedBeat[] = [];
+let lastCursorBeat: object | null = null;
+
+/**
+ * The gameplay clock drives the sheet. alphaTab's own cursor only moves while its
+ * synth is playing, so seeking it from outside left it frozen on the first beat.
+ * We place our own cursor from the beat bounds instead.
+ */
 function followGameplayClock(player: AlphaTabApi | null): void {
   if (!player) return;
   const songSeconds = Math.max(0, gameplayEngine.currentTime - LEAD_IN_SECONDS);
-  const ticks = songSeconds * (gameplayEngine.bpm / 60) * 960;
-  player.tickPosition = ticks;
+  const tempo = Math.max(40, Math.round(gameplayEngine.bpm || 90));
+  const ticks = songSeconds * (tempo / 60) * 960;
+  placeSheetCursor(player, ticks);
   paintTransport(songSeconds, Math.max(0, gameplayEngine.songDuration - LEAD_IN_SECONDS));
+}
+
+function collectSheetBeats(player: AlphaTabApi | null): PlacedBeat[] {
+  const score = player?.score as {
+    tracks?: Array<{
+      staves?: Array<{
+        bars?: Array<{
+          voices?: Array<{ beats?: Array<{ absolutePlaybackStart: number; isEmpty?: boolean }> }>;
+        }>;
+      }>;
+    }>;
+  } | null;
+  const bars = score?.tracks?.[0]?.staves?.[0]?.bars;
+  if (!bars) return [];
+  const placed: PlacedBeat[] = [];
+  for (const bar of bars) {
+    for (const voice of bar.voices ?? []) {
+      for (const beat of voice.beats ?? []) {
+        if (beat.isEmpty) continue;
+        placed.push({ tick: beat.absolutePlaybackStart, beat });
+      }
+    }
+  }
+  placed.sort((a, b) => a.tick - b.tick);
+  return placed;
+}
+
+function placeSheetCursor(player: AlphaTabApi, ticks: number): void {
+  if (sheetBeats.length === 0) return;
+  let chosen = sheetBeats[0];
+  for (const item of sheetBeats) {
+    if (item.tick <= ticks + 1) chosen = item;
+    else break;
+  }
+  if (chosen.beat === lastCursorBeat) return;
+  const bounds = player.boundsLookup?.findBeat(chosen.beat as never);
+  if (!bounds) return;
+  lastCursorBeat = chosen.beat;
+
+  const host = document.getElementById('sheet-host');
+  const surface = host?.querySelector<HTMLElement>('.at-surface') ?? host;
+  if (!surface) return;
+
+  let bar = surface.querySelector<HTMLElement>('#sheet-cursor-bar');
+  if (!bar) {
+    bar = document.createElement('div');
+    bar.id = 'sheet-cursor-bar';
+    surface.appendChild(bar);
+  }
+  let cursor = surface.querySelector<HTMLElement>('#sheet-cursor');
+  if (!cursor) {
+    cursor = document.createElement('div');
+    cursor.id = 'sheet-cursor';
+    surface.appendChild(cursor);
+  }
+
+  const barBox = bounds.barBounds?.masterBarBounds?.visualBounds ?? bounds.visualBounds;
+  bar.style.left = `${barBox.x}px`;
+  bar.style.top = `${barBox.y}px`;
+  bar.style.width = `${barBox.w}px`;
+  bar.style.height = `${barBox.h}px`;
+  cursor.style.left = `${bounds.onNotesX}px`;
+  cursor.style.top = `${barBox.y}px`;
+  cursor.style.height = `${Math.max(24, barBox.h)}px`;
+
+  const stage = document.getElementById('sheet-stage');
+  if (!stage) return;
+  const stageBox = stage.getBoundingClientRect();
+  const lineBox = bar.getBoundingClientRect();
+  if (lineBox.bottom > stageBox.bottom - 16 || lineBox.top < stageBox.top + 8) {
+    stage.scrollBy({ top: lineBox.top - stageBox.top - 24, behavior: 'smooth' });
+  }
 }
 
 function paintTransport(currentSeconds: number, totalSeconds: number): void {
@@ -288,6 +376,8 @@ export function followEditorSheet(stepIndex: number): void {
 }
 
 export function clearSheet(): void {
+  sheetBeats = [];
+  lastCursorBeat = null;
   gameplayEngine.sheetClock = null;
   gameplayEngine.sheetFrame = null;
   api?.destroy();
