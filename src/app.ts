@@ -463,8 +463,11 @@ export class GuitarApp {
 
     this.backBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
+        // The versus lobby handles its own back steps (leave room, back to "how").
+        if (e.defaultPrevented) return;
         e.preventDefault();
-        this.switchScreen('menu');
+        const inGameplay = this.currentScreenId === 'notes' || this.currentScreenId === 'chords';
+        this.switchScreen(inGameplay ? gameplayEngine.leaveGameplay() : 'menu');
       });
     });
 
@@ -779,7 +782,7 @@ export class GuitarApp {
     if (tunerContinueBtn) {
       tunerContinueBtn.addEventListener('click', (e) => {
         e.stopPropagation();
-        this.switchScreen('notes');
+        this.switchScreen('songs');
       });
     }
 
