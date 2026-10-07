@@ -49,7 +49,16 @@ export function detectFreqYin(buffer: Float32Array, sampleRate: number): number 
       if (cmnd[tau] < cmnd[best]) best = tau;
     }
     if (cmnd[best] > 0.35) return null;
+    // With room noise the true period's dip often misses the threshold while a multiple of it
+    // (octave or twelfth below) is the global minimum. Take the earliest dip that is nearly as deep.
+    const accept = cmnd[best] + 0.06;
     tauEstimate = best;
+    for (let tau = minTau + 1; tau < best; tau++) {
+      if (cmnd[tau] <= accept && cmnd[tau] <= cmnd[tau - 1] && cmnd[tau] <= cmnd[tau + 1]) {
+        tauEstimate = tau;
+        break;
+      }
+    }
   }
 
   const t = tauEstimate;
@@ -90,7 +99,8 @@ export function detectPitchAutocorrelation(
     : buffer;
 
   const freq = detectFreqYin(window, sampleRate);
-  const mainsHum = freq !== null && [60, 120, 180].some(hum => Math.abs(freq - hum) < 3.5);
+  // B2 (123.5 Hz) sits 3.5 Hz from 120 Hz hum; a wide window silenced that note entirely.
+  const mainsHum = freq !== null && [60, 120, 180].some(hum => Math.abs(freq - hum) < 1.5);
   if (freq === null || freq < 75 || mainsHum) {
     return { freq: null, rms, isOnset: false, chroma: null, stringMatch: null, fretMatch: null };
   }
@@ -125,10 +135,13 @@ export function detectPitchAutocorrelation(
   // A tuner has to guide a string that is badly out of tune too, so accept anything up to
   // two semitones from the nearest open string (adjacent strings are 4-5 semitones apart).
   const openString = pick.diff <= OPEN_STRING_RANGE_SEMITONES ? pick.string : null;
-  const heard = openString ? pick.heard : freq;
+  // The octave fold above is only for steering the tuner to a string. Reporting the folded
+  // value as the heard pitch turned F#2/G2/B2/C3/F3 into the octave above during play.
+  const tunerHeard = openString ? pick.heard : freq;
+  const heard = freq;
 
   const computedCents = openString
-    ? Math.round(1200 * Math.log2(heard / openString.freq))
+    ? Math.round(1200 * Math.log2(tunerHeard / openString.freq))
     : 0;
 
   let matchedFret: { string: number; fret: number; expectedFreq: number; cents: number } | null = null;

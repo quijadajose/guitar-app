@@ -325,7 +325,8 @@ class PitchLab {
     res.topFretMatch = [...counts.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
 
     const semis = Math.round(hzToMidi(med) - target.midi);
-    if (Math.abs(res.centsOff) <= 50 && res.correctPct >= 50) res.status = 'ok';
+    const correctOfVoiced = correct.length / voiced.length;
+    if (Math.abs(res.centsOff) <= 50 && correctOfVoiced >= 0.6) res.status = 'ok';
     else if (Math.abs(res.centsOff) <= 50) res.status = 'inestable';
     else if (semis % 12 === 0) res.status = 'octava';
     else res.status = 'mal';

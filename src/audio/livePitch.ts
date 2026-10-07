@@ -95,7 +95,9 @@ export class LivePitchAnalyzer {
       this.lastPitchAt = nowMs;
       const window = this.snapshot(Math.min(this.filled, NOISE_FFT));
       const cleaned = this.suppressStationaryNoise(window);
-      const gate = Math.max(this.rmsGate, this.noiseRms * 2.4);
+      // Spectral subtraction already removes the steady room floor; a 2.4x gate silenced the
+      // decay of every note in a room with an air conditioner (noise rms ~0.05).
+      const gate = Math.max(this.rmsGate, this.noiseRms * 1.5);
       this.lastPitch = detectPitchAutocorrelation(cleaned, this.sampleRate, gate);
     }
 
