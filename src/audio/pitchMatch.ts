@@ -61,6 +61,23 @@ export function detectFreqYin(buffer: Float32Array, sampleRate: number): number 
     }
   }
 
+  // Octave/twelfth-below guard: if a dip at half or a third of the chosen lag is nearly as
+  // deep, the chosen lag is a multiple of the real period (G4 read as G3, D#3 as D#2).
+  for (const k of [2, 3]) {
+    const center = tauEstimate / k;
+    if (center < minTau) continue;
+    const lo = Math.max(minTau, Math.floor(center * 0.97));
+    const hi = Math.min(maxTau - 1, Math.ceil(center * 1.03));
+    let cand = -1;
+    for (let tau = lo; tau <= hi; tau++) {
+      if (cand < 0 || cmnd[tau] < cmnd[cand]) cand = tau;
+    }
+    if (cand > 0 && cmnd[cand] < 0.25 && cmnd[cand] <= cmnd[tauEstimate] + 0.08) {
+      tauEstimate = cand;
+      break;
+    }
+  }
+
   const t = tauEstimate;
   const x0 = t > 1 ? cmnd[t - 1] : cmnd[t];
   const x1 = cmnd[t];

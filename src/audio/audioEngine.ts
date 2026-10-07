@@ -1,9 +1,9 @@
 import type { StringNumber, OnPitchDetectedCallback, PitchMatchResult } from '../types/audio.types';
-import { chromaFromMagnitudes } from './chords';
 import { detectPitchAutocorrelation as matchPitch } from './pitchMatch';
 import { DEFAULT_SESSION_PROFILE, type SessionAudioProfile } from './sessionProfile';
 import pitchWorkletUrl from './pitch.worklet.js?url';
 import PitchWorker from './pitch.worker.ts?worker';
+import { LivePitchAnalyzer } from './livePitch';
 
 /**
  * Web Audio Guitar Sound Engine
@@ -28,28 +28,26 @@ export class GuitarAudioEngine {
   public capturing = false;
 
   // Onset detection (spectral flux) and chroma state
-  private specDb: Float32Array<ArrayBuffer> | null = null;
-  private prevMag: Float32Array<ArrayBuffer> | null = null;
-  private linearMag: Float32Array<ArrayBuffer> | null = null;
-  private chromaBins: Float32Array<ArrayBuffer> = new Float32Array(12);
-  private fluxAverage: number = 0;
-  private onsetArmed: boolean = false;
-  private lastOnsetAt: number = 0;
 
   /** Minimum gap between two reported onsets, in milliseconds. */
-  private static readonly ONSET_REFRACTORY_MS = 60;
   /**
    * How often YIN runs, in milliseconds. Onset detection stays at full frame rate because it is
    * cheap and timing-critical, but pitch is a slow-moving quantity and YIN is the expensive part.
    */
-  private static readonly PITCH_INTERVAL_MS = 30;
 
-  private lastPitchAt: number = 0;
   private lastPitch: PitchMatchResult | null = null;
 
   private workletNode: AudioWorkletNode | null = null;
   private pitchWorker: Worker | null = null;
   private usingWorkletPath: boolean = false;
+  /** Why the AudioWorklet path could not start (null if it did). */
+  private workletError: string | null = null;
+  /** Fallback path runs the same analyzer as the worker (notch, high-pass, room-noise subtraction). */
+  private fallbackAnalyzer: LivePitchAnalyzer | null = null;
+  private fallbackLastTime = 0;
+  private loopMsAvg = 0;
+  private loopGapAvg = 0;
+  private loopLastAt = 0;
   public sessionProfile: SessionAudioProfile = { ...DEFAULT_SESSION_PROFILE, playerChromas: {} };
   private rmsGate = DEFAULT_SESSION_PROFILE.rmsGate;
   private fluxMultiplier = DEFAULT_SESSION_PROFILE.fluxMultiplier;
@@ -329,10 +327,6 @@ export class GuitarAudioEngine {
       this.micSource.connect(this.analyser);
 
       this.pitchBuffer = new Float32Array(this.analyser.fftSize);
-      this.specDb = new Float32Array(this.analyser.frequencyBinCount);
-      this.prevMag = new Float32Array(this.analyser.frequencyBinCount);
-      this.fluxAverage = 0;
-      this.onsetArmed = false;
       this.runPitchLoop();
       return true;
     } catch (err) {
@@ -343,7 +337,10 @@ export class GuitarAudioEngine {
 
   private async startWorkletPitchPath(): Promise<boolean> {
     if (!this.ctx || !this.micSource) return false;
-    if (!this.ctx.audioWorklet) return false;
+    if (!this.ctx.audioWorklet) {
+      this.workletError = 'audioWorklet no disponible';
+      return false;
+    }
 
     try {
       await this.ctx.audioWorklet.addModule(pitchWorkletUrl);
@@ -375,8 +372,10 @@ export class GuitarAudioEngine {
       };
 
       this.usingWorkletPath = true;
+      this.workletError = null;
       return true;
     } catch (err) {
+      this.workletError = String((err as Error)?.message ?? err);
       console.warn('AudioWorklet pitch path unavailable, falling back to AnalyserNode:', err);
       this.teardownWorkletPath();
       return false;
@@ -399,23 +398,34 @@ export class GuitarAudioEngine {
   private runPitchLoop(): void {
     const trackLoop = () => {
       if (!this.isTrackingPitch || !this.analyser || !this.pitchBuffer || !this.ctx) return;
+      const started = performance.now();
+      if (this.loopLastAt) this.loopGapAvg = this.loopGapAvg * 0.9 + (started - this.loopLastAt) * 0.1;
+      this.loopLastAt = started;
       this.analyser.getFloatTimeDomainData(this.pitchBuffer);
       this.storeCapture(this.pitchBuffer);
       this.emitWaveform(this.pitchBuffer);
 
-      const spectral = this.analyseSpectrum(this.ctx.sampleRate);
-
-      const now = performance.now();
-      if (!this.lastPitch || now - this.lastPitchAt >= GuitarAudioEngine.PITCH_INTERVAL_MS) {
-        this.lastPitchAt = now;
-        this.lastPitch = this.detectPitchAutocorrelation(this.pitchBuffer, this.ctx.sampleRate);
+      // Only the samples that arrived since the last frame are new; feed those to the analyzer.
+      const sampleRate = this.ctx.sampleRate;
+      if (!this.fallbackAnalyzer) {
+        this.fallbackAnalyzer = new LivePitchAnalyzer(sampleRate);
+        this.fallbackLastTime = this.ctx.currentTime;
+      }
+      this.fallbackAnalyzer.setProfile(this.rmsGate, this.fluxMultiplier);
+      const elapsed = Math.round((this.ctx.currentTime - this.fallbackLastTime) * sampleRate);
+      this.fallbackLastTime = this.ctx.currentTime;
+      const fresh = Math.max(0, Math.min(this.pitchBuffer.length, elapsed));
+      if (fresh > 0 || !this.lastPitch) {
+        const hop = this.pitchBuffer.slice(this.pitchBuffer.length - Math.max(fresh, 1));
+        const result = this.fallbackAnalyzer.pushHop(hop, started);
+        this.lastPitch = { ...result, chroma: result.chroma ? new Float32Array(result.chroma) : null };
+      } else {
+        this.lastPitch = { ...this.lastPitch, isOnset: false };
       }
 
-      this.pitchListeners.forEach(listener => listener({
-        ...this.lastPitch!,
-        isOnset: spectral.isOnset,
-        chroma: spectral.chroma
-      }));
+      const frame = this.lastPitch;
+      this.pitchListeners.forEach(listener => listener(frame));
+      this.loopMsAvg = this.loopMsAvg * 0.9 + (performance.now() - started) * 0.1;
 
       this.pitchAnimId = requestAnimationFrame(trackLoop);
     };
@@ -495,6 +505,9 @@ export class GuitarAudioEngine {
       ctxState: this.ctx?.state ?? null,
       sampleRate: this.ctx?.sampleRate ?? null,
       path: this.usingWorkletPath ? 'worklet' : this.analyser ? 'analyser' : 'ninguno',
+      workletError: this.workletError,
+      loopMs: +this.loopMsAvg.toFixed(1),
+      loopGapMs: +this.loopGapAvg.toFixed(1),
       tracking: this.isTrackingPitch,
       track: track ? {
         label: track.label,
@@ -526,67 +539,9 @@ export class GuitarAudioEngine {
       this.micSource = null;
     }
     this.analyser = null;
+    this.fallbackAnalyzer = null;
     this.pitchBuffer = null;
-    this.specDb = null;
-    this.prevMag = null;
-    this.linearMag = null;
     this.teardownWorkletPath();
-  }
-
-  /**
-   * Spectral flux onset detection plus a 12-bin chroma profile.
-   *
-   * Flux (sum of positive magnitude changes) rises when a new note adds energy in bins that
-   * were previously empty, so it still fires for a soft note plucked over a loud ringing tail,
-   * which a plain RMS jump would miss. A Schmitt trigger against a slow running average gives
-   * one onset per attack instead of one per frame.
-   */
-  private analyseSpectrum(sampleRate: number): { isOnset: boolean; chroma: Float32Array | null } {
-    if (!this.analyser || !this.specDb || !this.prevMag) {
-      return { isOnset: false, chroma: null };
-    }
-
-    this.analyser.getFloatFrequencyData(this.specDb);
-
-    const bins = this.specDb.length;
-    const binHz = sampleRate / (bins * 2);
-    // Transients are broadband, so measure flux well above the fundamentals.
-    const fluxMaxBin = Math.min(bins - 1, Math.floor(5000 / binHz));
-
-    if (!this.linearMag || this.linearMag.length !== bins) {
-      this.linearMag = new Float32Array(bins);
-    }
-    const mags = this.linearMag;
-    mags.fill(0);
-
-    let flux = 0;
-    for (let k = 1; k <= fluxMaxBin; k++) {
-      const db = this.specDb[k];
-      const mag = db > -140 && Number.isFinite(db) ? Math.pow(10, db / 20) : 0;
-      const rise = mag - this.prevMag[k];
-      if (rise > 0) flux += rise;
-      this.prevMag[k] = mag;
-      mags[k] = mag;
-    }
-
-    const threshold = this.fluxAverage * this.fluxMultiplier + 1e-4;
-    const now = performance.now();
-    let isOnset = false;
-
-    if (flux > threshold) {
-      if (!this.onsetArmed && now - this.lastOnsetAt >= GuitarAudioEngine.ONSET_REFRACTORY_MS) {
-        isOnset = true;
-        this.onsetArmed = true;
-        this.lastOnsetAt = now;
-      }
-    } else if (flux < threshold * 0.6) {
-      this.onsetArmed = false;
-    }
-
-    this.fluxAverage = this.fluxAverage * 0.9 + flux * 0.1;
-
-    const hasChroma = chromaFromMagnitudes(mags, binHz, this.chromaBins);
-    return { isOnset, chroma: hasChroma ? this.chromaBins : null };
   }
 
   public detectPitchAutocorrelation(buffer: Float32Array, sampleRate: number): PitchMatchResult {

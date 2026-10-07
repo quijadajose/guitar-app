@@ -12,11 +12,17 @@ describe('detectPitchAutocorrelation', () => {
     expect(Math.abs(centsBetween(r.freq!, hz))).toBeLessThan(50);
   });
 
-  it.each([392.0, 415.3, 440.0])('no baja de octava %f Hz con ruido de pieza', hz => {
+  it.each([155.56, 392.0, 415.3, 440.0, 493.88])('no baja de octava %f Hz con ruido de pieza', hz => {
     const clean = tone(hz);
     const noise = whiteNoise(clean.length, 0.12);
     const mixed = clean.map((v, i) => v + noise[i]);
     const r = detectPitchAutocorrelation(mixed, SAMPLE_RATE);
+    expect(r.freq).not.toBeNull();
+    expect(Math.abs(centsBetween(r.freq!, hz))).toBeLessThan(50);
+  });
+
+  it.each([82.41, 110.0, 146.83])('no sube de octava una cuerda grave sin fundamental %f Hz', hz => {
+    const r = detectPitchAutocorrelation(steadyTone(hz, 4096, { partials: [0.05, 1.0, 0.85, 0.5, 0.3, 0.2] }), SAMPLE_RATE);
     expect(r.freq).not.toBeNull();
     expect(Math.abs(centsBetween(r.freq!, hz))).toBeLessThan(50);
   });
