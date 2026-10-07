@@ -79,6 +79,8 @@ class PitchLab {
   private live = { rms: 0, freq: null as number | null };
   private raf = 0;
   private userAgent = navigator.userAgent;
+  private framesSeen = 0;
+  private micOk = false;
 
   public bind(): void {
     document.getElementById('btn-pitch-lab')?.addEventListener('click', () => void this.open());
@@ -86,7 +88,9 @@ class PitchLab {
 
   private async open(): Promise<void> {
     this.render();
+    this.framesSeen = 0;
     const ok = await guitarAudio.startMicrophonePitchTracking(this.onPitch);
+    this.micOk = ok;
     if (!ok) {
       this.setStatus('No se pudo abrir el micrófono. Revisá los permisos del navegador.');
       return;
@@ -113,6 +117,7 @@ class PitchLab {
   private onPitch = (d: PitchMatchResult): void => {
     if (!d) return;
     this.live = { rms: d.rms, freq: d.freq };
+    this.framesSeen++;
     if (this.mode === 'idle') return;
     const now = performance.now();
     const frame: Frame = {
@@ -171,6 +176,17 @@ class PitchLab {
     this.frames = [];
     this.phaseStart = performance.now();
     this.setPrompt('Silencio', 'No toques nada 3 s: estoy midiendo el ruido de la pieza (aire, ventilador…).');
+    clearTimeout(this.timer);
+    this.timer = window.setTimeout(() => {
+      if (this.mode !== 'silence') return;
+      if (!this.frames.length) {
+        this.mode = 'idle';
+        this.setPrompt('Sin audio', 'No llegó ningún dato del micrófono en 5 s. Cerrá, revisá el permiso del micrófono y volvé a abrir. Copiá el log igual.');
+        this.renderLog();
+        return;
+      }
+      this.finishSilence();
+    }, SILENCE_MS + 2000);
   }
 
   private finishSilence(): void {
@@ -183,6 +199,7 @@ class PitchLab {
       frames: this.frames
     };
     this.frames = [];
+    clearTimeout(this.timer);
     this.armTarget();
   }
 
@@ -287,6 +304,7 @@ class PitchLab {
     const lines: string[] = [];
     lines.push(`# Pitch lab ${new Date().toISOString()}`);
     lines.push(`ua: ${this.userAgent}`);
+    lines.push(`mic: ${this.micOk ? 'ok' : 'falló'} · frames recibidos: ${this.framesSeen} · estado: ${this.mode} · paso ${this.index}/${this.targets.length}`);
     if (this.noise) {
       lines.push(`ruido: rms mediana ${this.noise.medianRms} pico ${this.noise.peakRms.toFixed(4)} · notas falsas en silencio: ${this.noise.falseNotes.length}/${this.noise.frames.length}` +
         (this.noise.falseNotes.length ? ` → ${this.noise.falseNotes.slice(0, 15).join(' ')}` : ''));
@@ -330,6 +348,12 @@ class PitchLab {
     const data = {
       at: new Date().toISOString(),
       userAgent: this.userAgent,
+      micOk: this.micOk,
+      framesSeen: this.framesSeen,
+      mode: this.mode,
+      step: this.index,
+      totalSteps: this.targets.length,
+      log: this.textLog(),
       noise: this.noise,
       results: [...this.results.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r)
     };
@@ -365,7 +389,7 @@ class PitchLab {
     const { rms, freq } = this.live;
     const note = freq ? `${midiName(Math.round(hzToMidi(freq)))} ${freq.toFixed(1)} Hz` : 'sin nota';
     const state = { idle: '', silence: '· midiendo ruido', waiting: '· esperando', listening: '· escuchando' }[this.mode];
-    el.textContent = `${note} · rms ${rms.toFixed(4)} ${state}`;
+    el.textContent = `${note} · rms ${rms.toFixed(4)} · frames ${this.framesSeen} ${state}`;
     const bar = this.q('#lab-meter') as HTMLElement | null;
     if (bar) bar.style.width = `${Math.min(100, rms * 800)}%`;
   }
