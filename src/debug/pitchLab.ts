@@ -81,6 +81,9 @@ class PitchLab {
   private userAgent = navigator.userAgent;
   private framesSeen = 0;
   private micOk = false;
+  private zeroSince = 0;
+  private restarts = 0;
+  private diag: Record<string, unknown>[] = [];
 
   public bind(): void {
     document.getElementById('btn-pitch-lab')?.addEventListener('click', () => void this.open());
@@ -89,8 +92,9 @@ class PitchLab {
   private async open(): Promise<void> {
     this.render();
     this.framesSeen = 0;
-    const ok = await guitarAudio.startMicrophonePitchTracking(this.onPitch);
-    this.micOk = ok;
+    this.restarts = 0;
+    this.diag = [];
+    const ok = await this.startMic();
     if (!ok) {
       this.setStatus('No se pudo abrir el micrófono. Revisá los permisos del navegador.');
       return;
@@ -100,6 +104,25 @@ class PitchLab {
       this.raf = requestAnimationFrame(tick);
     };
     this.raf = requestAnimationFrame(tick);
+  }
+
+  private async startMic(): Promise<boolean> {
+    const before = await guitarAudio.ensureRunning();
+    const ok = await guitarAudio.startMicrophonePitchTracking(this.onPitch);
+    const after = await guitarAudio.ensureRunning();
+    this.micOk = ok;
+    this.zeroSince = 0;
+    this.diag.push({ at: Math.round(performance.now()), ctxAntes: before, ctxDespues: after, ok, ...guitarAudio.getDiagnostics() });
+    return ok;
+  }
+
+  /** Si el micrófono entrega silencio digital absoluto, lo reabre una vez (Android a veces lo deja mudo). */
+  private async restartMic(): Promise<void> {
+    this.restarts++;
+    this.setStatus('El micrófono entrega ceros: reintentando…');
+    guitarAudio.detachPitchListener(this.onPitch);
+    guitarAudio.releaseMicrophone();
+    await this.startMic();
   }
 
   private close(): void {
@@ -118,6 +141,17 @@ class PitchLab {
     if (!d) return;
     this.live = { rms: d.rms, freq: d.freq };
     this.framesSeen++;
+    if (d.rms === 0) {
+      const now0 = performance.now();
+      if (!this.zeroSince) this.zeroSince = now0;
+      else if (now0 - this.zeroSince > 1500) {
+        this.zeroSince = 0;
+        if (this.restarts < 1) void this.restartMic();
+        else this.setStatus('El micrófono sigue entregando ceros. ¿Otra app o pestaña lo está usando? Copiá el log.');
+      }
+    } else {
+      this.zeroSince = 0;
+    }
     if (this.mode === 'idle') return;
     const now = performance.now();
     const frame: Frame = {
@@ -304,6 +338,8 @@ class PitchLab {
     const lines: string[] = [];
     lines.push(`# Pitch lab ${new Date().toISOString()}`);
     lines.push(`ua: ${this.userAgent}`);
+    for (const d of this.diag) lines.push(`audio: ${JSON.stringify(d)}`);
+    lines.push(`audio ahora: ${JSON.stringify(guitarAudio.getDiagnostics())}`);
     lines.push(`mic: ${this.micOk ? 'ok' : 'falló'} · frames recibidos: ${this.framesSeen} · estado: ${this.mode} · paso ${this.index}/${this.targets.length}`);
     if (this.noise) {
       lines.push(`ruido: rms mediana ${this.noise.medianRms} pico ${this.noise.peakRms.toFixed(4)} · notas falsas en silencio: ${this.noise.falseNotes.length}/${this.noise.frames.length}` +
@@ -354,6 +390,8 @@ class PitchLab {
       step: this.index,
       totalSteps: this.targets.length,
       log: this.textLog(),
+      audio: this.diag,
+      audioNow: guitarAudio.getDiagnostics(),
       noise: this.noise,
       results: [...this.results.entries()].sort((a, b) => a[0] - b[0]).map(([, r]) => r)
     };

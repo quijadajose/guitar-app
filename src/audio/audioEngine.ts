@@ -488,6 +488,33 @@ export class GuitarAudioEngine {
     }
   }
 
+  /** Estado del audio para el modo debug: permite ver por qué llegan ceros. */
+  public getDiagnostics(): Record<string, unknown> {
+    const track = this.micStream?.getAudioTracks()[0];
+    return {
+      ctxState: this.ctx?.state ?? null,
+      sampleRate: this.ctx?.sampleRate ?? null,
+      path: this.usingWorkletPath ? 'worklet' : this.analyser ? 'analyser' : 'ninguno',
+      tracking: this.isTrackingPitch,
+      track: track ? {
+        label: track.label,
+        enabled: track.enabled,
+        muted: track.muted,
+        readyState: track.readyState,
+        settings: track.getSettings()
+      } : null
+    };
+  }
+
+  /** Reanuda el AudioContext esperando a que realmente quede en 'running'. */
+  public async ensureRunning(): Promise<string> {
+    this.init();
+    if (this.ctx && this.ctx.state !== 'running') {
+      try { await this.ctx.resume(); } catch { /* lo reporta el diagnóstico */ }
+    }
+    return this.ctx?.state ?? 'sin-contexto';
+  }
+
   public releaseMicrophone(): void {
     this.stopMicrophonePitchTracking();
     if (this.micStream) {
