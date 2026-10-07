@@ -303,6 +303,8 @@ export class GameplayEngine {
   private static readonly MIC_REFRACTORY_MS = 140;
   /** How long after an attack to wait before reading its pitch, in milliseconds. */
   private static readonly MIC_ATTACK_SETTLE_MS = 45;
+  /** Give up on an attack whose pitch never stabilises (muted pluck, noise). */
+  private static readonly MIC_ATTACK_MAX_WAIT_MS = 250;
   private static readonly MIC_CENTS_TOLERANCE = 50;
   private static readonly MIC_OCTAVE_CENTS_TOLERANCE = 35;
 
@@ -1445,7 +1447,7 @@ export class GameplayEngine {
    * The mic callback fires every animation frame, and a plucked string rings for a second or
    * more. Without this, one pluck walks through every unhit note inside the timing window.
    */
-  private isNewAttack(freq: number, isOnset: boolean): boolean {
+  private isNewAttack(freq: number, isOnset: boolean, requirePitch = true): boolean {
     const now = performance.now();
 
     if (isOnset && now >= this.micRefractoryUntil && this.micAttackPendingAt === 0) {
@@ -1456,6 +1458,11 @@ export class GameplayEngine {
 
     if (this.micAttackPendingAt > 0) {
       if (now - this.micAttackPendingAt < GameplayEngine.MIC_ATTACK_SETTLE_MS) return false;
+      // Settled but no pitch yet: keep waiting for a frame with one, up to a limit.
+      if (requirePitch && freq <= 0) {
+        if (now - this.micAttackPendingAt > GameplayEngine.MIC_ATTACK_MAX_WAIT_MS) this.micAttackPendingAt = 0;
+        return false;
+      }
       this.micAttackPendingAt = 0;
       this.micRefractoryUntil = now + GameplayEngine.MIC_REFRACTORY_MS;
       this.micLastAttackFreq = freq;
@@ -1538,7 +1545,8 @@ export class GameplayEngine {
 
   public handleMicChordDetected(freq: number, chroma?: Float32Array | null, isOnset: boolean = true): void {
     if (!this.isPlaying || this.mode !== 'chords') return;
-    if (!this.isNewAttack(freq, isOnset)) return;
+    // A strum is polyphonic, so YIN often has no single pitch; the chroma decides instead.
+    if (!this.isNewAttack(freq, isOnset, false)) return;
 
     let bestChord: TrackChordWithDOM | null = null;
     let minDiff = Infinity;

@@ -5,6 +5,8 @@ import { detectPitchAutocorrelation } from './pitchMatch';
 
 const RING = 8192;
 const FFT_SIZE = 2048;
+/** Noise suppression works on the whole YIN window so the cleaned and raw halves are never spliced. */
+const NOISE_FFT = 4096;
 const ONSET_REFRACTORY_MS = 60;
 
 /**
@@ -26,8 +28,7 @@ export class LivePitchAnalyzer {
   private sampleRate: number;
   private rmsGate = 0.005;
   private fluxMultiplier = 2.4;
-  private noiseMag = new Float32Array(FFT_SIZE / 2);
-  private noiseReady = false;
+  private noiseMag = new Float32Array(NOISE_FFT / 2);
   private quietFrames = 0;
   private hpPrevX = 0;
   private hpPrevY = 0;
@@ -92,7 +93,7 @@ export class LivePitchAnalyzer {
 
     if (!this.lastPitch || nowMs - this.lastPitchAt >= 30) {
       this.lastPitchAt = nowMs;
-      const window = this.snapshot(Math.min(this.filled, 4096));
+      const window = this.snapshot(Math.min(this.filled, NOISE_FFT));
       const cleaned = this.suppressStationaryNoise(window);
       const gate = Math.max(this.rmsGate, this.noiseRms * 2.4);
       this.lastPitch = detectPitchAutocorrelation(cleaned, this.sampleRate, gate);
@@ -120,19 +121,25 @@ export class LivePitchAnalyzer {
    * from later frames so a steady air conditioner does not bury the string.
    */
   private suppressStationaryNoise(frame: Float32Array): Float32Array {
-    const n = FFT_SIZE;
+    const n = NOISE_FFT;
     if (frame.length < n) return frame;
 
     let sumSquares = 0;
     for (let i = 0; i < n; i++) sumSquares += frame[i] * frame[i];
     const rms = Math.sqrt(sumSquares / n);
-    if (rms < 0.05) {
+
+    // Only learn the room while it is actually quiet. Learning from every frame let a ringing
+    // note raise both the RMS gate and the spectral floor until soft notes disappeared.
+    const quiet = this.noiseRms === 0
+      ? rms < Math.max(this.rmsGate, 0.01)
+      : rms < this.noiseRms * 2;
+    if (quiet) {
       this.noiseRms = this.noiseRms === 0 ? rms : this.noiseRms * 0.85 + rms * 0.15;
     }
 
     const re = new Float32Array(n);
     const im = new Float32Array(n);
-    re.set(frame.subarray(frame.length - n));
+    re.set(frame.subarray(0, n));
     fft(re, im);
 
     const bins = n / 2;
@@ -141,21 +148,13 @@ export class LivePitchAnalyzer {
       mags[k] = Math.hypot(re[k], im[k]);
     }
 
-    this.quietFrames++;
-    for (let k = 0; k < bins; k++) {
-      if (!this.noiseReady) {
-        this.noiseMag[k] = mags[k];
-      } else if (mags[k] < this.noiseMag[k]) {
-        this.noiseMag[k] = this.noiseMag[k] * 0.5 + mags[k] * 0.5;
-      } else {
-        this.noiseMag[k] = this.noiseMag[k] * 0.995 + mags[k] * 0.005;
+    if (quiet) {
+      for (let k = 0; k < bins; k++) {
+        this.noiseMag[k] = this.quietFrames === 0 ? mags[k] : this.noiseMag[k] * 0.9 + mags[k] * 0.1;
       }
+      this.quietFrames++;
     }
-    if (this.quietFrames < 6) {
-      this.noiseReady = this.quietFrames >= 6;
-      return frame;
-    }
-    this.noiseReady = true;
+    if (this.quietFrames < 6) return frame;
 
     if (rms < this.rmsGate) return frame;
 
@@ -176,12 +175,11 @@ export class LivePitchAnalyzer {
     }
     re[0] = 0;
     im[0] = 0;
+    re[bins] = 0;
+    im[bins] = 0;
 
     ifft(re, im);
-    const out = new Float32Array(frame.length);
-    out.set(frame.subarray(0, frame.length - n), 0);
-    out.set(re, frame.length - n);
-    return out;
+    return re;
   }
 
   private analyseSpectrum(nowMs: number): { isOnset: boolean; chroma: Float32Array | null } {

@@ -1,6 +1,9 @@
 import type { PitchMatchResult } from '../types/audio.types';
 
 export const PITCH_WINDOW = 4096;
+const OPEN_STRING_RANGE_SEMITONES = 2;
+/** Cents within which an open string counts as tuned. */
+export const TUNER_IN_TUNE_CENTS = 5;
 
 /** YIN cumulative-mean difference. Returns Hz or null. */
 export function detectFreqYin(buffer: Float32Array, sampleRate: number): number | null {
@@ -119,7 +122,9 @@ export function detectPitchAutocorrelation(
     const octave = nearestOpen(freq * 2);
     if (octave.diff < pick.diff) pick = octave;
   }
-  const openString = pick.diff <= 0.85 ? pick.string : null;
+  // A tuner has to guide a string that is badly out of tune too, so accept anything up to
+  // two semitones from the nearest open string (adjacent strings are 4-5 semitones apart).
+  const openString = pick.diff <= OPEN_STRING_RANGE_SEMITONES ? pick.string : null;
   const heard = openString ? pick.heard : freq;
 
   const computedCents = openString
@@ -153,7 +158,7 @@ export function detectPitchAutocorrelation(
       name: openString.name,
       targetFreq: openString.freq,
       cents: computedCents,
-      inTune: Math.abs(computedCents) <= 5
+      inTune: Math.abs(computedCents) <= TUNER_IN_TUNE_CENTS
     } : null,
     fretMatch: matchedFret
   };

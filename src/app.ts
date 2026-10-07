@@ -10,6 +10,7 @@ import { registerScreenSwitcher, takeQueuedGameplaySong, queueGameplaySong, reca
 import { listNotePickerItems, removeLibrarySong, clearLibrary } from './songLibrary';
 import { soundProbeSong } from './songs/soundProbe';
 import { publishLiveFrame } from './audio/liveFeed';
+import { TUNER_IN_TUNE_CENTS } from './audio/pitchMatch';
 import { probeMultiplayerServer } from './services/network/serverStatus';
 import {
   fetchCommunitySongs,
@@ -19,6 +20,7 @@ import {
 } from './services/supabase';
 import { bindAccount } from './screens/account';
 import { bindPlayerGate } from './screens/playerGate';
+import { pitchLab } from './debug/pitchLab';
 import { readPlayer } from './player';
 import { applyNoteNaming, readNoteNaming, readNotationView, writeNoteNaming, writeNotationView, type NoteNaming, type NotationView } from './notation/notationPreference';
 import type { SongProject } from './types/editor.types';
@@ -144,6 +146,7 @@ export class GuitarApp {
     this.setupNotationSettings();
     this.setupAccount();
     bindPlayerGate();
+    pitchLab.bind();
     void this.refreshBackends();
 
     this.hasGrantedMicPermission =
@@ -830,7 +833,7 @@ export class GuitarApp {
     const hasReading = manualCents !== undefined;
     const effectiveCents = hasReading ? manualCents : 0;
     const meterOffset = hasReading ? Math.max(-40, Math.min(40, effectiveCents)) / 40 : 0;
-    const isInTune = hasReading && Math.abs(effectiveCents) <= 15;
+    const isInTune = hasReading && Math.abs(effectiveCents) <= TUNER_IN_TUNE_CENTS;
 
     const pitchIndicator = document.getElementById('tuner-pitch-indicator');
     if (pitchIndicator) {
@@ -1258,7 +1261,7 @@ export class GuitarApp {
       }
 
       const rounded = Math.round(this.tunerSmoothedCents);
-      const inTune = Math.abs(rounded) <= 15;
+      const inTune = Math.abs(rounded) <= TUNER_IN_TUNE_CENTS;
       const dt = this.tunerMicLastFrameAt ? now - this.tunerMicLastFrameAt : 16;
       this.tunerMicLastFrameAt = now;
       this.tunerMicInTuneMs = inTune ? this.tunerMicInTuneMs + dt : 0;
@@ -1350,13 +1353,16 @@ export class GuitarApp {
       cents: data.stringMatch?.cents ?? data.fretMatch?.cents ?? null,
       wave: []
     });
-    if (!data.freq) return;
+    // The attack frame itself rarely has a stable pitch, so onsets must get through even with
+    // freq === null; otherwise a repeated note (same pitch twice) is never registered.
+    if (!data.freq && !data.isOnset) return;
     if (!gameplayEngine.isPlaying) return;
 
+    const freq = data.freq ?? 0;
     if (gameplayEngine.mode === 'notes') {
-      gameplayEngine.handleMicNoteDetected(data.freq, data.fretMatch, data.isOnset);
+      gameplayEngine.handleMicNoteDetected(freq, data.freq ? data.fretMatch : null, data.isOnset);
     } else if (gameplayEngine.mode === 'chords') {
-      gameplayEngine.handleMicChordDetected(data.freq, data.chroma, data.isOnset);
+      gameplayEngine.handleMicChordDetected(freq, data.chroma, data.isOnset);
     }
   };
 
