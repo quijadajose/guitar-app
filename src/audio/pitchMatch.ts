@@ -5,6 +5,16 @@ const OPEN_STRING_RANGE_SEMITONES = 2;
 /** Cents within which an open string counts as tuned. */
 export const TUNER_IN_TUNE_CENTS = 5;
 
+/** Standard tuning. One table feeds both the open-string matcher and the fret search. */
+const OPEN_STRINGS = [
+  { string: 1, name: 'E4', freq: 329.63, midi: 64 },
+  { string: 2, name: 'B3', freq: 246.94, midi: 59 },
+  { string: 3, name: 'G3', freq: 196.00, midi: 55 },
+  { string: 4, name: 'D3', freq: 146.83, midi: 50 },
+  { string: 5, name: 'A2', freq: 110.00, midi: 45 },
+  { string: 6, name: 'E2', freq: 82.41, midi: 40 }
+] as const;
+
 /** YIN cumulative-mean difference. Returns Hz or null. */
 export function detectFreqYin(buffer: Float32Array, sampleRate: number): number | null {
   const size = buffer.length;
@@ -122,20 +132,11 @@ export function detectPitchAutocorrelation(
     return { freq: null, rms, isOnset: false, chroma: null, stringMatch: null, fretMatch: null };
   }
 
-  const guitarStrings = [
-    { string: 1, name: 'E4', freq: 329.63, midi: 64 },
-    { string: 2, name: 'B3', freq: 246.94, midi: 59 },
-    { string: 3, name: 'G3', freq: 196.00, midi: 55 },
-    { string: 4, name: 'D3', freq: 146.83, midi: 50 },
-    { string: 5, name: 'A2', freq: 110.00, midi: 45 },
-    { string: 6, name: 'E2', freq: 82.41, midi: 40 }
-  ];
-
   const nearestOpen = (candidate: number) => {
     const measuredMidi = 69 + 12 * Math.log2(candidate / 440);
-    let best = guitarStrings[0];
+    let best: (typeof OPEN_STRINGS)[number] = OPEN_STRINGS[0];
     let bestDiff = Infinity;
-    for (const gs of guitarStrings) {
+    for (const gs of OPEN_STRINGS) {
       const diff = Math.abs(measuredMidi - gs.midi);
       if (diff < bestDiff) {
         bestDiff = diff;
@@ -163,17 +164,16 @@ export function detectPitchAutocorrelation(
 
   let matchedFret: { string: number; fret: number; expectedFreq: number; cents: number } | null = null;
   let bestFretScore = Infinity;
-  const baseFreqs: Record<number, number> = { 1: 329.63, 2: 246.94, 3: 196.00, 4: 146.83, 5: 110.00, 6: 82.41 };
 
-  for (let s = 1; s <= 6; s++) {
+  for (const gs of OPEN_STRINGS) {
     for (let f = 0; f <= 15; f++) {
-      const expectedF = baseFreqs[s] * Math.pow(2, f / 12);
+      const expectedF = gs.freq * Math.pow(2, f / 12);
       const cents = 1200 * Math.log2(heard / expectedF);
       if (Math.abs(cents) >= 45) continue;
       const score = Math.abs(cents) + f * 0.01;
       if (score < bestFretScore) {
         bestFretScore = score;
-        matchedFret = { string: s, fret: f, expectedFreq: Math.round(expectedF * 10) / 10, cents: Math.round(cents) };
+        matchedFret = { string: gs.string, fret: f, expectedFreq: Math.round(expectedF * 10) / 10, cents: Math.round(cents) };
       }
     }
   }

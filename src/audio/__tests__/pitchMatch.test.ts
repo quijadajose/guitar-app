@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { detectPitchAutocorrelation } from '../pitchMatch';
-import { SAMPLE_RATE, steadyTone, whiteNoise, centsBetween, WEAK_FUNDAMENTAL_PARTIALS } from './signals';
+import { SAMPLE_RATE, steadyTone, whiteNoise, centsBetween, NOTE_HZ, WEAK_FUNDAMENTAL_PARTIALS } from './signals';
 
 const tone = (hz: number) => steadyTone(hz, 4096, { partials: WEAK_FUNDAMENTAL_PARTIALS });
 
@@ -25,5 +25,35 @@ describe('detectPitchAutocorrelation', () => {
     const r = detectPitchAutocorrelation(steadyTone(hz, 4096, { partials: [0.05, 1.0, 0.85, 0.5, 0.3, 0.2] }), SAMPLE_RATE);
     expect(r.freq).not.toBeNull();
     expect(Math.abs(centsBetween(r.freq!, hz))).toBeLessThan(50);
+  });
+
+  it('detects B2 and rejects exact mains hum', () => {
+    const b2 = detectPitchAutocorrelation(steadyTone(123.47, 4096), SAMPLE_RATE);
+    expect(b2.freq).not.toBeNull();
+    expect(Math.abs(centsBetween(b2.freq!, 123.47))).toBeLessThan(50);
+
+    for (const hum of [60, 120, 180]) {
+      const r = detectPitchAutocorrelation(steadyTone(hum, 4096, { partials: [1] }), SAMPLE_RATE);
+      expect(r.freq).toBeNull();
+    }
+  });
+
+  it('reads a weak-fundamental E2 near 82 Hz, not an octave away', () => {
+    const hz = 82.41;
+    const r = detectPitchAutocorrelation(
+      steadyTone(hz, 4096, { partials: [0.05, 1.0, 0.85, 0.5, 0.3, 0.2] }),
+      SAMPLE_RATE
+    );
+    expect(r.freq).not.toBeNull();
+    expect(Math.abs(r.freq! - hz)).toBeLessThan(2);
+  });
+
+  it('keeps a string 1.5 semitones flat and reports the real frequency', () => {
+    const hz = NOTE_HZ.E4 * Math.pow(2, -1.5 / 12);
+    const r = detectPitchAutocorrelation(steadyTone(hz, 4096), SAMPLE_RATE);
+    expect(r.stringMatch?.name).toBe('E4');
+    expect(r.freq).not.toBeNull();
+    expect(Math.abs(centsBetween(r.freq!, hz))).toBeLessThan(40);
+    expect(Math.abs(centsBetween(r.freq!, hz * 2))).toBeGreaterThan(1100);
   });
 });

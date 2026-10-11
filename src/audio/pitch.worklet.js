@@ -19,7 +19,8 @@ class PitchCaptureProcessor extends AudioWorkletProcessor {
       this.filled += take;
       offset += take;
       if (this.filled === HOP) {
-        this.port.postMessage(this.pending.slice());
+        const out = this.pending.slice();
+        this.port.postMessage(out, [out.buffer]);
         this.filled = 0;
       }
     }

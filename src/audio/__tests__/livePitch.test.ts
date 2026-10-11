@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { LivePitchAnalyzer } from '../livePitch';
-import { SAMPLE_RATE, renderMelody, whiteNoise, centsBetween, NOTE_HZ, type MelodyNote } from './signals';
+import { SAMPLE_RATE, renderMelody, whiteNoise, steadyTone, centsBetween, NOTE_HZ, type MelodyNote } from './signals';
 
 const HOP = 1024;
 
@@ -39,6 +39,45 @@ describe('LivePitchAnalyzer', () => {
       const onPitch = window.filter(f => f.freq !== null && Math.abs(centsBetween(f.freq, target)) < 30);
       expect(onPitch.length / window.length).toBeGreaterThan(0.6);
     });
+  });
+
+  it('still hears a sustained note after the room profile has settled', () => {
+    const analyzer = new LivePitchAnalyzer(SAMPLE_RATE);
+    const total = SAMPLE_RATE * 4;
+    const audio = whiteNoise(total, 0.02, 11);
+    const tone = steadyTone(NOTE_HZ.A2, SAMPLE_RATE * 3);
+    for (let i = 0; i < tone.length; i++) audio[SAMPLE_RATE + i] += tone[i];
+
+    const tail: number[] = [];
+    for (let i = 0; i + HOP <= audio.length; i += HOP) {
+      const t = i / SAMPLE_RATE;
+      const r = analyzer.pushHop(audio.slice(i, i + HOP), t * 1000);
+      if (t > 3.2 && r.freq !== null) tail.push(r.freq);
+    }
+    const onPitch = tail.filter(freq => Math.abs(centsBetween(freq, NOTE_HZ.A2)) < 40);
+    expect(tail.length).toBeGreaterThan(8);
+    expect(onPitch.length / tail.length).toBeGreaterThan(0.6);
+  });
+
+  it('keeps a clean sine on pitch once spectral subtraction is active', () => {
+    const analyzer = new LivePitchAnalyzer(SAMPLE_RATE);
+    const hz = 220;
+    const quiet = whiteNoise(SAMPLE_RATE, 0.001, 3);
+    const tone = steadyTone(hz, SAMPLE_RATE * 2, { partials: [1] });
+    const audio = new Float32Array(quiet.length + tone.length);
+    audio.set(quiet);
+    audio.set(tone, quiet.length);
+
+    const heard: number[] = [];
+    for (let i = 0; i + HOP <= audio.length; i += HOP) {
+      const t = i / SAMPLE_RATE;
+      const r = analyzer.pushHop(audio.slice(i, i + HOP), t * 1000);
+      if (t > 1.4 && r.freq !== null) heard.push(r.freq);
+    }
+    expect(heard.length).toBeGreaterThan(10);
+    for (const freq of heard) {
+      expect(Math.abs(centsBetween(freq, hz))).toBeLessThan(30);
+    }
   });
 });
 

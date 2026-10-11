@@ -552,6 +552,7 @@ export class GuitarAudioEngine {
     this.sessionProfile = profile;
     this.rmsGate = profile.rmsGate;
     this.fluxMultiplier = profile.fluxMultiplier;
+    this.fallbackAnalyzer?.setProfile(this.rmsGate, this.fluxMultiplier);
     this.pushProfileToWorker();
   }
 

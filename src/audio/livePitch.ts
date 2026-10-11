@@ -33,6 +33,8 @@ export class LivePitchAnalyzer {
   private hpPrevX = 0;
   private hpPrevY = 0;
   private noiseRms = 0;
+  private hpR = 0;
+  private notchBank: Array<{ b0: number; b1: number; b2: number; a1: number; a2: number }> = [];
   private notchZ = [
     { x1: 0, x2: 0, y1: 0, y2: 0 },
     { x1: 0, x2: 0, y1: 0, y2: 0 },
@@ -41,10 +43,18 @@ export class LivePitchAnalyzer {
 
   constructor(sampleRate: number) {
     this.sampleRate = sampleRate;
+    this.rebuildFilters();
   }
 
   public setSampleRate(sampleRate: number): void {
     this.sampleRate = sampleRate;
+    this.rebuildFilters();
+  }
+
+  /** Notch and high-pass depend only on the sample rate, so they are built once. */
+  private rebuildFilters(): void {
+    this.hpR = Math.exp((-2 * Math.PI * 70) / this.sampleRate);
+    this.notchBank = [60, 120, 180].map(freq => this.notchCoeffs(freq));
   }
 
   public setProfile(rmsGate: number, fluxMultiplier: number): void {
@@ -67,8 +77,8 @@ export class LivePitchAnalyzer {
   }
 
   public pushHop(hop: Float32Array, nowMs: number): PitchMatchResult {
-    const hpR = Math.exp((-2 * Math.PI * 70) / this.sampleRate);
-    const notches = [60, 120, 180].map(freq => this.notchCoeffs(freq));
+    const hpR = this.hpR;
+    const notches = this.notchBank;
     for (let i = 0; i < hop.length; i++) {
       let y = hop[i];
       for (let n = 0; n < notches.length; n++) {
