@@ -1,17 +1,56 @@
-import { createClient } from '@supabase/supabase-js';
+import type { SupabaseClient } from '@supabase/supabase-js';
 import type { EditorChord, EditorNote, SongProject } from '../types/editor.types';
 import { multiplayerOrigin } from './network/serverStatus';
 import { sanitizePlainText, sanitizeSongProject } from '../songSafety';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
-if (!supabaseUrl || !supabaseAnonKey) {
-  throw new Error('Faltan VITE_SUPABASE_URL y VITE_SUPABASE_ANON_KEY');
+
+/* ---- Carga diferida del cliente ----------------------------------------- */
+
+let loadedClient: SupabaseClient | null = null;
+let clientPromise: Promise<SupabaseClient> | null = null;
+const readyCallbacks: Array<(client: SupabaseClient) => void> = [];
+
+/** Descarga el SDK la primera vez que hace falta y devuelve el cliente. */
+export function loadSupabase(): Promise<SupabaseClient> {
+  clientPromise ??= import('./supabaseCore').then((core) => {
+    loadedClient = core.supabase;
+    for (const callback of readyCallbacks.splice(0)) callback(core.supabase);
+    return core.supabase;
+  });
+  return clientPromise;
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
-  auth: { experimental: { passkey: true } }
-});
+/** Ejecuta `callback` con el cliente ahora (si ya cargó) o cuando cargue. */
+export function onSupabaseReady(callback: (client: SupabaseClient) => void): void {
+  if (loadedClient) callback(loadedClient);
+  else readyCallbacks.push(callback);
+}
+
+/** Hay una sesión guardada por el SDK en este navegador (sin cargar el SDK). */
+export function hasStoredSession(): boolean {
+  try {
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i) ?? '';
+      if (key.startsWith('sb-') && key.endsWith('-auth-token')) return true;
+    }
+  } catch {
+    // Almacenamiento bloqueado: se trata como sin sesión.
+  }
+  return false;
+}
+
+/** La URL trae un callback de auth (magic link / passkey) que el SDK debe procesar. */
+export function hasAuthCallbackInUrl(): boolean {
+  return /[#?&](access_token|code|token_hash)=/.test(window.location.href);
+}
+
+/** Cliente solo si hay algo que consultar; si no, null sin cargar el SDK. */
+async function clientIfSession(): Promise<SupabaseClient | null> {
+  if (!loadedClient && !hasStoredSession() && !hasAuthCallbackInUrl()) return null;
+  return loadSupabase();
+}
 
 const REQUEST_TIMEOUT_MS = 10_000;
 const DIFFICULTIES = ['easy', 'medium', 'hard', 'expert'] as const;
@@ -129,6 +168,7 @@ function sanitizeCommunityRecord(raw: unknown): CommunitySongRecord | null {
  * Obtener canciones de la comunidad con paginación y filtros
  */
 export async function fetchCommunitySongs(params: FetchSongsParams = {}): Promise<FetchSongsResult> {
+  const sb = await loadSupabase();
   const pageSize = Math.min(50, Math.max(1, Math.floor(params.pageSize ?? 6)));
   const page = Math.max(1, Math.floor(params.page ?? 1));
   const difficulty = params.difficulty ?? 'all';
@@ -137,7 +177,7 @@ export async function fetchCommunitySongs(params: FetchSongsParams = {}): Promis
   const from = (page - 1) * pageSize;
   const to = from + pageSize - 1;
 
-  let query = supabase
+  let query = sb
     .from('community_songs')
     .select(
       'id,user_id,creator_name,title,section,bpm,mode,difficulty,measures,notes,chords,audio_url,is_public,likes_count,plays_count,created_at',
@@ -183,12 +223,16 @@ export async function fetchCommunitySongs(params: FetchSongsParams = {}): Promis
 }
 
 export async function getCurrentUserId(): Promise<string | null> {
-  const { data } = await supabase.auth.getUser();
+    const sb = await clientIfSession();
+    if (!sb) return null;
+  const { data } = await sb.auth.getUser();
   return data.user?.id ?? null;
 }
 
 export async function currentAccountEmail(): Promise<string | null> {
-  const { data } = await supabase.auth.getUser();
+    const sb = await clientIfSession();
+    if (!sb) return null;
+  const { data } = await sb.auth.getUser();
   return data.user?.email ?? null;
 }
 
@@ -198,14 +242,18 @@ export interface AccountProfile {
 }
 
 export async function currentAccountProfile(): Promise<AccountProfile | null> {
-  const { data } = await supabase.auth.getUser();
+    const sb = await clientIfSession();
+    if (!sb) return null;
+  const { data } = await sb.auth.getUser();
   const user = data.user;
   if (!user?.email) return null;
   return { email: user.email, createdAt: user.created_at ?? null };
 }
 
 export async function scheduledDeletionDue(): Promise<string | null> {
-  const { data } = await supabase.auth.getUser();
+    const sb = await clientIfSession();
+    if (!sb) return null;
+  const { data } = await sb.auth.getUser();
   const due = (data.user?.app_metadata as { deletion_due?: unknown } | undefined)?.deletion_due;
   return typeof due === 'string' && due ? due : null;
 }
@@ -229,7 +277,9 @@ async function serverFetch(path: string, init: RequestInit): Promise<{ ok: boole
 }
 
 async function accountDeletion(method: 'POST' | 'DELETE'): Promise<{ ok: boolean; error?: string }> {
-  const { data } = await supabase.auth.getSession();
+  const sb = await clientIfSession();
+  if (!sb) return { ok: false, error: 'Tenés que iniciar sesión.' };
+  const { data } = await sb.auth.getSession();
   const token = data.session?.access_token;
   if (!token) return { ok: false, error: 'Tenés que iniciar sesión.' };
   return serverFetch('/auth/account/deletion', {
@@ -239,20 +289,23 @@ async function accountDeletion(method: 'POST' | 'DELETE'): Promise<{ ok: boolean
 }
 
 export async function cancelScheduledDeletion(): Promise<boolean> {
+    const sb = await loadSupabase();
   const result = await accountDeletion('DELETE');
-  if (result.ok) await supabase.auth.refreshSession();
+  if (result.ok) await sb.auth.refreshSession();
   return result.ok;
 }
 
 export async function scheduleAccountDeletion(): Promise<{ ok: boolean; error?: string }> {
+    const sb = await loadSupabase();
   const result = await accountDeletion('POST');
   if (!result.ok) return result;
-  await supabase.auth.signOut({ scope: 'local' });
+  await sb.auth.signOut({ scope: 'local' });
   return { ok: true };
 }
 
 export async function signOut(): Promise<void> {
-  await supabase.auth.signOut();
+    const sb = await loadSupabase();
+  await sb.auth.signOut();
 }
 
 export async function requestMagicLink(email: string): Promise<{ ok: boolean; error?: string }> {
@@ -272,19 +325,21 @@ export function passkeysAvailable(): boolean {
 }
 
 export async function signInWithPasskey(): Promise<{ ok: boolean; error?: string }> {
+    const sb = await loadSupabase();
   if (!passkeysAvailable()) {
     return { ok: false, error: 'Este navegador no puede usar passkeys.' };
   }
-  const { error } = await supabase.auth.signInWithPasskey();
+  const { error } = await sb.auth.signInWithPasskey();
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
 
 export async function registerPasskey(): Promise<{ ok: boolean; error?: string }> {
+    const sb = await loadSupabase();
   if (!passkeysAvailable()) {
     return { ok: false, error: 'Este navegador no puede usar passkeys.' };
   }
-  const { error } = await supabase.auth.registerPasskey();
+  const { error } = await sb.auth.registerPasskey();
   if (error) return { ok: false, error: error.message };
   return { ok: true };
 }
@@ -296,6 +351,7 @@ export async function publishCommunitySong(payload: {
   isPublic: boolean;
   audioUrl?: string | null;
 }): Promise<{ success: boolean; error?: string; id?: string }> {
+  const sb = await loadSupabase();
   try {
     const userId = await getCurrentUserId();
     if (!userId) {
@@ -326,7 +382,7 @@ export async function publishCommunitySong(payload: {
       is_public: payload.isPublic === true
     };
 
-    const { data, error } = await supabase
+    const { data, error } = await sb
       .from('community_songs')
       .insert([record])
       .select('id')

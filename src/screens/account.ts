@@ -8,7 +8,10 @@ import {
   requestMagicLink,
   signInWithPasskey,
   signOut,
-  supabase
+  hasAuthCallbackInUrl,
+  hasStoredSession,
+  loadSupabase,
+  onSupabaseReady
 } from '../services/supabase';
 
 export function bindAccount(): void {
@@ -210,10 +213,13 @@ export function bindAccount(): void {
     await paint();
   });
 
-  supabase.auth.onAuthStateChange((event) => {
-    void paint();
-    if (event === 'SIGNED_IN') void offerRestore();
+  onSupabaseReady((sb) => {
+    sb.auth.onAuthStateChange((event) => {
+      void paint();
+      if (event === 'SIGNED_IN') void offerRestore();
+    });
   });
+  if (hasStoredSession() || hasAuthCallbackInUrl()) void loadSupabase();
   void offerRestore();
 
   void paint();

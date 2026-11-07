@@ -1,3 +1,9 @@
+import './styles/main.css';
+import './styles/player-gate.css';
+import './styles/tuner.css';
+import './styles/gameplay.css';
+import './styles/editor.css';
+import './templates';
 import { guitarApp } from './app';
 
 function isApiFullscreen(): boolean {
@@ -25,6 +31,18 @@ function toggleFullscreen(): void {
   enter?.()?.catch(() => {});
 }
 
+/** Alto visible real: en Android, 100dvh puede no coincidir con lo que se ve al entrar/salir de pantalla completa. */
+function syncAppHeight(): void {
+  const height = Math.round(window.innerHeight);
+  if (height > 0) document.documentElement.style.setProperty('--app-h', `${height}px`);
+}
+
+syncAppHeight();
+window.addEventListener('resize', syncAppHeight);
+window.addEventListener('orientationchange', () => window.setTimeout(syncAppHeight, 150));
+document.addEventListener('fullscreenchange', () => window.setTimeout(syncAppHeight, 150));
+window.visualViewport?.addEventListener('resize', syncAppHeight);
+
 document.addEventListener('DOMContentLoaded', () => {
   guitarApp.init();
   const button = document.getElementById('btn-fullscreen');
@@ -47,3 +65,16 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 export {};
+
+/** Service worker: solo en producción (en desarrollo cachearía código viejo). */
+function registerServiceWorker(): void {
+  if (!import.meta.env.PROD || !('serviceWorker' in navigator)) return;
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register(`${import.meta.env.BASE_URL}sw.js`)
+      .catch((error: unknown) => console.warn('[sw] no se pudo registrar', error));
+  });
+}
+
+registerServiceWorker();
+

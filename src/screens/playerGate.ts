@@ -1,5 +1,5 @@
 import { normalizeName, randomPlayerName, readPlayer, writePlayer, type PlayerIdentity } from '../player';
-import { requestMagicLink, scheduleAccountDeletion, signOut, supabase } from '../services/supabase';
+import { hasAuthCallbackInUrl, hasStoredSession, loadSupabase, onSupabaseReady, requestMagicLink, scheduleAccountDeletion, signOut } from '../services/supabase';
 
 type Step = 'welcome' | 'claim' | 'register';
 
@@ -55,23 +55,27 @@ export function bindPlayerGate(): void {
     show('welcome');
   }
 
-  void supabase.auth.getSession().then(({ data }) => {
-    if (!data.session) return;
-    const player = readPlayer();
-    if (!player) return;
-    close({ ...player, anonymous: false, email: data.session.user.email || player.email });
-  });
+  // El SDK de Supabase solo se descarga si hay sesión guardada o un callback de auth en la URL.
+  onSupabaseReady((sb) => {
+    void sb.auth.getSession().then(({ data }) => {
+      if (!data.session) return;
+      const player = readPlayer();
+      if (!player) return;
+      close({ ...player, anonymous: false, email: data.session.user.email || player.email });
+    });
 
-  supabase.auth.onAuthStateChange((event, session) => {
-    if (event !== 'SIGNED_IN' || !session) return;
-    const name = pending || readPlayer()?.name;
-    if (!name) return;
-    close({
-      name,
-      anonymous: false,
-      email: session.user.email || emailInput.value.trim()
+    sb.auth.onAuthStateChange((event, session) => {
+      if (event !== 'SIGNED_IN' || !session) return;
+      const name = pending || readPlayer()?.name;
+      if (!name) return;
+      close({
+        name,
+        anonymous: false,
+        email: session.user.email || emailInput.value.trim()
+      });
     });
   });
+  if (hasStoredSession() || hasAuthCallbackInUrl()) void loadSupabase();
 
   root.querySelector('[data-join]')?.addEventListener('click', () => {
     pending = normalizeName(nameInput.value) || randomPlayerName();

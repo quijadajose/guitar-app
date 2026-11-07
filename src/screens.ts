@@ -1,4 +1,6 @@
+import { safeGet, safeSet } from './storage';
 import type { SongProject } from './types/editor.types';
+import { sanitizeSongProject } from './songSafety';
 
 type ScreenId = string;
 
@@ -27,7 +29,7 @@ const LAST_SONG_KEY = 'guitar.lastSong';
 
 export function rememberSong(song: SongProject): void {
   try {
-    localStorage.setItem(LAST_SONG_KEY, JSON.stringify(song));
+    safeSet(LAST_SONG_KEY, JSON.stringify(song));
   } catch {
     // The song still plays; it just will not survive a reload.
   }
@@ -35,10 +37,11 @@ export function rememberSong(song: SongProject): void {
 
 export function recallSong(mode: SongProject['mode']): SongProject | null {
   try {
-    const raw = localStorage.getItem(LAST_SONG_KEY);
+    const raw = safeGet(LAST_SONG_KEY);
     if (!raw) return null;
-    const song = JSON.parse(raw) as SongProject;
-    if (!song || song.mode !== mode || !Array.isArray(song.notes)) return null;
+    // Lo guardado puede venir de una versión vieja o editado a mano: se valida como cualquier canción.
+    const song = sanitizeSongProject(JSON.parse(raw));
+    if (!song || song.mode !== mode) return null;
     return song;
   } catch {
     return null;

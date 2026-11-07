@@ -50,7 +50,7 @@ export class MultiplayerClient {
   private rttMs = 0;
   private keepalive: number | null = null;
 
-  constructor(url = 'ws://localhost:3001/ws') {
+  constructor(url = 'ws://localhost:3000/ws') {
     this.url = url;
   }
 

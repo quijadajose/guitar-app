@@ -1,3 +1,4 @@
+import { safeGet, safeSet } from '../storage';
 export type NotationView = 'fretboard' | 'sheet';
 export type NoteNaming = 'solfege' | 'letters';
 
@@ -13,19 +14,19 @@ export function noteNameForString(stringNumber: number, naming: NoteNaming = rea
 }
 
 export function readNotationView(): NotationView {
-  return localStorage.getItem(STORAGE_KEY) === 'sheet' ? 'sheet' : 'fretboard';
+  return safeGet(STORAGE_KEY) === 'sheet' ? 'sheet' : 'fretboard';
 }
 
 export function writeNotationView(view: NotationView): void {
-  localStorage.setItem(STORAGE_KEY, view);
+  safeSet(STORAGE_KEY, view);
 }
 
 export function readNoteNaming(): NoteNaming {
-  return localStorage.getItem(NAMING_KEY) === 'letters' ? 'letters' : 'solfege';
+  return safeGet(NAMING_KEY) === 'letters' ? 'letters' : 'solfege';
 }
 
 export function writeNoteNaming(naming: NoteNaming): void {
-  localStorage.setItem(NAMING_KEY, naming);
+  safeSet(NAMING_KEY, naming);
 }
 
 export function applyNoteNaming(naming: NoteNaming = readNoteNaming()): void {

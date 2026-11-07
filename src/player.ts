@@ -1,3 +1,4 @@
+import { safeGet, safeSet } from './storage';
 export type PlayerIdentity = {
   name: string;
   anonymous: boolean;
@@ -13,7 +14,7 @@ export function randomPlayerName(): string {
 
 export function readPlayer(): PlayerIdentity | null {
   try {
-    const raw = localStorage.getItem(KEY);
+    const raw = safeGet(KEY);
     if (!raw) return null;
     const data = JSON.parse(raw) as Partial<PlayerIdentity>;
     const name = String(data.name || '').trim();
@@ -34,8 +35,8 @@ export function writePlayer(player: PlayerIdentity): void {
     anonymous: player.anonymous,
     email: player.email.trim()
   };
-  localStorage.setItem(KEY, JSON.stringify(saved));
-  localStorage.setItem(GUEST_KEY, saved.name);
+  safeSet(KEY, JSON.stringify(saved));
+  safeSet(GUEST_KEY, saved.name);
 }
 
 export function normalizeName(value: string): string {

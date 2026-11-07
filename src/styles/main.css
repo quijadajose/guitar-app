@@ -83,7 +83,8 @@ summary:focus-visible {
   position: fixed !important;
   inset: 0 !important;
   width: 100vw !important;
-  height: 100dvh !important;
+  /* --app-h lo fija main.ts con la altura visible real (Android a veces infla dvh en pantalla completa) */
+  height: var(--app-h, 100dvh) !important;
   overflow: hidden;
   background: var(--bg);
 }

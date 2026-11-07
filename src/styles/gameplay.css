@@ -1688,3 +1688,70 @@
   color: #ffffff;
 }
 
+
+/* ==========================================================================
+   Responsive: juego en curso en teléfonos en horizontal (Pixel 8 Pro, etc.)
+   La altura útil ronda 380-450px: el mástil se adapta al alto disponible
+   en vez de usar alturas fijas, y la barra de tiempo siempre queda visible.
+   ========================================================================== */
+@media (orientation: landscape) and (max-height: 560px) {
+  .gameplay-view {
+    justify-content: flex-start;
+    gap: 6px;
+    padding-left: max(14px, env(safe-area-inset-left));
+    padding-right: max(14px, env(safe-area-inset-right));
+    padding-bottom: max(8px, env(safe-area-inset-bottom));
+  }
+
+  /* Jugando, el HUD solo muestra combo y puntaje: sube junto al botón de pantalla completa */
+  .gameplay-view.is-playing {
+    padding-top: 14px;
+  }
+
+  .gameplay-view.is-playing .hud-right-group {
+    margin-right: 62px;
+  }
+
+  body:has(.gameplay-view.view-active.is-playing) .player-badge {
+    display: none;
+  }
+
+  .gameplay-view.is-playing .hud-multiplier-text {
+    font-size: 22px;
+  }
+
+  .gameplay-view.is-playing .current-score {
+    font-size: 28px;
+  }
+
+  .fretboard-track-wrapper {
+    flex: 1 1 0;
+    min-height: 0;
+    height: auto;
+    margin-top: 0;
+  }
+
+  /* Deja aire arriba para los arcos de la pelota, el resto es mástil */
+  .fretboard-plane,
+  #view-chords .fretboard-plane {
+    bottom: 4px;
+    height: clamp(150px, calc(100% - 52px), 280px);
+  }
+
+  .gameplay-bottom-bar {
+    flex: none;
+    margin-bottom: 0;
+  }
+
+  .timeline-pill-container {
+    width: calc(100% - 64px);
+    height: 36px;
+  }
+
+  .finger-legend-icon {
+    bottom: -4px;
+    right: 6px;
+    width: 34px;
+    height: 44px;
+  }
+}

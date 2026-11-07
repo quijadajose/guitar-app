@@ -5,48 +5,22 @@ import { gameplayEngine } from './components/gameplay';
 import { sessionCalibrator } from './components/calibration';
 import { tunerMotion } from './components/tunerMotion';
 import type { PitchMatchResult } from './types/audio.types';
-import { cloneTemplate, slot } from './dom';
-import { registerScreenSwitcher, takeQueuedGameplaySong, queueGameplaySong, recallSong } from './screens';
-import { listNotePickerItems, removeLibrarySong, clearLibrary } from './songLibrary';
-import { soundProbeSong } from './songs/soundProbe';
+import { registerScreenSwitcher, takeQueuedGameplaySong, recallSong } from './screens';
 import { publishLiveFrame } from './audio/liveFeed';
 import { TUNER_IN_TUNE_CENTS } from './audio/pitchMatch';
-import { probeMultiplayerServer } from './services/network/serverStatus';
-import {
-  fetchCommunitySongs,
-  communityRecordToSongProject,
-  probeSupabase,
-  type DifficultyLevel
-} from './services/supabase';
-import { bindAccount } from './screens/account';
+import { type DifficultyLevel } from './services/supabase';
 import { bindPlayerGate } from './screens/playerGate';
 import { pitchLab } from './debug/pitchLab';
-import { readPlayer } from './player';
-import { applyNoteNaming, readNoteNaming, readNotationView, writeNoteNaming, writeNotationView, type NoteNaming, type NotationView } from './notation/notationPreference';
-import type { SongProject } from './types/editor.types';
-
-function demoSheetProject(notes: Array<{ string: number; fret: number }>, title: string): SongProject {
-  return {
-    title: title || 'Demostración',
-    section: '',
-    bpm: 90,
-    mode: 'notes',
-    measures: Math.max(1, Math.ceil(notes.length / 4)),
-    notes: notes.map((note, index) => ({
-      id: index + 1,
-      measure: Math.floor(index / 4) + 1,
-      beat: (index % 4) + 1,
-      step: (index % 4) * 4 + 1,
-      duration: 4,
-      string: note.string,
-      fret: note.fret,
-      finger: 0
-    })),
-    chords: []
-  };
-}
-
-const DIFFICULTY_LEVELS: readonly DifficultyLevel[] = ['all', 'easy', 'medium', 'hard', 'expert'];
+import { applyNoteNaming, readNotationView } from './notation/notationPreference';
+import { demoSheetProject, encodeWav, triggerDownload } from './app/helpers';
+import { animateStringVibration, attachMicForScreen, detachAllMicListeners, fillTunerPitchLabel, grantMicAndAttach, markStringTuned, queryMicPermissionState, rememberMicGranted, resetTunerActiveState, setupTuner, showTunerComplete, startTunerMicrophone, stopTunerMicrophone, syncMicForScreen } from './app/tuner';
+import { bindTunerDebugPanel, drawTunerDebug, startTunerDebug, stopTunerDebug } from './app/tunerDebug';
+import { renderSongPicker, setupSongPickerTabs } from './app/songPicker';
+import { setupNavigation } from './app/navigation';
+import { setupAccount, setupNotationSettings } from './app/settings';
+import { resizeCanvases, setupGameplay, startGameplayMicrophone, stopGameplayMicrophone } from './app/gameplaySetup';
+import { setupHotkeys } from './app/hotkeys';
+import { checkHash, joinRoomWhenReady, refreshBackends } from './app/routing';
 
 export class GuitarApp {
   public screens: Record<string, HTMLElement | null> = {};
@@ -68,15 +42,15 @@ export class GuitarApp {
   public autoProgressTimer: number | null = null;
   public isMicActive: boolean = false;
   public hasGrantedMicPermission: boolean = false;
-  private tunerMicCandidate: number | null = null;
+  tunerMicCandidate: number | null = null;
   /** Milliseconds the same open string has been detected continuously. */
-  private tunerMicStableFrames: number = 0;
-  private tunerMicInTuneMs: number = 0;
-  private tunerMicLastFrameAt: number = 0;
-  private tunerSmoothedCents: number | null = null;
-  private tunerLastPitchTime: number = 0;
-  private tunerPitchSlots: { name: Element | null; spanish: Element | null; freq: Element | null } | null = null;
-  private readonly micScreens = new Set(['tuner', 'notes', 'chords', 'fretboard']);
+  tunerMicStableFrames: number = 0;
+  tunerMicInTuneMs: number = 0;
+  tunerMicLastFrameAt: number = 0;
+  tunerSmoothedCents: number | null = null;
+  tunerLastPitchTime: number = 0;
+  tunerPitchSlots: { name: Element | null; spanish: Element | null; freq: Element | null } | null = null;
+  readonly micScreens = new Set(['tuner', 'notes', 'chords', 'fretboard']);
 
   public readonly tuningInfo: Record<number, { name: string; string: number; freq: number; noteSpanish: string; cents: number }> = {
     1: { name: 'E4', string: 1, freq: 329.63, noteSpanish: 'Mi agudo', cents: 0 },
@@ -97,19 +71,19 @@ export class GuitarApp {
   public communityDifficulty: DifficultyLevel = 'all';
   public communitySearch: string = '';
   public communityTotalPages: number = 1;
-  private communityDebounceTimer: number | null = null;
+  communityDebounceTimer: number | null = null;
   /** Cada render del selector incrementa esto; una respuesta vieja de la red no pisa la vista actual. */
-  private songPickerGeneration = 0;
-  private loadedSheet: Promise<typeof import('./notation/sheetView')> | null = null;
-  private versusReady: Promise<{ joinFromLocation: () => void }> | null = null;
-  private waitingForPlayerToJoin = false;
+  songPickerGeneration = 0;
+  loadedSheet: Promise<typeof import('./notation/sheetView')> | null = null;
+  versusReady: Promise<{ joinFromLocation: () => void }> | null = null;
+  waitingForPlayerToJoin = false;
 
-  private loadSheet(): Promise<typeof import('./notation/sheetView')> {
+  loadSheet(): Promise<typeof import('./notation/sheetView')> {
     this.loadedSheet ??= import('./notation/sheetView');
     return this.loadedSheet;
   }
 
-  private ensureVersus(): Promise<{ joinFromLocation: () => void }> {
+  ensureVersus(): Promise<{ joinFromLocation: () => void }> {
     this.versusReady ??= import('./components/versusLobby').then(({ versusLobby }) => {
       versusLobby.init();
       return versusLobby;
@@ -274,528 +248,24 @@ export class GuitarApp {
     void this.syncMicForScreen(targetId);
   }
 
-  private async refreshBackends(): Promise<void> {
-    const [multiplayer, supabaseUp] = await Promise.all([
-      probeMultiplayerServer(),
-      probeSupabase()
-    ]);
-    this.multiplayerOnline = multiplayer;
-    this.supabaseOnline = supabaseUp;
-    document.querySelectorAll<HTMLElement>('[data-multiplayer]').forEach(el => {
-      el.hidden = !multiplayer;
-    });
-    document.querySelectorAll<HTMLElement>('[data-supabase]').forEach(el => {
-      el.hidden = !supabaseUp;
-    });
-    const roomLink = /(?:^|[?&])code=/i.test(window.location.hash);
-    if (!multiplayer && this.currentScreenId === 'vs' && !roomLink) this.switchScreen('menu');
-    if (!supabaseUp && this.activeSongTab === 'community') {
-      document.querySelector<HTMLButtonElement>('.song-tab-btn[data-tab="lessons"]')?.click();
-    }
-  }
+  async refreshBackends(): Promise<void> { return refreshBackends(this); }
 
-  private setupAccount(): void {
-    bindAccount();
-  }
+  setupAccount(): void { return setupAccount(); }
 
-  private setupNotationSettings(): void {
-    const dialog = document.getElementById('notation-settings') as HTMLDialogElement | null;
-    const open = document.getElementById('btn-notation-settings');
-    if (!dialog || !open) return;
+  setupNotationSettings(): void { return setupNotationSettings(); }
 
-    const viewLabel = dialog.querySelector<HTMLElement>('[data-cfg-value="view"]');
-    const namingLabel = dialog.querySelector<HTMLElement>('[data-cfg-value="naming"]');
-    const panels = dialog.querySelectorAll<HTMLElement>('[data-cfg-panel]');
-    const viewNames: Record<NotationView, string> = { fretboard: 'Mástil', sheet: 'Partitura' };
-    const namingNames: Record<NoteNaming, string> = { solfege: 'Europea', letters: 'Americana' };
+  setupNavigation(): void { return setupNavigation(this); }
 
-    const showPanel = (id: string): void => {
-      panels.forEach(panel => {
-        panel.hidden = panel.dataset.cfgPanel !== id;
-      });
-    };
+  setupSongPickerTabs(): void { return setupSongPickerTabs(this); }
 
-    const paint = (): void => {
-      const view = readNotationView();
-      const naming = readNoteNaming();
-      if (viewLabel) viewLabel.textContent = viewNames[view];
-      if (namingLabel) namingLabel.textContent = namingNames[naming];
-      dialog.querySelectorAll<HTMLButtonElement>('[data-set-view]').forEach(btn => {
-        btn.classList.toggle('is-on', btn.dataset.setView === view);
-      });
-      dialog.querySelectorAll<HTMLButtonElement>('[data-set-naming]').forEach(btn => {
-        btn.classList.toggle('is-on', btn.dataset.setNaming === naming);
-      });
-    };
+  async renderSongPicker(): Promise<void> { return renderSongPicker(this); }
 
-    applyNoteNaming();
-    paint();
+  joinRoomWhenReady(): void { return joinRoomWhenReady(this); }
 
-    open.addEventListener('click', () => {
-      paint();
-      showPanel('home');
-      dialog.showModal();
-    });
-    dialog.querySelector('[data-cfg-close]')?.addEventListener('click', () => dialog.close());
-    dialog.querySelectorAll<HTMLButtonElement>('[data-cfg-open]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.cfgOpen;
-        if (id) showPanel(id);
-      });
-    });
-    dialog.querySelectorAll<HTMLButtonElement>('[data-set-view]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const value = btn.dataset.setView;
-        if (value === 'sheet' || value === 'fretboard') writeNotationView(value);
-        paint();
-        showPanel('home');
-      });
-    });
-    dialog.querySelectorAll<HTMLButtonElement>('[data-set-naming]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const value = btn.dataset.setNaming;
-        if (value === 'solfege' || value === 'letters') {
-          writeNoteNaming(value);
-          applyNoteNaming(value);
-        }
-        paint();
-        showPanel('home');
-      });
-    });
-  }
-
-  private setupNavigation(): void {
-    this.navBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        const target = btn.getAttribute('data-target');
-        if (target) this.switchScreen(target);
-      });
-    });
-
-    this.menuCards.forEach(card => {
-      card.addEventListener('click', (e) => {
-        e.preventDefault();
-        const target = card.getAttribute('data-nav');
-        if (target) this.switchScreen(target);
-      });
-      card.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter' || e.key === ' ') {
-          e.preventDefault();
-          const target = card.getAttribute('data-nav');
-          if (target) this.switchScreen(target);
-        }
-      });
-    });
-
-    const menu = document.getElementById('view-menu');
-    const noteField = menu?.querySelector('.note-field');
-    const noteShapes = ['#note-quarter', '#note-eighth', '#note-beamed'];
-    menu?.addEventListener('click', (event) => {
-      if (!(event.target instanceof Element) || !noteField) return;
-      if (event.target.closest('button, a, input, select')) return;
-      // Tope de notas flotantes: clics rápidos no deben llenar el DOM.
-      if (noteField.querySelectorAll('.float-note.is-click').length > 40) return;
-      const bounds = menu.getBoundingClientRect();
-      const note = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
-      note.setAttribute('class', 'float-note is-click');
-      const use = document.createElementNS('http://www.w3.org/2000/svg', 'use');
-      use.setAttribute('href', noteShapes[Math.floor(Math.random() * noteShapes.length)] || noteShapes[0]);
-      note.appendChild(use);
-      note.style.left = `${event.clientX - bounds.left - 18}px`;
-      note.style.top = `${event.clientY - bounds.top - 28}px`;
-      note.addEventListener('animationend', () => note.remove());
-      noteField.appendChild(note);
-    });
-
-    if (menu && noteField && !window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      let pointerX = -9999;
-      let pointerY = -9999;
-      menu.addEventListener('mousemove', (event) => {
-        pointerX = event.clientX;
-        pointerY = event.clientY;
-      });
-      menu.addEventListener('mouseleave', () => {
-        pointerX = -9999;
-        pointerY = -9999;
-      });
-      const nudgeNotes = (): void => {
-        if (menu.classList.contains('view-active')) {
-          noteField.querySelectorAll<SVGElement>('.float-note').forEach(note => {
-            let ox = Number(note.dataset.pushX || 0);
-            let oy = Number(note.dataset.pushY || 0);
-            const rect = note.getBoundingClientRect();
-            const cx = rect.left + rect.width / 2 - ox;
-            const cy = rect.top + rect.height / 2 - oy;
-            const dx = cx - pointerX;
-            const dy = cy - pointerY;
-            const dist = Math.hypot(dx, dy) || 1;
-            if (dist < 110) {
-              const force = (110 - dist) / 110;
-              ox += (dx / dist) * force * 14;
-              oy += (dy / dist) * force * 14;
-            }
-            ox *= 0.9;
-            oy *= 0.9;
-            if (Math.hypot(ox, oy) < 0.4) {
-              ox = 0;
-              oy = 0;
-            }
-            note.dataset.pushX = String(ox);
-            note.dataset.pushY = String(oy);
-            note.style.translate = ox || oy ? `${ox}px ${oy}px` : '';
-          });
-        }
-        window.requestAnimationFrame(nudgeNotes);
-      };
-      window.requestAnimationFrame(nudgeNotes);
-    }
-
-    const tetraPanels = document.querySelectorAll<HTMLElement>('[data-tetra-panel]');
-    const openTetra = (id: string): void => {
-      tetraPanels.forEach(panel => {
-        panel.hidden = panel.dataset.tetraPanel !== id;
-      });
-    };
-    document.querySelectorAll<HTMLButtonElement>('[data-tetra-open]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        const id = btn.dataset.tetraOpen;
-        if (id) openTetra(id);
-      });
-    });
-
-    this.backBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        // The versus lobby handles its own back steps (leave room, back to "how").
-        if (e.defaultPrevented) return;
-        e.preventDefault();
-        const inGameplay = this.currentScreenId === 'notes' || this.currentScreenId === 'chords';
-        this.switchScreen(inGameplay ? gameplayEngine.leaveGameplay() : 'menu');
-      });
-    });
-
-    this.skipBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        const currentIndex = this.flowOrder.indexOf(this.currentScreenId);
-        const nextIndex = (currentIndex + 1) % this.flowOrder.length;
-        this.switchScreen(this.flowOrder[nextIndex]);
-      });
-    });
-
-    window.addEventListener('hashchange', () => this.checkHash());
-    this.setupSongPickerTabs();
-  }
-
-  private setupSongPickerTabs(): void {
-    document.querySelectorAll<HTMLButtonElement>('#play-kind-tabs .song-tab-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
-        document.querySelectorAll('#play-kind-tabs .song-tab-btn').forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        this.playKind = btn.dataset.kind === 'chords' ? 'chords' : 'notes';
-        this.communityPage = 1;
-        void this.renderSongPicker();
-      });
-    });
-
-    const tabBtns = document.querySelectorAll<HTMLButtonElement>('#song-category-tabs .song-tab-btn');
-    const filterBar = document.getElementById('community-filter-bar');
-    const pagination = document.getElementById('community-pagination');
-    const searchInput = document.getElementById('community-search-input') as HTMLInputElement | null;
-    const diffChips = document.querySelectorAll<HTMLButtonElement>('.diff-chip');
-    const prevBtn = document.getElementById('comm-prev-page') as HTMLButtonElement | null;
-    const nextBtn = document.getElementById('comm-next-page') as HTMLButtonElement | null;
-    if (searchInput) searchInput.maxLength = 80;
-
-    tabBtns.forEach(btn => {
-      btn.addEventListener('click', () => {
-        tabBtns.forEach(b => b.classList.remove('active'));
-        btn.classList.add('active');
-        const raw = btn.dataset.tab;
-        const tab = raw === 'yours' || raw === 'community' ? raw : 'lessons';
-        this.activeSongTab = tab;
-
-        if (filterBar) filterBar.hidden = tab !== 'community';
-        if (pagination) pagination.hidden = tab !== 'community';
-
-        void this.renderSongPicker();
-      });
-    });
-
-    if (searchInput) {
-      searchInput.addEventListener('input', (e) => {
-        this.communitySearch = (e.target as HTMLInputElement).value;
-        this.communityPage = 1;
-        if (this.communityDebounceTimer) clearTimeout(this.communityDebounceTimer);
-        this.communityDebounceTimer = window.setTimeout(() => {
-          void this.renderSongPicker();
-        }, 300);
-      });
-    }
-
-    diffChips.forEach(chip => {
-      chip.addEventListener('click', () => {
-        diffChips.forEach(c => c.classList.remove('active'));
-        chip.classList.add('active');
-        const diff = chip.dataset.diff as DifficultyLevel;
-        this.communityDifficulty = DIFFICULTY_LEVELS.includes(diff) ? diff : 'all';
-        this.communityPage = 1;
-        void this.renderSongPicker();
-      });
-    });
-
-    if (prevBtn) {
-      prevBtn.addEventListener('click', () => {
-        if (this.communityPage > 1) {
-          this.communityPage--;
-          void this.renderSongPicker();
-        }
-      });
-    }
-
-    if (nextBtn) {
-      nextBtn.addEventListener('click', () => {
-        if (this.communityPage < this.communityTotalPages) {
-          this.communityPage++;
-          void this.renderSongPicker();
-        }
-      });
-    }
-  }
-
-  private async renderSongPicker(): Promise<void> {
-    const list = document.getElementById('song-picker-list');
-    if (!list) return;
-    const generation = ++this.songPickerGeneration;
-    list.replaceChildren();
-
-    if (this.activeSongTab === 'community') {
-      const loading = document.createElement('p');
-      loading.className = 'song-picker-empty';
-      loading.textContent = 'Cargando canciones de la comunidad…';
-      list.appendChild(loading);
-
-      const kind = this.playKind;
-      const res = await fetchCommunitySongs({
-        page: this.communityPage,
-        pageSize: 6,
-        difficulty: this.communityDifficulty,
-        searchQuery: this.communitySearch,
-        mode: kind
-      });
-
-      // Mientras esperábamos, el usuario cambió de pestaña, filtro o página.
-      if (generation !== this.songPickerGeneration) return;
-
-      list.replaceChildren();
-
-      this.communityTotalPages = res.totalPages;
-      const pageInfo = document.getElementById('comm-page-info');
-      const prevBtn = document.getElementById('comm-prev-page') as HTMLButtonElement | null;
-      const nextBtn = document.getElementById('comm-next-page') as HTMLButtonElement | null;
-      if (pageInfo) pageInfo.textContent = `Página ${res.currentPage} de ${res.totalPages} (${res.totalCount} canciones)`;
-      if (prevBtn) prevBtn.disabled = res.currentPage <= 1;
-      if (nextBtn) nextBtn.disabled = res.currentPage >= res.totalPages;
-
-      if (!res.songs.length) {
-        const empty = document.createElement('p');
-        empty.className = 'song-picker-empty';
-        empty.textContent = 'No se encontraron canciones en la comunidad con esos filtros. ¡Sé el primero en publicar una desde el editor!';
-        list.appendChild(empty);
-        return;
-      }
-
-      res.songs.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'song-picker-row';
-
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'song-picker-item';
-
-        const textWrap = document.createElement('span');
-        const title = document.createElement('span');
-        title.className = 'song-picker-item-title';
-        title.textContent = item.title;
-
-        const meta = document.createElement('span');
-        meta.className = 'song-picker-item-meta';
-        const diffEmoji = item.difficulty === 'easy' ? '🟢 Fácil' : item.difficulty === 'medium' ? '🟡 Media' : item.difficulty === 'hard' ? '🔴 Difícil' : '🟣 Experto';
-        const count = kind === 'chords' ? `${item.chords.length} acordes` : `${item.notes.length} notas`;
-        meta.textContent = `Por ${item.creator_name} · ${diffEmoji} · ${count}`;
-        textWrap.append(title, meta);
-
-        const bpm = document.createElement('span');
-        bpm.className = 'song-picker-item-bpm';
-        bpm.textContent = `${item.bpm} BPM`;
-
-        btn.append(textWrap, bpm);
-        btn.addEventListener('click', () => {
-          const songProject = communityRecordToSongProject(item);
-          queueGameplaySong(songProject);
-          this.switchScreen(songProject.mode === 'chords' ? 'chords' : 'notes');
-        });
-
-        row.appendChild(btn);
-        list.appendChild(row);
-      });
-      return;
-    }
-
-    const items = listNotePickerItems(songEditor.presets, this.playKind);
-    const lessons = this.playKind === 'notes'
-      ? [{ id: 'builtin:sound_probe', source: 'leccion' as const, song: soundProbeSong }, ...items.filter(item => item.source === 'leccion')]
-      : items.filter(item => item.source === 'leccion');
-    const yours = items.filter(item => item.source === 'tuya');
-
-    const addGroup = (label: string, rows: typeof items, emptyText?: string, yoursGroup = false): void => {
-      const heading = document.createElement('div');
-      heading.className = 'song-picker-group-row';
-      const headingLabel = document.createElement('p');
-      headingLabel.className = 'song-picker-group';
-      headingLabel.textContent = label;
-      heading.appendChild(headingLabel);
-      if (yoursGroup && rows.length) {
-        const clearBtn = document.createElement('button');
-        clearBtn.type = 'button';
-        clearBtn.className = 'song-picker-clear-btn';
-        clearBtn.textContent = 'Vaciar';
-        clearBtn.title = 'Borrar las canciones guardadas en este dispositivo';
-        clearBtn.addEventListener('click', (e) => {
-          e.stopPropagation();
-          // Borra todo sin poder deshacer: pedir confirmación.
-          if (!window.confirm('¿Borrar todas tus canciones guardadas en este dispositivo?')) return;
-          clearLibrary();
-          void this.renderSongPicker();
-        });
-        heading.appendChild(clearBtn);
-      }
-      list.appendChild(heading);
-
-      if (!rows.length && emptyText) {
-        const empty = document.createElement('p');
-        empty.className = 'song-picker-empty';
-        empty.textContent = emptyText;
-        list.appendChild(empty);
-        return;
-      }
-
-      rows.forEach(item => {
-        const row = document.createElement('div');
-        row.className = 'song-picker-row';
-
-        const btn = document.createElement('button');
-        btn.type = 'button';
-        btn.className = 'song-picker-item';
-        const textWrap = document.createElement('span');
-        const title = document.createElement('span');
-        title.className = 'song-picker-item-title';
-        title.textContent = item.song.title;
-        const meta = document.createElement('span');
-        meta.className = 'song-picker-item-meta';
-        const count = item.song.mode === 'chords' ? `${item.song.chords.length} acordes` : `${item.song.notes.length} notas`;
-        meta.textContent = `${item.song.section} · ${count}`;
-        textWrap.append(title, meta);
-        const bpm = document.createElement('span');
-        bpm.className = 'song-picker-item-bpm';
-        bpm.textContent = `${item.song.bpm} BPM`;
-        btn.append(textWrap, bpm);
-        btn.addEventListener('click', () => {
-          queueGameplaySong(item.song);
-          this.switchScreen(item.song.mode === 'chords' ? 'chords' : 'notes');
-        });
-        row.appendChild(btn);
-
-        if (yoursGroup) {
-          const del = document.createElement('button');
-          del.type = 'button';
-          del.className = 'song-picker-delete-btn';
-          del.title = 'Quitar de Tus canciones';
-          del.setAttribute('aria-label', 'Quitar');
-          del.textContent = '×';
-          del.addEventListener('click', (e) => {
-            e.stopPropagation();
-            removeLibrarySong(item.id);
-            void this.renderSongPicker();
-          });
-          row.appendChild(del);
-        }
-
-        list.appendChild(row);
-      });
-    };
-
-    if (this.activeSongTab === 'lessons') {
-      addGroup('Lecciones', lessons);
-    } else if (this.activeSongTab === 'yours') {
-      addGroup('Tus canciones', yours, 'Todavía no hay nada del editor. Guardá una melodía ahí y aparece acá.', true);
-    }
-  }
-
-  private joinRoomWhenReady(): void {
-    const enter = (): void => {
-      void this.ensureVersus().then((lobby) => lobby.joinFromLocation());
-    };
-    const gateOpen = document.body.classList.contains('player-gate-open');
-    if (readPlayer() && !gateOpen) {
-      enter();
-      return;
-    }
-    if (this.waitingForPlayerToJoin) return;
-    this.waitingForPlayerToJoin = true;
-    window.addEventListener('player-ready', () => {
-      this.waitingForPlayerToJoin = false;
-      enter();
-    }, { once: true });
-  }
-
-  private checkHash(): void {
-    const raw = window.location.hash.replace(/^#/, '');
-    const hash = raw.split('?')[0] || 'menu';
-    const roomCode = new URLSearchParams(raw.split('?')[1] || '').get('code');
-    const known = Object.prototype.hasOwnProperty.call(this.screens, hash);
-    if (known && hash === this.currentScreenId && this.screens[hash]?.classList.contains('view-active') && !roomCode) {
-      return;
-    }
-    if (known && this.screens[hash]) {
-      this.switchScreen(hash);
-      if (hash === 'vs' && roomCode) {
-        this.joinRoomWhenReady();
-      }
-    } else {
-      this.switchScreen('menu');
-    }
-  }
+  checkHash(): void { return checkHash(this); }
 
   // ================= TUNER LOGIC =================
-  private setupTuner(): void {
-    const pegButtons = document.querySelectorAll<HTMLElement>('.tuner-peg-badge');
-    const tunerContinueBtn = document.getElementById('tuner-continue-btn');
-    const btnEnableMic = document.getElementById('tuner-btn-enable-mic');
-
-    pegButtons.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const pegNum = parseInt(btn.getAttribute('data-peg') || '0', 10);
-        this.activatePeg(pegNum, undefined, true, true, false);
-      });
-    });
-
-    if (tunerContinueBtn) {
-      tunerContinueBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.switchScreen('songs');
-      });
-    }
-
-    if (btnEnableMic) {
-      btnEnableMic.addEventListener('click', async (e) => {
-        e.stopPropagation();
-        await this.grantMicAndAttach();
-      });
-    }
-  }
+  setupTuner(): void { return setupTuner(this); }
 
   public activatePeg(
     pegNum: number,
@@ -873,307 +343,48 @@ export class GuitarApp {
     }, 700);
   }
 
-  private fillTunerPitchLabel(name: string, spanish: string, freq: string): void {
-    const tunerPitchLabel = document.getElementById('tuner-pitch-label');
-    if (!tunerPitchLabel) return;
-    if (!this.tunerPitchSlots) {
-      tunerPitchLabel.replaceChildren(cloneTemplate('tpl-tuner-pitch-label'));
-      this.tunerPitchSlots = {
-        name: slot(tunerPitchLabel, 'name'),
-        spanish: slot(tunerPitchLabel, 'spanish'),
-        freq: slot(tunerPitchLabel, 'freq')
-      };
-    }
-    if (this.tunerPitchSlots.name) this.tunerPitchSlots.name.textContent = name;
-    if (this.tunerPitchSlots.spanish) this.tunerPitchSlots.spanish.textContent = spanish;
-    if (this.tunerPitchSlots.freq) this.tunerPitchSlots.freq.textContent = freq;
-  }
+  fillTunerPitchLabel(name: string, spanish: string, freq: string): void { return fillTunerPitchLabel(this, name, spanish, freq); }
 
-  public animateStringVibration(stringNum: number, durationMs: number = 650, sustain = false): void {
-    tunerMotion.pluck(stringNum, sustain);
-    if (!sustain) {
-      window.setTimeout(() => tunerMotion.release(), durationMs);
-    }
-  }
+  public animateStringVibration(stringNum: number, durationMs: number = 650, sustain = false): void { return animateStringVibration(stringNum, durationMs, sustain); }
 
-  public markStringTuned(pegNum: number): void {
-    const checkEl = document.getElementById(`tuner-check-${pegNum}`);
-    const isNew = !this.tunedStrings.has(pegNum);
-    this.tunedStrings.add(pegNum);
+  public markStringTuned(pegNum: number): void { return markStringTuned(this, pegNum); }
 
-    if (checkEl) {
-      checkEl.classList.add('tuned');
-      if (isNew) {
-        checkEl.classList.add('pop-in');
-        setTimeout(() => checkEl.classList.remove('pop-in'), 600);
-      }
-    }
+  public showTunerComplete(): void { return showTunerComplete(); }
 
-    if (isNew) {
-      guitarAudio.playTunedChime();
-    }
+  public resetTunerActiveState(): void { return resetTunerActiveState(this); }
 
-    if (this.tunedStrings.size === 6) {
-      if (isNew) this.showTunerComplete();
-    } else if (isNew) {
-      if (this.autoProgressTimer) clearTimeout(this.autoProgressTimer);
-      this.autoProgressTimer = window.setTimeout(() => {
-        const nextUntuned = this.tuningOrder.find(s => !this.tunedStrings.has(s));
-        if (nextUntuned) {
-          this.activatePeg(nextUntuned, undefined, false, false, false);
-        }
-      }, 1200);
-    }
-  }
+  micGateGen = 0;
 
-  public showTunerComplete(): void {
-    const tunerCompleteTitle = document.getElementById('tuner-complete-title');
-    const tunerPromptText = document.getElementById('tuner-prompt-text');
-    const tunerCentsLabel = document.getElementById('tuner-cents-label');
-    const tunerContinueBtn = document.getElementById('tuner-continue-btn');
+  async queryMicPermissionState(): Promise<'granted' | 'denied' | 'prompt' | 'unknown'> { return queryMicPermissionState(); }
 
-    if (tunerCompleteTitle) {
-      tunerCompleteTitle.textContent = '¡Listo, está afinado!';
-      tunerCompleteTitle.classList.add('visible');
-    }
-    if (tunerPromptText) tunerPromptText.style.display = 'none';
-    if (tunerCentsLabel) {
-      tunerCentsLabel.textContent = 'Todas las cuerdas afinadas correctamente';
-      tunerCentsLabel.style.color = 'var(--accent)';
-    }
-    if (tunerContinueBtn) tunerContinueBtn.classList.add('visible');
+  rememberMicGranted(): void { return rememberMicGranted(this); }
 
-    guitarAudio.playCompletionFanfare();
-  }
+  async syncMicForScreen(targetId: string): Promise<void> { return syncMicForScreen(this, targetId); }
 
-  public resetTunerActiveState(): void {
-    document.querySelectorAll<HTMLElement & { _vibrateTimeout?: number }>('.headstock-string').forEach(str => {
-      str.classList.remove('vibrating');
-      if (str._vibrateTimeout) {
-        clearTimeout(str._vibrateTimeout);
-        str._vibrateTimeout = undefined;
-      }
-    });
+  detachAllMicListeners(): void { return detachAllMicListeners(this); }
 
-    document.querySelectorAll('.tuner-fret-tag').forEach(tag => tag.classList.remove('active'));
-    document.querySelectorAll('.tuner-peg-badge').forEach(b => b.classList.remove('active'));
+  async attachMicForScreen(screenId: string): Promise<void> { return attachMicForScreen(this, screenId); }
 
-    const pitchIndicator = document.getElementById('tuner-pitch-indicator');
-    if (pitchIndicator) {
-      pitchIndicator.style.setProperty('--tuner-offset', '0');
-      pitchIndicator.classList.remove('in-tune');
-    }
+  async grantMicAndAttach(): Promise<void> { return grantMicAndAttach(this); }
 
-    const tunerPromptText = document.getElementById('tuner-prompt-text');
-    if (tunerPromptText && this.tunedStrings.size < 6) {
-      tunerPromptText.textContent = 'Toca una cuerda para afinar';
-    }
+  public async startTunerMicrophone(): Promise<boolean> { return startTunerMicrophone(this); }
 
-    const tunerCentsLabel = document.getElementById('tuner-cents-label');
-    if (tunerCentsLabel && this.tunedStrings.size < 6) {
-      tunerCentsLabel.textContent = 'En espera de pulsación...';
-      tunerCentsLabel.style.color = 'var(--text-muted)';
-    }
-  }
+  tunerDebugFrame: Float32Array | null = null;
+  tunerDebugRms = 0;
+  tunerDebugFreq: number | null = null;
+  tunerDebugRaf = 0;
 
-  private micGateGen = 0;
+  tunerDebugCapture: { sampleRate: number; samples: Float32Array } | null = null;
+  tunerDebugReadings: string[] = [];
+  tunerDebugTag = 'ruido';
 
-  private async queryMicPermissionState(): Promise<'granted' | 'denied' | 'prompt' | 'unknown'> {
-    try {
-      const status = await navigator.permissions.query({ name: 'microphone' as PermissionName });
-      return status.state;
-    } catch {
-      return 'unknown';
-    }
-  }
+  startTunerDebug(): void { return startTunerDebug(this); }
 
-  private rememberMicGranted(): void {
-    this.hasGrantedMicPermission = true;
-    guitarAudio.hasMicPermission = true;
-    try {
-      sessionStorage.setItem('guitar_mic_granted', '1');
-    } catch {
-      // modo privado / almacenamiento bloqueado
-    }
-  }
+  stopTunerDebug(): void { return stopTunerDebug(this); }
 
-  private async syncMicForScreen(targetId: string): Promise<void> {
-    const gen = ++this.micGateGen;
-    const micOverlay = document.getElementById('tuner-mic-overlay');
+  bindTunerDebugPanel(): void { return bindTunerDebugPanel(this); }
 
-    if (!this.micScreens.has(targetId)) {
-      if (micOverlay) micOverlay.classList.add('hidden');
-      guitarAudio.releaseMicrophone();
-      this.isMicActive = false;
-      this.isGameplayMicActive = false;
-      return;
-    }
-
-    const perm = await this.queryMicPermissionState();
-    if (gen !== this.micGateGen) return;
-
-    // Si el navegador dice «denied», no fiarse del recuerdo de la sesión: mostrar el aviso.
-    const alreadyAllowed =
-      perm === 'granted' ||
-      (perm !== 'denied' && (
-        this.hasGrantedMicPermission ||
-        guitarAudio.hasMicPermission ||
-        sessionStorage.getItem('guitar_mic_granted') === '1'
-      ));
-
-    if (alreadyAllowed) {
-      this.rememberMicGranted();
-      if (micOverlay) micOverlay.classList.add('hidden');
-      await this.attachMicForScreen(targetId);
-      return;
-    }
-
-    if (micOverlay) micOverlay.classList.remove('hidden');
-  }
-
-  private detachAllMicListeners(): void {
-    guitarAudio.detachPitchListener(this.onTunerPitch);
-    guitarAudio.detachPitchListener(this.onGameplayPitch);
-    guitarAudio.setWaveformListener(null);
-    this.stopTunerDebug();
-    this.isMicActive = false;
-    this.isGameplayMicActive = false;
-  }
-
-  private async attachMicForScreen(screenId: string): Promise<void> {
-    this.detachAllMicListeners();
-    if (screenId === 'tuner') {
-      await this.startTunerMicrophone();
-    } else if (screenId === 'notes' || screenId === 'chords') {
-      await this.startGameplayMicrophone();
-    }
-  }
-
-  private async grantMicAndAttach(): Promise<void> {
-    const errEl = document.getElementById('tuner-mic-error');
-    if (errEl) {
-      errEl.hidden = true;
-      errEl.textContent = '';
-    }
-    const started = await guitarAudio.startMicrophonePitchTracking();
-    if (!started) {
-      if (errEl) {
-        errEl.hidden = false;
-        errEl.textContent = 'El navegador bloqueó el micrófono. Permitilo en la barra de dirección y reintentá.';
-      }
-      return;
-    }
-    this.rememberMicGranted();
-    const micOverlay = document.getElementById('tuner-mic-overlay');
-    if (micOverlay) micOverlay.classList.add('hidden');
-    await this.attachMicForScreen(this.currentScreenId);
-  }
-
-  public async startTunerMicrophone(): Promise<boolean> {
-    this.tunerMicCandidate = null;
-    this.tunerMicStableFrames = 0;
-    this.tunerMicInTuneMs = 0;
-    this.tunerMicLastFrameAt = 0;
-    this.tunerSmoothedCents = null;
-    this.tunerLastPitchTime = 0;
-
-    const started = await guitarAudio.startMicrophonePitchTracking(this.onTunerPitch);
-
-    if (started) {
-      this.isMicActive = true;
-      this.startTunerDebug();
-      this.rememberMicGranted();
-      const micOverlay = document.getElementById('tuner-mic-overlay');
-      if (micOverlay) micOverlay.classList.add('hidden');
-      const tunerPromptText = document.getElementById('tuner-prompt-text');
-      if (tunerPromptText && this.tunedStrings.size < 6) {
-        tunerPromptText.textContent = 'Toca una cuerda para afinar';
-      }
-      return true;
-    }
-
-    // El permiso recordado ya no vale (lo revocaron): volver a pedirlo.
-    this.hasGrantedMicPermission = false;
-    guitarAudio.hasMicPermission = false;
-    try {
-      sessionStorage.removeItem('guitar_mic_granted');
-    } catch {
-      // ignore
-    }
-    document.getElementById('tuner-mic-overlay')?.classList.remove('hidden');
-    const errEl = document.getElementById('tuner-mic-error');
-    if (errEl) {
-      errEl.hidden = false;
-      errEl.textContent = 'El navegador bloqueó el micrófono. Permitilo en la barra de dirección y reintentá.';
-    }
-    return false;
-  }
-
-  private tunerDebugFrame: Float32Array | null = null;
-  private tunerDebugRms = 0;
-  private tunerDebugFreq: number | null = null;
-  private tunerDebugRaf = 0;
-
-  private tunerDebugCapture: { sampleRate: number; samples: Float32Array } | null = null;
-  private tunerDebugReadings: string[] = [];
-  private tunerDebugTag = 'ruido';
-
-  private startTunerDebug(): void {
-    guitarAudio.setWaveformListener((samples) => {
-      this.tunerDebugFrame = samples;
-    });
-    this.bindTunerDebugPanel();
-    if (this.tunerDebugRaf) cancelAnimationFrame(this.tunerDebugRaf);
-    const draw = () => {
-      this.drawTunerDebug();
-      this.tunerDebugRaf = requestAnimationFrame(draw);
-    };
-    this.tunerDebugRaf = requestAnimationFrame(draw);
-  }
-
-  private stopTunerDebug(): void {
-    if (this.tunerDebugRaf) cancelAnimationFrame(this.tunerDebugRaf);
-    this.tunerDebugRaf = 0;
-    this.tunerDebugFrame = null;
-  }
-
-  private bindTunerDebugPanel(): void {
-    const orb = document.getElementById('tuner-debug-orb');
-    const panel = document.getElementById('tuner-debug-panel');
-    const recordBtn = document.getElementById('tuner-debug-record') as HTMLButtonElement | null;
-    const downloadBtn = document.getElementById('tuner-debug-download') as HTMLButtonElement | null;
-    const closeBtn = document.getElementById('tuner-debug-close');
-    if (!orb || !panel || orb.dataset.bound === '1') return;
-    orb.dataset.bound = '1';
-    orb.addEventListener('click', () => {
-      panel.hidden = !panel.hidden;
-    });
-    closeBtn?.addEventListener('click', () => {
-      panel.hidden = true;
-    });
-    recordBtn?.addEventListener('click', () => {
-      this.tunerDebugReadings = [];
-      this.tunerDebugCapture = null;
-      if (downloadBtn) downloadBtn.disabled = true;
-      guitarAudio.beginCapture(6);
-      if (recordBtn) recordBtn.disabled = true;
-    });
-    downloadBtn?.addEventListener('click', () => {
-      if (!this.tunerDebugCapture) return;
-      this.downloadCapture(this.tunerDebugCapture, this.tunerDebugReadings);
-    });
-    document.getElementById('tuner-debug-tags')?.addEventListener('click', (event) => {
-      const button = (event.target as HTMLElement).closest('button');
-      const tag = button?.getAttribute('data-tag');
-      if (!tag) return;
-      this.tunerDebugTag = tag;
-      document.querySelectorAll('#tuner-debug-tags button').forEach(el => {
-        el.classList.toggle('is-active', el === button);
-      });
-    });
-  }
-
-  private downloadCapture(
+  downloadCapture(
     capture: { sampleRate: number; samples: Float32Array },
     readings: string[]
   ): void {
@@ -1188,35 +399,9 @@ export class GuitarApp {
     triggerDownload(new Blob([JSON.stringify(report, null, 2)], { type: 'application/json' }), `microfono-${stamp}.json`);
   }
 
-  private drawTunerDebug(): void {
-    const hz = this.tunerDebugFreq;
-    const live = document.getElementById('tuner-debug-live');
-    const log = document.getElementById('tuner-debug-log');
-    const recordBtn = document.getElementById('tuner-debug-record') as HTMLButtonElement | null;
-    const downloadBtn = document.getElementById('tuner-debug-download') as HTMLButtonElement | null;
-    if (guitarAudio.capturing && recordBtn) {
-      recordBtn.textContent = `Grabando ${Math.round(guitarAudio.captureProgress() * 100)}%`;
-    }
-    if (!guitarAudio.capturing && recordBtn?.disabled && this.tunerDebugCapture === null) {
-      const done = guitarAudio.finishCapture();
-      if (done) {
-        this.tunerDebugCapture = done;
-        if (downloadBtn) downloadBtn.disabled = false;
-        if (recordBtn) {
-          recordBtn.disabled = false;
-          recordBtn.textContent = 'Grabar 6 s';
-        }
-      }
-    }
-    if (live) {
-      live.textContent = hz
-        ? `${hz.toFixed(1)} Hz · rms ${this.tunerDebugRms.toFixed(4)}`
-        : `sin nota · rms ${this.tunerDebugRms.toFixed(4)}`;
-    }
-    if (log) log.textContent = this.tunerDebugReadings.slice(-12).join('\n');
-  }
+  drawTunerDebug(): void { return drawTunerDebug(this); }
 
-  private onTunerPitch = (data: PitchMatchResult): void => {
+  onTunerPitch = (data: PitchMatchResult): void => {
     // Antes se leía data.rms antes de comprobar que data existiera.
     if (!data) return;
     this.tunerDebugRms = data.rms;
@@ -1285,61 +470,16 @@ export class GuitarApp {
     }
   };
 
-  public stopTunerMicrophone(): void {
-    guitarAudio.detachPitchListener(this.onTunerPitch);
-    this.isMicActive = false;
-  }
+  public stopTunerMicrophone(): void { return stopTunerMicrophone(this); }
 
   // ================= GAMEPLAY CONTROLS =================
-  private setupGameplay(): void {
-    const playPauseBtns = document.querySelectorAll<HTMLElement>('.play-pause-btn');
-    playPauseBtns.forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        gameplayEngine.togglePlay();
-      });
-    });
+  setupGameplay(): void { return setupGameplay(this); }
 
-    document.querySelectorAll<HTMLElement>('.finger-legend-icon').forEach(hand => {
-      hand.addEventListener('click', () => {
-        const tooltip = document.getElementById('hand-legend-modal');
-        if (tooltip) tooltip.classList.toggle('visible');
-      });
-    });
+  public resizeCanvases(): void { return resizeCanvases(); }
 
-    document.addEventListener('click', (e) => {
-      const modal = document.getElementById('hand-legend-modal');
-      const target = e.target as HTMLElement;
-      if (modal && modal.classList.contains('visible') && !target.closest('.finger-legend-icon') && !target.closest('#hand-legend-modal')) {
-        modal.classList.remove('visible');
-      }
-    });
+  public async startGameplayMicrophone(): Promise<void> { return startGameplayMicrophone(this); }
 
-    window.addEventListener('resize', () => this.resizeCanvases());
-    setTimeout(() => this.resizeCanvases(), 100);
-  }
-
-  public resizeCanvases(): void {
-    const canvases = document.querySelectorAll<HTMLCanvasElement>('.trajectory-canvas');
-    canvases.forEach(canvas => {
-      const parent = canvas.parentElement;
-      if (parent) {
-        const rect = parent.getBoundingClientRect();
-        if (rect.width > 0) {
-          canvas.width = rect.width;
-          canvas.height = rect.height;
-        }
-      }
-    });
-    gameplayEngine.renderFrame();
-  }
-
-  public async startGameplayMicrophone(): Promise<void> {
-    this.isGameplayMicActive = true;
-    await guitarAudio.startMicrophonePitchTracking(this.onGameplayPitch);
-  }
-
-  private onGameplayPitch = (data: PitchMatchResult): void => {
+  onGameplayPitch = (data: PitchMatchResult): void => {
     if (!this.isGameplayMicActive || !data) return;
     if (sessionCalibrator.isActive) {
       sessionCalibrator.feed(data);
@@ -1366,104 +506,9 @@ export class GuitarApp {
     }
   };
 
-  public stopGameplayMicrophone(): void {
-    this.isGameplayMicActive = false;
-    guitarAudio.detachPitchListener(this.onGameplayPitch);
-  }
+  public stopGameplayMicrophone(): void { return stopGameplayMicrophone(this); }
 
-  private setupHotkeys(): void {
-    window.addEventListener('keydown', (e) => {
-      const typing = (e.target as HTMLElement | null)?.closest?.('input, textarea, select, [contenteditable="true"]');
-      if (typing) return;
-
-      if (e.key === '1' && e.altKey) this.switchScreen('tuner');
-      if (e.key === '2' && e.altKey) this.switchScreen('songs');
-      if (e.key === '3' && e.altKey) this.switchScreen('chords');
-      if (e.key === '4' && e.altKey) this.switchScreen('editor');
-
-      const onGameplay = this.currentScreenId === 'notes' || this.currentScreenId === 'chords';
-      // En Face-Off la barra espaciadora lanza el ataque (versusLobby); no pausar a la vez.
-      const spaceIsAttack = e.key === ' ' && gameplayEngine.isVersusActive && gameplayEngine.isFaceOffMode;
-      if (onGameplay && !spaceIsAttack && (e.key === 'Escape' || e.key === 'p' || e.key === 'P' || e.key === ' ')) {
-        e.preventDefault();
-        if (sessionCalibrator.isActive) {
-          if (e.key === 'Escape') sessionCalibrator.skip();
-          return;
-        }
-        if (gameplayEngine.isCountingDown) {
-          gameplayEngine.cancelCountdown();
-          return;
-        }
-        if (e.key === 'Escape') {
-          if (gameplayEngine.isPlaying) gameplayEngine.pausePlaying();
-          return;
-        }
-        gameplayEngine.togglePlay();
-        return;
-      }
-
-      if (!e.altKey && !e.ctrlKey && !e.metaKey && gameplayEngine.isPlaying && onGameplay) {
-        const keyMap: Record<string, number> = { '1': 1, '2': 2, '3': 3, '4': 4, '5': 5, '6': 6 };
-        if (keyMap[e.key]) {
-          gameplayEngine.userPlayString(keyMap[e.key]);
-        } else if (e.key === 'Enter') {
-          if (gameplayEngine.mode === 'notes') {
-            const upcoming = gameplayEngine.notesTrack.find(n => !n.hit && !n.missed && Math.abs(gameplayEngine.currentTime - n.time) <= 0.4);
-            if (upcoming) {
-              gameplayEngine.userPlayString(upcoming.string, upcoming.fret);
-            }
-          } else if (gameplayEngine.mode === 'chords') {
-            const upcoming = gameplayEngine.chordsTrack.find(c => !c.hit && !c.missed && Math.abs(gameplayEngine.currentTime - c.time) <= 0.5);
-            if (upcoming) {
-              gameplayEngine.userPlayChord(upcoming.chord);
-            } else if (gameplayEngine.currentActiveChordName) {
-              gameplayEngine.userPlayChord(gameplayEngine.currentActiveChordName);
-            }
-          }
-        }
-      }
-    });
-  }
+  setupHotkeys(): void { return setupHotkeys(this); }
 }
 
 export const guitarApp = new GuitarApp();
-
-function encodeWav(samples: Float32Array, sampleRate: number): Blob {
-  const buffer = new ArrayBuffer(44 + samples.length * 2);
-  const view = new DataView(buffer);
-  const write = (offset: number, text: string) => {
-    for (let i = 0; i < text.length; i++) view.setUint8(offset + i, text.charCodeAt(i));
-  };
-  write(0, 'RIFF');
-  view.setUint32(4, 36 + samples.length * 2, true);
-  write(8, 'WAVE');
-  write(12, 'fmt ');
-  view.setUint32(16, 16, true);
-  view.setUint16(20, 1, true);
-  view.setUint16(22, 1, true);
-  view.setUint32(24, sampleRate, true);
-  view.setUint32(28, sampleRate * 2, true);
-  view.setUint16(32, 2, true);
-  view.setUint16(34, 16, true);
-  write(36, 'data');
-  view.setUint32(40, samples.length * 2, true);
-  let offset = 44;
-  for (let i = 0; i < samples.length; i++) {
-    const clamped = Math.max(-1, Math.min(1, samples[i]));
-    view.setInt16(offset, clamped * 0x7fff, true);
-    offset += 2;
-  }
-  return new Blob([buffer], { type: 'audio/wav' });
-}
-
-function triggerDownload(blob: Blob, name: string): void {
-  const url = URL.createObjectURL(blob);
-  const link = document.createElement('a');
-  link.href = url;
-  link.download = name;
-  document.body.appendChild(link);
-  link.click();
-  link.remove();
-  // Revocar en el acto cancela la descarga en algunos navegadores (Firefox/Safari).
-  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
-}

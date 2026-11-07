@@ -182,12 +182,12 @@ export type ServerMessage =
       type: 'room_closing';
       payload: {
         closes_in_secs: number;
-        reason: 'empty' | 'idle';
+        reason: 'empty' | 'idle' | 'restart';
       };
     }
   | {
       type: 'room_closed';
       payload: {
-        reason: 'empty' | 'idle';
+        reason: 'empty' | 'idle' | 'restart';
       };
     };

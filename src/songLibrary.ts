@@ -1,3 +1,4 @@
+import { safeGet, safeSet } from './storage';
 import type { LegacySongProject, SongProject } from './types/editor.types';
 import { sanitizeSongProject } from './songSafety';
 
@@ -23,7 +24,7 @@ export function newSongId(): string {
 
 export function getEditorSongId(): string {
   try {
-    const existing = localStorage.getItem(EDITOR_ID_KEY);
+    const existing = safeGet(EDITOR_ID_KEY);
     if (existing) return existing;
   } catch {
     // ignore
@@ -35,7 +36,7 @@ export function getEditorSongId(): string {
 
 export function setEditorSongId(id: string): void {
   try {
-    localStorage.setItem(EDITOR_ID_KEY, id);
+    safeSet(EDITOR_ID_KEY, id);
   } catch {
     // ignore
   }
@@ -43,7 +44,7 @@ export function setEditorSongId(id: string): void {
 
 export function loadLibrary(): StoredSong[] {
   try {
-    const raw = localStorage.getItem(LIBRARY_KEY);
+    const raw = safeGet(LIBRARY_KEY);
     if (!raw) return [];
     const parsed = JSON.parse(raw) as unknown;
     if (!Array.isArray(parsed)) return [];
@@ -68,7 +69,7 @@ export function loadLibrary(): StoredSong[] {
 
 function writeLibrary(list: StoredSong[]): void {
   try {
-    localStorage.setItem(LIBRARY_KEY, JSON.stringify(list.slice(0, MAX_SONGS)));
+    safeSet(LIBRARY_KEY, JSON.stringify(list.slice(0, MAX_SONGS)));
   } catch (e) {
     console.warn('Library storage error:', e);
   }

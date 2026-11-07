@@ -6,7 +6,7 @@ export function multiplayerOrigin(): string {
     return envUrl.replace(/\/+$/, '');
   }
   const host = window.location.hostname || 'localhost';
-  return `http://${host}:3001`;
+  return `http://${host}:3000`;
 }
 
 export function multiplayerWsUrl(): string {

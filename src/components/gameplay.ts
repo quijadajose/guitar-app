@@ -1,25 +1,32 @@
 import { guitarAudio } from '../audio/audioEngine';
+import { CHORD_RULES, NOTE_RULES, Scoreboard } from '../game/scoring';
 import { chordMatchesChroma } from '../audio/chords';
 import { cloneTemplate, firstElement, setSlotText, fillFromTemplate, fillSvgFromTemplate } from '../dom';
 import type { NoteTrackItem, ChordTrackItem, GameplayMode, GameplaySessionMode } from '../types/gameplay.types';
 import type { SongProject } from '../types/editor.types';
-import { goToScreen, rememberSong } from '../screens';
+import { rememberSong } from '../screens';
 import { noteDurationSteps, noteStartStepIndex, noteStep, STEPS_PER_BEAT } from '../rhythm';
 import { fingerCapsuleClass, sanitizeCssColor, sanitizeFinger, sanitizeSongProject } from '../songSafety';
 import { SOUND_PROBE_TITLE } from '../songs/soundProbe';
+import { armPracticeLoop, clearLoopRegion, hasLoopRegion, loopEndTime, loopMinGap, loopStartTime, placeLoopEnd, setLoopPoint, toggleLoop, updateLoopRegionUI } from './gameplay/loopRegion';
+import { renderChordsMotion, renderNotesMotion } from './gameplay/motion';
+import { markTimelineResult, renderTimelineMarkers } from './gameplay/timeline';
+import { setupHUDListeners, setupScrubbingListeners } from './gameplay/listeners';
+import { spawnScoreParticle, spawnTimingLabel, triggerMultiplierPopup, updateHudChordCard } from './gameplay/feedback';
+import { applyAttackEffect, launchAttack, updateAttackHUD, updateRivalHUD } from './gameplay/attacks';
 
-interface TrackNoteWithDOM extends NoteTrackItem {
+export interface TrackNoteWithDOM extends NoteTrackItem {
   el?: HTMLElement;
   /** Seconds the colored block stays on the hit line and can still be played. */
   hold: number;
 }
 
-interface TrackChordWithDOM extends ChordTrackItem {
+export interface TrackChordWithDOM extends ChordTrackItem {
   el?: HTMLElement;
   hold: number;
 }
 
-interface ChordDiagramDot {
+export interface ChordDiagramDot {
   cx: number;
   cy: number;
   color: string;
@@ -31,15 +38,15 @@ interface ChordDiagramDot {
  */
 export class GameplayEngine {
   public wasPlayingThisSession: boolean = false;
-  private probeLog: string[] = [];
-  private probeLoggedIds = new Set<number>();
+  probeLog: string[] = [];
+  probeLoggedIds = new Set<number>();
   public isPlaying: boolean = false;
   public mode: GameplayMode = 'notes';
   public sessionMode: GameplaySessionMode = 'performance';
   public isLooping: boolean = false;
   public loopStartRatio: number | null = null;
   public loopEndRatio: number | null = null;
-  private loopHandleDrag: 'start' | 'end' | null = null;
+  loopHandleDrag: 'start' | 'end' | null = null;
   public isCustomSongLoaded: boolean = false;
   /** Screen the player came from, so "Salir" returns there instead of guessing. */
   public exitTarget: 'editor' | 'songs' | 'menu' = 'menu';
@@ -48,12 +55,20 @@ export class GameplayEngine {
   /** Moves the sheet cursor from the gameplay clock. */
   public sheetFrame: (() => void) | null = null;
   public loadedProject: SongProject | null = null;
-  public score: number = 0;
-  public targetScore: number = 3450;
-  public multiplier: number = 1;
-  public combo: number = 0;
-  public comboInTier: number = 0;
-  public maxCombo: number = 0;
+  /** Puntaje, combo y multiplicador: reglas en src/game/scoring.ts. */
+  public board: Scoreboard = new Scoreboard(3450);
+  public get score(): number { return this.board.score; }
+  public set score(value: number) { this.board.score = value; }
+  public get targetScore(): number { return this.board.targetScore; }
+  public set targetScore(value: number) { this.board.targetScore = value; }
+  public get multiplier(): number { return this.board.multiplier; }
+  public set multiplier(value: number) { this.board.multiplier = value; }
+  public get combo(): number { return this.board.combo; }
+  public set combo(value: number) { this.board.combo = value; }
+  public get comboInTier(): number { return this.board.comboInTier; }
+  public set comboInTier(value: number) { this.board.comboInTier = value; }
+  public get maxCombo(): number { return this.board.maxCombo; }
+  public set maxCombo(value: number) { this.board.maxCombo = value; }
   public songTitle: string = 'Melodía de Guitarra';
   public progress: number = 0;
   public bpm: number = 85;
@@ -62,8 +77,8 @@ export class GameplayEngine {
   public animationFrame: number | null = null;
   public isCountingDown: boolean = false;
   public isCalibrating: boolean = false;
-  private countdownTimer: number | null = null;
-  private wakeLockSentinel: any = null;
+  countdownTimer: number | null = null;
+  wakeLockSentinel: any = null;
 
   // Hooks para Modo Multijugador Versus
   public isVersusActive: boolean = false;
@@ -77,36 +92,9 @@ export class GameplayEngine {
   public onNoteMissCallback: ((noteId: number) => void) | null = null;
   public onMatchFinished: ((finalScore: number, maxCombo: number, accuracy: number, hits: number, totalNotes: number) => void) | null = null;
   public onLocalRetry: (() => void) | null = null;
-  private lastProgressEmitTime: number = 0;
+  lastProgressEmitTime: number = 0;
 
-  public updateRivalHUD(rivalName: string, rivalScore: number, accuracy: number = 100): void {
-    this.rivalLastScore = rivalScore;
-    this.rivalLastAccuracy = accuracy;
-
-    const rivalEl = document.getElementById('hud-vs-rival');
-    const nameEl = document.getElementById('vs-rival-name');
-    const scoreEl = document.getElementById('vs-rival-score');
-    const diffEl = document.getElementById('vs-score-diff');
-    if (!rivalEl || !nameEl || !scoreEl || !diffEl) return;
-
-    rivalEl.hidden = false;
-    nameEl.textContent = rivalName;
-    scoreEl.textContent = `${rivalScore} pts`;
-
-    const diff = this.score - rivalScore;
-    if (diff >= 0) {
-      diffEl.textContent = `+${diff}`;
-      diffEl.className = 'vs-score-diff ahead';
-    } else {
-      diffEl.textContent = `${diff}`;
-      diffEl.className = 'vs-score-diff behind';
-    }
-
-    const perfRivalScore = document.getElementById('perf-vs-rival-score');
-    const perfRivalAcc = document.getElementById('perf-vs-rival-acc');
-    if (perfRivalScore) perfRivalScore.textContent = `${rivalScore} pts`;
-    if (perfRivalAcc) perfRivalAcc.textContent = `${Math.round(accuracy)}% Precisión`;
-  }
+  public updateRivalHUD(rivalName: string, rivalScore: number, accuracy: number = 100): void { return updateRivalHUD(this, rivalName, rivalScore, accuracy); }
 
   // Face-Off attack streak charge
   public isFaceOffMode: boolean = false;
@@ -114,70 +102,16 @@ export class GameplayEngine {
   public readonly attackThreshold: number = 8;
   public onTriggerAttack: ((attackType: 'invert_screen' | 'blind_strings' | 'turbo_speed', durationMs: number) => void) | null = null;
 
-  public updateAttackHUD(): void {
-    const box = document.getElementById('hud-vs-attack-box');
-    const btn = document.getElementById('vs-attack-trigger-btn') as HTMLButtonElement | null;
-    const label = document.getElementById('vs-attack-btn-label');
-    if (!box || !btn || !label) return;
+  public updateAttackHUD(): void { return updateAttackHUD(this); }
 
-    if (!this.isVersusActive || !this.isFaceOffMode) {
-      box.hidden = true;
-      return;
-    }
-
-    box.hidden = false;
-    const isReady = this.attackStreak >= this.attackThreshold;
-    btn.disabled = !isReady;
-    if (isReady) {
-      btn.classList.add('attack-ready');
-      label.textContent = '¡Lanzar ataque!';
-    } else {
-      btn.classList.remove('attack-ready');
-      label.textContent = `Cargando ${this.attackStreak}/${this.attackThreshold}`;
-    }
-  }
-
-  public launchAttack(): void {
-    if (this.attackStreak < this.attackThreshold) return;
-    this.attackStreak = 0;
-    this.updateAttackHUD();
-
-    const attacks: Array<'invert_screen' | 'blind_strings' | 'turbo_speed'> = [
-      'invert_screen',
-      'blind_strings',
-      'turbo_speed',
-    ];
-    const chosen = attacks[Math.floor(Math.random() * attacks.length)];
-    const duration = chosen === 'turbo_speed' ? 3500 : 3000;
-
-    if (this.onTriggerAttack) {
-      this.onTriggerAttack(chosen, duration);
-    }
-  }
+  public launchAttack(): void { return launchAttack(this); }
 
   /**
    * Aplicar efectos de ataque en modo Face-Off (trampas)
    */
-  public applyAttackEffect(attackType: 'invert_screen' | 'blind_strings' | 'turbo_speed', durationMs: number = 3000): void {
-    const trackWrapper = document.querySelector('.fretboard-canvas-container');
-    if (!trackWrapper) return;
+  public applyAttackEffect(attackType: 'invert_screen' | 'blind_strings' | 'turbo_speed', durationMs: number = 3000): void { return applyAttackEffect(this, attackType, durationMs); }
 
-    if (attackType === 'invert_screen') {
-      trackWrapper.classList.add('vs-attack-invert');
-      setTimeout(() => trackWrapper.classList.remove('vs-attack-invert'), durationMs);
-    } else if (attackType === 'blind_strings') {
-      trackWrapper.classList.add('vs-attack-blind');
-      setTimeout(() => trackWrapper.classList.remove('vs-attack-blind'), durationMs);
-    } else if (attackType === 'turbo_speed') {
-      const origSpeed = this.speedMultiplier;
-      this.speedMultiplier = origSpeed * 1.35;
-      setTimeout(() => {
-        this.speedMultiplier = origSpeed;
-      }, durationMs);
-    }
-  }
-
-  private async requestScreenWakeLock(): Promise<void> {
+  async requestScreenWakeLock(): Promise<void> {
     if ('wakeLock' in navigator && (navigator as any).wakeLock?.request) {
       try {
         if (!this.wakeLockSentinel || this.wakeLockSentinel.released) {
@@ -192,7 +126,7 @@ export class GameplayEngine {
     }
   }
 
-  private releaseScreenWakeLock(): void {
+  releaseScreenWakeLock(): void {
     if (this.wakeLockSentinel) {
       try {
         this.wakeLockSentinel.release();
@@ -298,19 +232,19 @@ export class GameplayEngine {
   };
 
   /** How early a note still counts, before its colored block reaches the line. */
-  private static readonly HIT_EARLY = 0.2;
+  static readonly HIT_EARLY = 0.2;
   /** Shortest gap between two mic-scored attacks, in milliseconds (~7 notes per second). */
-  private static readonly MIC_REFRACTORY_MS = 140;
+  static readonly MIC_REFRACTORY_MS = 140;
   /** How long after an attack to wait before reading its pitch, in milliseconds. */
-  private static readonly MIC_ATTACK_SETTLE_MS = 45;
+  static readonly MIC_ATTACK_SETTLE_MS = 45;
   /** Give up on an attack whose pitch never stabilises (muted pluck, noise). */
-  private static readonly MIC_ATTACK_MAX_WAIT_MS = 250;
-  private static readonly MIC_CENTS_TOLERANCE = 50;
-  private static readonly MIC_OCTAVE_CENTS_TOLERANCE = 35;
+  static readonly MIC_ATTACK_MAX_WAIT_MS = 250;
+  static readonly MIC_CENTS_TOLERANCE = 50;
+  static readonly MIC_OCTAVE_CENTS_TOLERANCE = 35;
 
-  private micRefractoryUntil: number = 0;
-  private micAttackPendingAt: number = 0;
-  private micLastAttackFreq: number = 0;
+  micRefractoryUntil: number = 0;
+  micAttackPendingAt: number = 0;
+  micLastAttackFreq: number = 0;
 
   public currentActiveChordName: string = 'Am';
 
@@ -328,7 +262,7 @@ export class GameplayEngine {
     this.setSpeed(nextPercent / 100);
   }
 
-  private noteIsOpen(time: number, hold: number): boolean {
+  noteIsOpen(time: number, hold: number): boolean {
     // Allows hitting the note anywhere across its full colored block (from arrival until it ends)
     // plus a comfortable leeway before arrival
     return this.currentTime >= time - GameplayEngine.HIT_EARLY && this.currentTime <= time + hold + 0.15;
@@ -360,113 +294,25 @@ export class GameplayEngine {
   }
 
   /** Paused practice: place repeat brackets around the playhead so a range can be looped. */
-  private armPracticeLoop(): void {
-    if (this.loopStartRatio === null || this.loopEndRatio === null) {
-      const half = 0.08;
-      const center = this.progress;
-      const minGap = this.loopMinGap();
-      let start = Math.max(0, center - half);
-      let end = Math.min(1, center + half);
-      if (end - start < minGap) end = Math.min(1, start + minGap);
-      if (end - start < minGap) start = Math.max(0, end - minGap);
-      this.loopStartRatio = start;
-      this.loopEndRatio = end;
-    }
-    this.isLooping = true;
-  }
+  armPracticeLoop(): void { return armPracticeLoop(this); }
 
-  public hasLoopRegion(): boolean {
-    return this.loopStartRatio !== null && this.loopEndRatio !== null && this.loopEndRatio - this.loopStartRatio > 0.01;
-  }
+  public hasLoopRegion(): boolean { return hasLoopRegion(this); }
 
-  private loopMinGap(): number {
-    return Math.max(0.035, 0.7 / Math.max(this.songDuration, 1));
-  }
+  loopMinGap(): number { return loopMinGap(this); }
 
-  public loopStartTime(): number {
-    return (this.loopStartRatio ?? 0) * this.songDuration;
-  }
+  public loopStartTime(): number { return loopStartTime(this); }
 
-  public loopEndTime(): number {
-    return (this.loopEndRatio ?? 1) * this.songDuration;
-  }
+  public loopEndTime(): number { return loopEndTime(this); }
 
-  public clearLoopRegion(): void {
-    this.loopStartRatio = null;
-    this.loopEndRatio = null;
-    this.updateLoopRegionUI();
-  }
+  public clearLoopRegion(): void { return clearLoopRegion(this); }
 
-  public setLoopPoint(ratio: number): void {
-    if (this.sessionMode !== 'practice') {
-      this.setSessionMode('practice');
-    }
-    const clamped = Math.max(0, Math.min(1, ratio));
-    const minGap = this.loopMinGap();
+  public setLoopPoint(ratio: number): void { return setLoopPoint(this, ratio); }
 
-    if (this.loopStartRatio === null) {
-      this.loopStartRatio = clamped;
-      this.loopEndRatio = Math.min(1, clamped + minGap);
-    } else if (this.loopEndRatio === null) {
-      this.placeLoopEnd(clamped, minGap);
-    } else {
-      const distStart = Math.abs(clamped - this.loopStartRatio);
-      const distEnd = Math.abs(clamped - this.loopEndRatio);
-      if (distStart <= distEnd) {
-        this.loopStartRatio = Math.min(clamped, this.loopEndRatio - minGap);
-      } else {
-        this.loopEndRatio = Math.max(clamped, this.loopStartRatio + minGap);
-      }
-    }
+  placeLoopEnd(clamped: number, minGap: number): void { return placeLoopEnd(this, clamped, minGap); }
 
-    this.loopStartRatio = Math.max(0, Math.min(1 - minGap, this.loopStartRatio));
-    this.loopEndRatio = Math.max((this.loopStartRatio ?? 0) + minGap, Math.min(1, this.loopEndRatio ?? 1));
-    this.isLooping = true;
-    this.updateSessionModeUI();
-    this.updateLoopRegionUI();
-  }
+  public updateLoopRegionUI(): void { return updateLoopRegionUI(this); }
 
-  private placeLoopEnd(clamped: number, minGap: number): void {
-    const start = this.loopStartRatio ?? 0;
-    if (clamped < start) {
-      this.loopEndRatio = start;
-      this.loopStartRatio = Math.max(0, clamped);
-    } else {
-      this.loopEndRatio = clamped;
-    }
-    if ((this.loopEndRatio ?? 0) - (this.loopStartRatio ?? 0) < minGap) {
-      this.loopEndRatio = Math.min(1, (this.loopStartRatio ?? 0) + minGap);
-    }
-  }
-
-  public updateLoopRegionUI(): void {
-    const show = this.sessionMode === 'practice' && this.loopStartRatio !== null;
-    document.querySelectorAll<HTMLElement>('.timeline-loop-region').forEach(region => {
-      if (!show) {
-        region.hidden = true;
-        return;
-      }
-      region.hidden = false;
-      const start = (this.loopStartRatio ?? 0) * 100;
-      const end = (this.loopEndRatio ?? (this.loopStartRatio ?? 0) + 2) * 100;
-      region.style.left = `${start}%`;
-      region.style.width = `${Math.max(1.2, end - start)}%`;
-    });
-  }
-
-  public toggleLoop(): void {
-    if (this.sessionMode === 'performance') return;
-    this.isLooping = !this.isLooping;
-
-    // If enabling loop and no section is set yet, default to an initial 20%-80% section
-    if (this.isLooping && this.loopStartRatio === null) {
-      this.loopStartRatio = 0.2;
-      this.loopEndRatio = 0.8;
-    }
-
-    this.updateSessionModeUI();
-    this.updateLoopRegionUI();
-  }
+  public toggleLoop(): void { return toggleLoop(this); }
 
   public updateSpeedUI(): void {
     const percent = Math.round(this.speedMultiplier * 100);
@@ -1023,12 +869,12 @@ export class GameplayEngine {
     modal.style.display = 'flex';
   }
 
-  private formatProbeLog(): string {
+  formatProbeLog(): string {
     const header = 'esperado\toyó Hz\tdetectó\tcents\tresultado';
     return [header, ...this.probeLog].join('\n');
   }
 
-  private recordProbe(note: { id: number; string: number; fret: number }, heard: { freq: number; string: number | null; fret: number | null; cents: number | null; result: string } | null): void {
+  recordProbe(note: { id: number; string: number; fret: number }, heard: { freq: number; string: number | null; fret: number | null; cents: number | null; result: string } | null): void {
     if (this.songTitle !== SOUND_PROBE_TITLE || this.probeLoggedIds.has(note.id)) return;
     this.probeLoggedIds.add(note.id);
     const expected = `c${note.string} t${note.fret}`;
@@ -1095,266 +941,16 @@ export class GameplayEngine {
     }
   }
 
-  public renderNotesMotion(width: number, height: number, hitZoneX: number): void {
-    const container = document.querySelector('#view-notes .fretboard-canvas-container');
-    const containerRect = container ? container.getBoundingClientRect() : null;
-    const stringEls = container ? container.querySelectorAll<HTMLElement>('.track-string') : null;
+  public renderNotesMotion(width: number, height: number, hitZoneX: number): void { return renderNotesMotion(this, width, height, hitZoneX); }
 
-    const stringYs: Record<number, number> = {};
-    if (stringEls && stringEls.length === 6 && containerRect && containerRect.height > 0) {
-      stringEls.forEach((el, index) => {
-        const rect = el.getBoundingClientRect();
-        stringYs[index + 1] = (rect.top - containerRect.top) + (rect.height / 2);
-      });
-    } else {
-      for (let s = 1; s <= 6; s++) {
-        stringYs[s] = height * this.stringRatios[s];
-      }
-    }
-
-    this.notesTrack.forEach(note => {
-      if (!note.hit && !note.missed && this.currentTime > note.time + note.hold + 0.12) {
-        note.missed = true;
-        this.recordProbe(note, null);
-        this.triggerNoteMiss(note);
-      }
-      if (!note.el) return;
-
-      const noteX = hitZoneX + (note.time - this.currentTime) * this.scrollSpeed;
-      const noteY = stringYs[note.string] || (height * 0.7);
-
-      if (noteX > -260 && noteX < width + 300) {
-        note.el.style.display = 'flex';
-        note.el.style.transform = `translate3d(${noteX}px, ${noteY}px, 0) translateY(-50%)`;
-      } else {
-        note.el.style.display = 'none';
-      }
-    });
-
-    let ballY = height * 0.7;
-
-    let prevNote: TrackNoteWithDOM | null = null;
-    let nextNote: TrackNoteWithDOM | null = null;
-
-    for (let i = 0; i < this.notesTrack.length; i++) {
-      const n = this.notesTrack[i];
-      if (n.time <= this.currentTime) {
-        prevNote = n;
-      } else {
-        nextNote = n;
-        break;
-      }
-    }
-
-    if (prevNote && nextNote) {
-      const interval = nextNote.time - prevNote.time;
-      const u = Math.max(0, Math.min(1, (this.currentTime - prevNote.time) / interval));
-      const startY = stringYs[prevNote.string];
-      const endY = stringYs[nextNote.string];
-      const baseY = startY + (endY - startY) * u;
-      const arcPeak = 75;
-      const bounceHeight = 4 * arcPeak * u * (1 - u);
-      ballY = baseY - bounceHeight;
-    } else if (nextNote) {
-      const timeToHit = nextNote.time - this.currentTime;
-      const u = Math.max(0, 1 - timeToHit / 2.0);
-      const targetY = stringYs[nextNote.string];
-      const arcPeak = 65;
-      const bounceHeight = 4 * arcPeak * u * (1 - u);
-      ballY = targetY - bounceHeight;
-    } else if (prevNote) {
-      ballY = stringYs[prevNote.string];
-    }
-
-    const ballEl = document.querySelector<HTMLElement>('#view-notes .bouncing-ball');
-    if (ballEl) {
-      ballEl.style.left = `${hitZoneX}px`;
-      ballEl.style.top = `${ballY}px`;
-    }
-
-    const canvas = document.querySelector<HTMLCanvasElement>('#view-notes .trajectory-canvas');
-    if (canvas) {
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
-
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, width, height);
-        ctx.save();
-        ctx.setLineDash([4, 8]);
-        ctx.lineWidth = 2.5;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
-
-        for (let i = 0; i < this.notesTrack.length - 1; i++) {
-          const n1 = this.notesTrack[i];
-          const n2 = this.notesTrack[i + 1];
-
-          const x1 = hitZoneX + (n1.time - this.currentTime) * this.scrollSpeed;
-          const y1 = stringYs[n1.string];
-          const x2 = hitZoneX + (n2.time - this.currentTime) * this.scrollSpeed;
-          const y2 = stringYs[n2.string];
-
-          if (x2 > -100 && x1 < width + 100) {
-            const arcWidth = x2 - x1;
-            const peak = Math.min(90, Math.max(50, arcWidth * 0.25));
-
-            ctx.beginPath();
-            for (let px = 0; px <= arcWidth; px += 5) {
-              const t = px / arcWidth;
-              const curX = x1 + px;
-              const baseY = y1 + (y2 - y1) * t;
-              const curY = baseY - 4 * peak * t * (1 - t);
-
-              if (px === 0) ctx.moveTo(curX, curY);
-              else ctx.lineTo(curX, curY);
-            }
-            ctx.stroke();
-          }
-        }
-
-        if (this.notesTrack.length > 0) {
-          const firstNote = this.notesTrack[0];
-          const fx = hitZoneX + (firstNote.time - this.currentTime) * this.scrollSpeed;
-          const fy = stringYs[firstNote.string];
-          const preBounceW = 140;
-
-          for (let bx = fx - preBounceW * 2; bx < fx; bx += preBounceW) {
-            if (bx + preBounceW > -50 && bx < width + 50) {
-              ctx.beginPath();
-              for (let px = 0; px <= preBounceW; px += 5) {
-                const t = px / preBounceW;
-                const curX = bx + px;
-                const curY = fy - 4 * 60 * t * (1 - t);
-                if (px === 0) ctx.moveTo(curX, curY);
-                else ctx.lineTo(curX, curY);
-              }
-              ctx.stroke();
-            }
-          }
-        }
-
-        ctx.restore();
-      }
-    }
-  }
-
-  public renderChordsMotion(width: number, height: number, hitZoneX: number): void {
-    const chordBaseY = height * 0.62;
-
-    let currentActiveChord: TrackChordWithDOM | null = null;
-    let closestUpcoming: TrackChordWithDOM | null = null;
-    let minUpcomingDiff = Infinity;
-
-    for (const chord of this.chordsTrack) {
-      const blockWidth = chord.width || 300;
-      const startX = hitZoneX + (chord.time - this.currentTime) * this.scrollSpeed;
-      const endX = startX + blockWidth;
-
-      if (hitZoneX >= startX - 20 && hitZoneX <= endX + 40) {
-        currentActiveChord = chord;
-        break;
-      }
-
-      const diff = chord.time - this.currentTime;
-      if (diff > 0 && diff < minUpcomingDiff) {
-        minUpcomingDiff = diff;
-        closestUpcoming = chord;
-      }
-    }
-
-    const chordToDisplay = currentActiveChord || closestUpcoming || this.chordsTrack[0];
-    if (chordToDisplay && chordToDisplay.chord !== this.currentActiveChordName) {
-      this.updateHudChordCard(chordToDisplay.chord);
-    }
-
-    this.chordsTrack.forEach(chord => {
-      if (!chord.el) return;
-
-      const chordX = hitZoneX + (chord.time - this.currentTime) * this.scrollSpeed;
-
-      if (chordX > -400 && chordX < width + 400) {
-        chord.el.style.display = 'flex';
-        chord.el.style.transform = `translate3d(${chordX}px, 0, 0)`;
-      } else {
-        chord.el.style.display = 'none';
-      }
-
-      if (this.isPlaying && !chord.hit && !chord.missed && this.currentTime > chord.time + chord.hold + 0.12) {
-        chord.missed = true;
-        this.triggerChordMiss(chord);
-      }
-    });
-
-    const ballEl = document.querySelector<HTMLElement>('#view-chords .bouncing-ball');
-    let ballY = chordBaseY;
-    if (this.isPlaying) {
-      const cycle = (this.currentTime * 2) % 1;
-      const h = Math.sin(cycle * Math.PI) * 35;
-      ballY = chordBaseY - h;
-    }
-    if (ballEl) {
-      ballEl.style.left = `${hitZoneX}px`;
-      ballEl.style.top = `${ballY}px`;
-    }
-
-    const canvas = document.querySelector<HTMLCanvasElement>('#view-chords .trajectory-canvas');
-    if (canvas) {
-      if (canvas.width !== width || canvas.height !== height) {
-        canvas.width = width;
-        canvas.height = height;
-      }
-      const ctx = canvas.getContext('2d');
-      if (ctx) {
-        ctx.clearRect(0, 0, width, height);
-        ctx.save();
-        ctx.setLineDash([4, 8]);
-        ctx.lineWidth = 2.5;
-        ctx.strokeStyle = 'rgba(255, 255, 255, 0.55)';
-
-        for (let i = 0; i < this.chordsTrack.length - 1; i++) {
-          const c1 = this.chordsTrack[i];
-          const c2 = this.chordsTrack[i + 1];
-          const x1 = hitZoneX + (c1.time - this.currentTime) * this.scrollSpeed;
-          const x2 = hitZoneX + (c2.time - this.currentTime) * this.scrollSpeed;
-
-          if (x2 > -100 && x1 < width + 100) {
-            const arcW = x2 - x1;
-            ctx.beginPath();
-            for (let px = 0; px <= arcW; px += 6) {
-              const t = px / arcW;
-              const curX = x1 + px;
-              const curY = chordBaseY - 4 * 70 * t * (1 - t);
-              if (px === 0) ctx.moveTo(curX, curY);
-              else ctx.lineTo(curX, curY);
-            }
-            ctx.stroke();
-          }
-        }
-        ctx.restore();
-      }
-    }
-  }
+  public renderChordsMotion(width: number, height: number, hitZoneX: number): void { return renderChordsMotion(this, width, height, hitZoneX); }
 
   public triggerNoteHit(note: TrackNoteWithDOM): void {
     guitarAudio.playString(note.string, note.fret);
     guitarAudio.playHitSound();
 
-    this.combo++;
-    if (this.combo > this.maxCombo) this.maxCombo = this.combo;
-    this.comboInTier++;
-
-    if (this.comboInTier >= 5) {
-      this.comboInTier = 0;
-      if (this.multiplier < 4) {
-        this.multiplier++;
-        this.triggerMultiplierPopup();
-      }
-    }
-
-    this.score += 150 * this.multiplier;
-    if (this.score > this.targetScore) this.score = this.targetScore;
+    const { points, multiplierUp } = this.board.hit(NOTE_RULES);
+    if (multiplierUp) this.triggerMultiplierPopup();
 
     if (note.el) {
       note.el.classList.remove('miss-flash');
@@ -1379,16 +975,14 @@ export class GameplayEngine {
       setTimeout(() => ball.classList.remove('hit-pulse'), 250);
     }
 
-    this.spawnScoreParticle(`+${150 * this.multiplier}`, false);
+    this.spawnScoreParticle(`+${points}`, false);
     this.spawnTimingLabel(this.currentTime - note.time);
     this.markTimelineResult('n', note.id, 'hit');
     this.updateUI();
   }
 
   public triggerNoteMiss(note: TrackNoteWithDOM): void {
-    this.combo = 0;
-    this.comboInTier = 0;
-    this.multiplier = 1;
+    this.board.miss();
 
     if (this.isVersusActive && this.isFaceOffMode) {
       this.attackStreak = 0;
@@ -1447,7 +1041,7 @@ export class GameplayEngine {
    * The mic callback fires every animation frame, and a plucked string rings for a second or
    * more. Without this, one pluck walks through every unhit note inside the timing window.
    */
-  private isNewAttack(freq: number, isOnset: boolean, requirePitch = true): boolean {
+  isNewAttack(freq: number, isOnset: boolean, requirePitch = true): boolean {
     const now = performance.now();
 
     if (isOnset && now >= this.micRefractoryUntil && this.micAttackPendingAt === 0) {
@@ -1598,9 +1192,7 @@ export class GameplayEngine {
   }
 
   public triggerChordMiss(chord: TrackChordWithDOM): void {
-    this.combo = 0;
-    this.comboInTier = 0;
-    this.multiplier = 1;
+    this.board.miss();
 
     if (this.isVersusActive && this.isFaceOffMode) {
       this.attackStreak = 0;
@@ -1621,58 +1213,14 @@ export class GameplayEngine {
     this.updateUI();
   }
 
-  public updateHudChordCard(chordName: string): void {
-    this.currentActiveChordName = chordName;
-
-    const titleEl = document.querySelector('.hud-chord-card-title');
-    if (titleEl) {
-      titleEl.textContent = chordName;
-    }
-
-    const cardEl = document.querySelector('.hud-chord-card');
-    if (cardEl) {
-      cardEl.setAttribute('title', `Acorde actual: ${chordName}`);
-      cardEl.classList.add('pulse');
-      setTimeout(() => cardEl.classList.remove('pulse'), 250);
-    }
-
-    const svgEl = document.querySelector('.hud-chord-mini-svg');
-    if (svgEl) {
-      svgEl.querySelectorAll('.hud-finger-dot').forEach(dot => dot.remove());
-
-      const diagram = this.chordDiagrams[chordName] || this.chordDiagrams['Am'];
-      if (diagram && diagram.dots) {
-        diagram.dots.forEach(d => {
-          const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-          circle.setAttribute('class', 'hud-finger-dot');
-          circle.setAttribute('cx', d.cx.toString());
-          circle.setAttribute('cy', d.cy.toString());
-          circle.setAttribute('r', '4.5');
-          circle.setAttribute('fill', d.color);
-          svgEl.appendChild(circle);
-        });
-      }
-    }
-  }
+  public updateHudChordCard(chordName: string): void { return updateHudChordCard(this, chordName); }
 
   public triggerChordHit(chord: TrackChordWithDOM): void {
     guitarAudio.playChord(chord.chord);
     guitarAudio.playHitSound();
 
-    this.combo++;
-    if (this.combo > this.maxCombo) this.maxCombo = this.combo;
-    this.comboInTier++;
-
-    if (this.comboInTier >= 3) {
-      this.comboInTier = 0;
-      if (this.multiplier < 4) {
-        this.multiplier++;
-        this.triggerMultiplierPopup();
-      }
-    }
-
-    this.score += 300 * this.multiplier;
-    if (this.score > this.targetScore) this.score = this.targetScore;
+    const { points, multiplierUp } = this.board.hit(CHORD_RULES);
+    if (multiplierUp) this.triggerMultiplierPopup();
 
     if (this.isVersusActive && this.onNoteHitCallback) {
       this.onNoteHitCallback(chord.id, 'PERFECT', 0);
@@ -1697,346 +1245,25 @@ export class GameplayEngine {
       setTimeout(() => ball.classList.remove('hit-pulse'), 250);
     }
 
-    this.spawnScoreParticle(`+${300 * this.multiplier}`);
+    this.spawnScoreParticle(`+${points}`);
     this.markTimelineResult('c', chord.id, 'hit');
     this.updateUI();
   }
 
-  public triggerMultiplierPopup(): void {
-    const activeViewId = this.mode === 'notes' ? '#view-notes' : '#view-chords';
-    const multBox = document.querySelector(`${activeViewId} .hud-multiplier-box`);
-    if (multBox) {
-      multBox.classList.add('multiplier-up');
-      setTimeout(() => multBox.classList.remove('multiplier-up'), 380);
-    }
-  }
+  public triggerMultiplierPopup(): void { return triggerMultiplierPopup(this); }
 
   /** Signed offset in seconds: negative is early, positive is late. */
-  private spawnTimingLabel(deltaSeconds: number): void {
-    const perfect = 0.12;
-    let text = 'PERFECTO';
-    let kind = 'timing-perfect';
-    if (deltaSeconds < -perfect) {
-      text = 'ADELANTADO';
-      kind = 'timing-early';
-    } else if (deltaSeconds > perfect) {
-      text = 'ATRASADO';
-      kind = 'timing-late';
-    }
-    this.spawnScoreParticle(text, false, kind);
-  }
+  spawnTimingLabel(deltaSeconds: number): void { return spawnTimingLabel(this, deltaSeconds); }
 
-  public spawnScoreParticle(text: string, isMiss: boolean = false, extraClass: string = ''): void {
-    const activeViewId = this.mode === 'notes' ? '#view-notes' : '#view-chords';
-    const container = document.querySelector(`${activeViewId}.is-sheet #sheet-stage`)
-      ?? document.querySelector(`${activeViewId} .fretboard-canvas-container`);
-    if (!container) return;
+  public spawnScoreParticle(text: string, isMiss: boolean = false, extraClass: string = ''): void { return spawnScoreParticle(this, text, isMiss, extraClass); }
 
-    const particle = document.createElement('div');
-    particle.className = `hit-score-particle ${isMiss ? 'particle-miss' : ''} ${extraClass}`.trim();
-    particle.textContent = text;
-    particle.style.left = '35%';
-    particle.style.top = extraClass ? '58%' : isMiss ? '42%' : '38%';
-    container.appendChild(particle);
+  public renderTimelineMarkers(): void { return renderTimelineMarkers(this); }
 
-    setTimeout(() => {
-      particle.remove();
-    }, 850);
-  }
+  public markTimelineResult(kind: 'n' | 'c', id: number, result: 'hit' | 'miss'): void { return markTimelineResult(this, kind, id, result); }
 
-  public renderTimelineMarkers(): void {
-    const activeViewId = this.mode === 'notes' ? '#view-notes' : '#view-chords';
-    const trackArea = document.querySelector(`${activeViewId} .timeline-track-area`);
-    if (!trackArea) return;
+  public setupScrubbingListeners(): void { return setupScrubbingListeners(this); }
 
-    trackArea.querySelectorAll('.timeline-mini-marker').forEach(m => m.remove());
-
-    if (this.mode === 'notes') {
-      const fingerColors: Record<number, string> = {
-        0: '#8a929e',
-        1: '#f5a623',
-        2: '#00d2ff',
-        3: '#e024c3',
-        4: '#8e44ad'
-      };
-
-      this.notesTrack.forEach(n => {
-        const leftPercent = (n.time / this.songDuration) * 100;
-        if (leftPercent >= 0 && leftPercent <= 100) {
-          const marker = document.createElement('div');
-          marker.className = 'timeline-mini-marker type-note';
-          marker.dataset.tlId = `n-${n.id}`;
-          marker.style.left = `${leftPercent}%`;
-          marker.style.background = fingerColors[sanitizeFinger(n.finger)] || '#f5a623';
-          if (n.hit) marker.classList.add('is-hit');
-          if (n.missed) marker.classList.add('is-miss');
-          trackArea.appendChild(marker);
-        }
-      });
-    } else {
-      this.chordsTrack.forEach(c => {
-        const leftPercent = (c.time / this.songDuration) * 100;
-        const widthPercent = Math.max(3, (c.width / (this.scrollSpeed * this.songDuration)) * 100);
-        if (leftPercent >= 0 && leftPercent <= 100) {
-          const marker = document.createElement('div');
-          marker.className = 'timeline-mini-marker type-chord';
-          marker.dataset.tlId = `c-${c.id}`;
-          marker.style.left = `${leftPercent}%`;
-          marker.style.width = `${widthPercent}%`;
-          marker.style.background = sanitizeCssColor(c.color);
-          if (c.hit) marker.classList.add('is-hit');
-          if (c.missed) marker.classList.add('is-miss');
-          trackArea.appendChild(marker);
-        }
-      });
-    }
-  }
-
-  public markTimelineResult(kind: 'n' | 'c', id: number, result: 'hit' | 'miss'): void {
-    const activeViewId = this.mode === 'notes' ? '#view-notes' : '#view-chords';
-    const marker = document.querySelector(`${activeViewId} .timeline-mini-marker[data-tl-id="${kind}-${id}"]`);
-    if (!marker) return;
-    marker.classList.remove('is-hit', 'is-miss');
-    marker.classList.add(result === 'hit' ? 'is-hit' : 'is-miss');
-  }
-
-  public setupScrubbingListeners(): void {
-    const trackAreas = document.querySelectorAll<HTMLElement>('.timeline-track-area');
-    trackAreas.forEach(track => {
-      let isDragging = false;
-
-      const ratioFromEvent = (e: MouseEvent | TouchEvent): number | null => {
-        const rect = track.getBoundingClientRect();
-        if (rect.width <= 0) return null;
-        const clientX = 'touches' in e ? e.touches[0].clientX : e.clientX;
-        return Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-      };
-
-      const handleSeek = (e: MouseEvent | TouchEvent) => {
-        const ratio = ratioFromEvent(e);
-        if (ratio === null) return;
-        if (this.loopHandleDrag) {
-          const minGap = this.loopMinGap();
-          if (this.loopHandleDrag === 'start') {
-            this.loopStartRatio = Math.min(ratio, (this.loopEndRatio ?? 1) - minGap);
-            this.loopStartRatio = Math.max(0, this.loopStartRatio);
-          } else {
-            this.loopEndRatio = Math.max(ratio, (this.loopStartRatio ?? 0) + minGap);
-            this.loopEndRatio = Math.min(1, this.loopEndRatio);
-          }
-          this.updateLoopRegionUI();
-          return;
-        }
-        this.seekTo(ratio);
-      };
-
-      track.addEventListener('mousedown', (e) => {
-        const handle = (e.target as HTMLElement).closest('.timeline-loop-handle');
-        if (handle) {
-          e.preventDefault();
-          e.stopPropagation();
-          this.loopHandleDrag = handle.classList.contains('is-start') ? 'start' : 'end';
-          if (this.sessionMode !== 'practice') this.setSessionMode('practice');
-          this.isLooping = true;
-          isDragging = true;
-          return;
-        }
-        if (e.shiftKey) {
-          const ratio = ratioFromEvent(e);
-          if (ratio !== null) this.setLoopPoint(ratio);
-          return;
-        }
-        isDragging = true;
-        handleSeek(e);
-      });
-
-      track.addEventListener('dblclick', (e) => {
-        e.preventDefault();
-        this.clearLoopRegion();
-      });
-
-      window.addEventListener('mousemove', (e) => {
-        if (isDragging) {
-          handleSeek(e);
-        }
-      });
-
-      window.addEventListener('mouseup', () => {
-        isDragging = false;
-        this.loopHandleDrag = null;
-      });
-
-      track.addEventListener('touchstart', (e) => {
-        const target = e.target as HTMLElement;
-        const handle = target.closest('.timeline-loop-handle');
-        if (handle) {
-          this.loopHandleDrag = handle.classList.contains('is-start') ? 'start' : 'end';
-          if (this.sessionMode !== 'practice') this.setSessionMode('practice');
-          this.isLooping = true;
-          isDragging = true;
-          return;
-        }
-        isDragging = true;
-        handleSeek(e);
-      }, { passive: false });
-
-      window.addEventListener('touchmove', (e) => {
-        if (isDragging) {
-          if (this.loopHandleDrag && e.cancelable) {
-            e.preventDefault();
-          }
-          handleSeek(e);
-        }
-      }, { passive: false });
-
-      window.addEventListener('touchend', () => {
-        isDragging = false;
-        this.loopHandleDrag = null;
-      });
-    });
-
-    this.setupHUDListeners();
-
-    document.addEventListener('visibilitychange', () => {
-      const onGameplay = document.getElementById('view-notes')?.classList.contains('view-active')
-        || document.getElementById('view-chords')?.classList.contains('view-active');
-      if (!onGameplay) return;
-
-      if (document.hidden) {
-        if (this.isCountingDown) this.cancelCountdown();
-        if (this.isPlaying) this.pausePlaying();
-      } else if (this.isPlaying) {
-        this.requestScreenWakeLock();
-      }
-    });
-
-    document.querySelectorAll<HTMLElement>('.fretboard-canvas-container').forEach(canvas => {
-      canvas.addEventListener('click', (e) => {
-        if (this.isCountingDown || !this.isPlaying) return;
-        const target = e.target as HTMLElement;
-        if (target.closest('.timeline-track-area') || target.closest('.play-pause-btn')) return;
-        e.preventDefault();
-        this.pausePlaying();
-      });
-    });
-
-    const resumeBtn = document.getElementById('pause-resume-btn');
-    if (resumeBtn) {
-      resumeBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.startPlaying();
-      });
-    }
-
-    const pauseExitBtn = document.getElementById('pause-exit-btn');
-    if (pauseExitBtn) {
-      pauseExitBtn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.wasPlayingThisSession = false;
-        this.pausePlaying();
-        goToScreen(this.leaveGameplay());
-      });
-    }
-  }
-
-  public setupHUDListeners(): void {
-    // Mode switcher buttons
-    document.querySelectorAll<HTMLElement>('.mode-tab-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        if (this.isPlaying) return;
-        const sMode = (btn.getAttribute('data-session-mode') || 'performance') as GameplaySessionMode;
-        this.setSessionMode(sMode);
-        guitarAudio.playClickSound();
-      });
-    });
-
-    // Speed slider
-    document.querySelectorAll<HTMLInputElement>('.gameplay-speed-slider').forEach(slider => {
-      slider.addEventListener('input', (e) => {
-        const val = parseFloat((e.target as HTMLInputElement).value);
-        this.setSpeed(val / 100);
-      });
-    });
-
-    // Step speed buttons
-    document.querySelectorAll<HTMLElement>('.speed-minus-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.adjustSpeed(-0.1);
-        guitarAudio.playClickSound();
-      });
-    });
-
-    document.querySelectorAll<HTMLElement>('.speed-plus-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.adjustSpeed(0.1);
-        guitarAudio.playClickSound();
-      });
-    });
-
-    // Loop toggle button
-    document.querySelectorAll<HTMLElement>('.hud-loop-toggle-btn').forEach(btn => {
-      btn.addEventListener('click', (e) => {
-        e.stopPropagation();
-        this.toggleLoop();
-        guitarAudio.playClickSound();
-      });
-    });
-    this.updateSessionModeUI();
-
-    // Performance Results Modal buttons
-    const retryBtn = document.getElementById('perf-btn-retry');
-    if (retryBtn) {
-      retryBtn.addEventListener('click', () => {
-        this.retryPerformance();
-      });
-    }
-
-    const practiceBtn = document.getElementById('perf-btn-practice');
-    if (practiceBtn) {
-      practiceBtn.addEventListener('click', () => {
-        this.switchToPracticeFromModal();
-      });
-    }
-
-    const copyBtn = document.getElementById('probe-log-copy');
-    if (copyBtn) {
-      copyBtn.addEventListener('click', () => {
-        const text = document.getElementById('probe-log-text')?.textContent ?? '';
-        navigator.clipboard?.writeText(text).then(() => {
-          copyBtn.textContent = 'Copiado';
-        }).catch(() => {
-          copyBtn.textContent = 'No se pudo copiar';
-        });
-      });
-    }
-
-    const downloadBtn = document.getElementById('probe-log-download');
-    if (downloadBtn) {
-      downloadBtn.addEventListener('click', () => {
-        const text = document.getElementById('probe-log-text')?.textContent ?? '';
-        const blob = new Blob([text], { type: 'text/plain;charset=utf-8' });
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'prueba-de-sonido.txt';
-        a.click();
-        URL.revokeObjectURL(url);
-      });
-    }
-
-    const exitBtn = document.getElementById('perf-btn-exit');
-    if (exitBtn) {
-      exitBtn.addEventListener('click', () => {
-        const modal = document.getElementById('performance-results-modal');
-        if (modal) modal.style.display = 'none';
-
-        goToScreen(this.leaveGameplay());
-      });
-    }
-  }
+  public setupHUDListeners(): void { return setupHUDListeners(this); }
 
   /** Resets duel state and returns the screen the player came from. */
   public leaveGameplay(): string {

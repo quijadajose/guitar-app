@@ -1,3 +1,4 @@
+import { safeGet, safeSet } from './storage';
 import { driver } from 'driver.js';
 import 'driver.js/dist/driver.css';
 
@@ -6,7 +7,7 @@ const SEEN_KEY = 'guitar.editorTourSeen';
 export function startEditorTour(force = false): void {
   if (!force) {
     try {
-      if (localStorage.getItem(SEEN_KEY) === '1') return;
+      if (safeGet(SEEN_KEY) === '1') return;
     } catch {
       // Still show the tour if storage is blocked.
     }
@@ -24,6 +25,7 @@ export function startEditorTour(force = false): void {
     nextBtnText: 'Siguiente',
     prevBtnText: 'Atrás',
     doneBtnText: 'Listo',
+    progressText: '{{current}} de {{total}}',
     steps: [
       {
         element: '#editor-preset-select',
@@ -87,7 +89,7 @@ export function startEditorTour(force = false): void {
 
   tour.drive();
   try {
-    localStorage.setItem(SEEN_KEY, '1');
+    safeSet(SEEN_KEY, '1');
   } catch {
     // Ignore.
   }

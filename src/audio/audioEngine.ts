@@ -313,7 +313,11 @@ export class GuitarAudioEngine {
         }
       });
 
-      if (!this.ctx) return false;
+      if (!this.ctx) {
+        // Sin contexto de audio no hay análisis: soltar el micrófono para que el sistema lo apague.
+        this.releaseMicStream();
+        return false;
+      }
       this.micSource = this.ctx.createMediaStreamSource(this.micStream);
       this.hasMicPermission = true;
       this.isTrackingPitch = true;
@@ -331,8 +335,14 @@ export class GuitarAudioEngine {
       return true;
     } catch (err) {
       console.warn('Microphone access denied or error:', err);
+      this.releaseMicStream();
       return false;
     }
+  }
+
+  private releaseMicStream(): void {
+    this.micStream?.getTracks().forEach(track => track.stop());
+    this.micStream = null;
   }
 
   private async startWorkletPitchPath(): Promise<boolean> {

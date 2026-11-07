@@ -33,11 +33,6 @@
   <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,800&family=Instrument+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
 
   <!-- Stylesheets -->
-  <link rel="stylesheet" href="/styles/main.css">
-  <link rel="stylesheet" href="/styles/player-gate.css">
-  <link rel="stylesheet" href="/styles/tuner.css">
-  <link rel="stylesheet" href="/styles/gameplay.css">
-  <link rel="stylesheet" href="/styles/editor.css">
 </head>
 <body>
   <svg class="note-shapes" width="0" height="0" aria-hidden="true" focusable="false">
@@ -640,6 +635,180 @@
 
 
 
+      <!-- ===== Plantillas compartidas de gameplay (montadas por src/templates.ts) ===== -->
+      <template id="tpl-gameplay-glove">
+      <svg viewBox="0 0 100 130" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="glove-grad-{{variant}}" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stop-color="#ffffff"/>
+            <stop offset="70%" stop-color="#f2f5f8"/>
+            <stop offset="100%" stop-color="#dde2e8"/>
+          </linearGradient>
+          <linearGradient id="cuff-bottom-{{variant}}" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#adb5be"/>
+            <stop offset="100%" stop-color="#7a828d"/>
+          </linearGradient>
+          <linearGradient id="tip-index-{{variant}}" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#f59e0b"/>
+            <stop offset="60%" stop-color="#d97706"/>
+            <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="tip-middle-{{variant}}" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#d916bb"/>
+            <stop offset="60%" stop-color="#930ea3"/>
+            <stop offset="100%" stop-color="#d916bb" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="tip-ring-{{variant}}" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#00c8f5"/>
+            <stop offset="60%" stop-color="#0284c7"/>
+            <stop offset="100%" stop-color="#00c8f5" stop-opacity="0"/>
+          </linearGradient>
+          <linearGradient id="tip-pinky-{{variant}}" x1="0%" y1="0%" x2="0%" y2="100%">
+            <stop offset="0%" stop-color="#f87157"/>
+            <stop offset="60%" stop-color="#dc2626"/>
+            <stop offset="100%" stop-color="#f87157" stop-opacity="0"/>
+          </linearGradient>
+          <radialGradient id="palm-shadow-{{variant}}" cx="50%" cy="65%" r="45%">
+            <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
+            <stop offset="75%" stop-color="#4b5563" stop-opacity="0.04"/>
+            <stop offset="100%" stop-color="#374151" stop-opacity="0.14"/>
+          </radialGradient>
+        </defs>
+
+        <g filter="drop-shadow(0 4px 6px rgba(0,0,0,0.35))">
+          <path d="
+            M 38 116
+            C 38 116, 36 94, 30 78
+            C 25 66, 17 61, 19 50
+            C 20 44, 25 43, 27 49
+            C 29 55, 33 63, 35 68
+            L 35 32
+            C 35 24, 46 24, 46 32
+            L 46 64
+            L 48 20
+            C 48 12, 60 12, 60 20
+            L 60 62
+            L 62 25
+            C 62 17, 73 17, 73 25
+            L 73 66
+            L 74 38
+            C 74 30, 84 32, 84 39
+            L 83 72
+            C 82 86, 76 100, 71 116
+            Z
+          " fill="url(#glove-grad-{{variant}})" stroke="rgba(255,255,255,0.85)" stroke-width="1.2" stroke-linejoin="round"/>
+
+          <path d="
+            M 38 116
+            C 38 116, 36 94, 30 78
+            C 25 66, 17 61, 19 50
+            C 20 44, 25 43, 27 49
+            C 29 55, 33 63, 35 68
+            L 35 32
+            C 35 24, 46 24, 46 32
+            L 46 64
+            L 48 20
+            C 48 12, 60 12, 60 20
+            L 60 62
+            L 62 25
+            C 62 17, 73 17, 73 25
+            L 73 66
+            L 74 38
+            C 74 30, 84 32, 84 39
+            L 83 72
+            C 82 86, 76 100, 71 116
+            Z
+          " fill="url(#palm-shadow-{{variant}})"/>
+
+          <path d="M 35 32 C 35 24, 46 24, 46 32 L 46 48 C 43 49, 38 49, 35 48 Z" fill="url(#tip-index-{{variant}})"/>
+          <path d="M 48 20 C 48 12, 60 12, 60 20 L 60 38 C 57 39, 51 39, 48 38 Z" fill="url(#tip-middle-{{variant}})"/>
+          <path d="M 62 25 C 62 17, 73 17, 73 25 L 73 42 C 70 43, 65 43, 62 42 Z" fill="url(#tip-ring-{{variant}})"/>
+          <path d="M 74 38 C 74 30, 84 32, 84 39 L 83 54 C 80 55, 77 55, 74 54 Z" fill="url(#tip-pinky-{{variant}})"/>
+
+          <ellipse cx="54.5" cy="116" rx="16.5" ry="5.5" fill="url(#cuff-bottom-{{variant}})" stroke="#ffffff" stroke-width="1.2"/>
+          <ellipse cx="54.5" cy="116" rx="13" ry="3.5" fill="#58606c"/>
+        </g>
+      </svg>
+      </template>
+      <template id="tpl-gameplay-fretboard">
+  <div class="fretboard-track-wrapper">
+    <div class="fretboard-canvas-container">
+      <div class="fretboard-plane">
+        <div class="fretboard-frets-grid">
+          <span class="fret-wire"></span>
+          <span class="fret-wire"></span>
+          <span class="fret-wire"></span>
+          <span class="fret-wire"></span>
+          <span class="fret-wire"></span>
+          <span class="fret-wire"></span>
+          <span class="fret-wire"></span>
+          <span class="fret-wire"></span>
+        </div>
+
+        <!-- 6 Strings: Thin steel on top (1, 2, 3), Thick wound at bottom (4, 5, 6) -->
+        <div class="track-string steel string-1"></div>
+        <div class="track-string steel string-2"></div>
+        <div class="track-string steel string-3"></div>
+        <div class="track-string wound string-4"></div>
+        <div class="track-string wound string-5"></div>
+        <div class="track-string wound string-6"></div>
+      </div>
+
+      <!-- Parabolic Dotted Trajectory Canvas -->
+      <canvas class="trajectory-canvas"></canvas>
+
+      <!-- Bouncing Glowing Ball -->
+      <div class="bouncing-ball" style="left: 35%; top: {{ballTop}};"></div>
+    </div>
+  </div>
+      </template>
+      <template id="tpl-gameplay-footer">
+  <footer class="gameplay-bottom-bar">
+    <div class="timeline-pill-container">
+      <button class="play-pause-btn" title="Pausar / Reanudar">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
+          <rect x="6" y="4" width="4" height="16" rx="1"/>
+          <rect x="14" y="4" width="4" height="16" rx="1"/>
+        </svg>
+      </button>
+
+      <div class="timeline-track-area" title="Clic: ir a ese punto. Arrastra los paréntesis ( ) para repetir un tramo. Doble clic: quitar bucle.">
+        <div class="timeline-progress-green progress-fill"></div>
+        <div class="timeline-playhead"></div>
+        <div class="timeline-loop-region" hidden>
+          <button type="button" class="timeline-loop-handle is-start" title="Inicio del tramo en bucle (arrastrar)"></button>
+          <button type="button" class="timeline-loop-handle is-end" title="Fin del tramo en bucle (arrastrar)"></button>
+        </div>
+        <div data-mount="tpl-timeline-{{timeline}}"></div>
+      </div>
+    </div>
+
+    <div class="finger-legend-icon" title="Ver código de colores de dedos">
+      <div data-mount="tpl-gameplay-glove" data-variant="{{variant}}"></div>
+    </div>
+  </footer>
+      </template>
+      <template id="tpl-timeline-ticks">
+        <div class="timeline-beat-ticks">
+          <span class="beat-dash"></span>
+          <span class="beat-dash"></span>
+          <span class="beat-dash"></span>
+          <span class="beat-dash"></span>
+          <span class="beat-dash"></span>
+          <span class="beat-dash"></span>
+          <span class="beat-dash"></span>
+          <span class="beat-dash"></span>
+        </div>
+      </template>
+      <template id="tpl-timeline-segments">
+        <div class="timeline-segment-red"></div>
+        <div class="timeline-segment-purple seg-purp-1"></div>
+        <div class="timeline-segment-purple seg-purp-2"></div>
+        <div class="timeline-segment-purple seg-purp-3"></div>
+        <div class="timeline-segment-purple seg-purp-4"></div>
+        <div class="timeline-segment-purple seg-purp-5"></div>
+      </template>
+
       <!-- ===================================================================
            PANTALLA 3: INTERPRETACIÓN DE CANCIÓN (NOTAS INDIVIDUALES)
            =================================================================== -->
@@ -748,162 +917,10 @@
         </div>
 
         <!-- Center: 2.5D Fretboard Track Runway -->
-        <div class="fretboard-track-wrapper">
-          <div class="fretboard-canvas-container">
-            <div class="fretboard-plane">
-              <div class="fretboard-frets-grid">
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-              </div>
-
-              <!-- 6 Strings: Thin steel on top (1, 2, 3), Thick wound at bottom (4, 5, 6) -->
-              <div class="track-string steel string-1"></div>
-              <div class="track-string steel string-2"></div>
-              <div class="track-string steel string-3"></div>
-              <div class="track-string wound string-4"></div>
-              <div class="track-string wound string-5"></div>
-              <div class="track-string wound string-6"></div>
-            </div>
-
-            <!-- Parabolic Dotted Trajectory Canvas -->
-            <canvas class="trajectory-canvas"></canvas>
-
-            <!-- Bouncing Glowing Ball -->
-            <div class="bouncing-ball" style="left: 35%; top: 68%;"></div>
-          </div>
-        </div>
+        <div data-mount="tpl-gameplay-fretboard" data-ball-top="68%"></div>
 
         <!-- Bottom Timeline Bar -->
-        <footer class="gameplay-bottom-bar">
-          <div class="timeline-pill-container">
-            <button class="play-pause-btn" title="Pausar / Reanudar">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                <rect x="6" y="4" width="4" height="16" rx="1"/>
-                <rect x="14" y="4" width="4" height="16" rx="1"/>
-              </svg>
-            </button>
-
-            <div class="timeline-track-area" title="Clic: ir a ese punto. Arrastra los paréntesis ( ) para repetir un tramo. Doble clic: quitar bucle.">
-              <div class="timeline-progress-green progress-fill"></div>
-              <div class="timeline-playhead"></div>
-              <div class="timeline-loop-region" hidden>
-                <button type="button" class="timeline-loop-handle is-start" title="Inicio del tramo en bucle (arrastrar)"></button>
-                <button type="button" class="timeline-loop-handle is-end" title="Fin del tramo en bucle (arrastrar)"></button>
-              </div>
-              <div class="timeline-beat-ticks">
-                <span class="beat-dash"></span>
-                <span class="beat-dash"></span>
-                <span class="beat-dash"></span>
-                <span class="beat-dash"></span>
-                <span class="beat-dash"></span>
-                <span class="beat-dash"></span>
-                <span class="beat-dash"></span>
-                <span class="beat-dash"></span>
-              </div>
-            </div>
-          </div>
-
-          <div class="finger-legend-icon" title="Ver código de colores de dedos">
-            <svg viewBox="0 0 100 130" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="glove-grad-notes" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#ffffff"/>
-                  <stop offset="70%" stop-color="#f2f5f8"/>
-                  <stop offset="100%" stop-color="#dde2e8"/>
-                </linearGradient>
-                <linearGradient id="cuff-bottom-notes" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#adb5be"/>
-                  <stop offset="100%" stop-color="#7a828d"/>
-                </linearGradient>
-                <linearGradient id="tip-index-notes" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#f59e0b"/>
-                  <stop offset="60%" stop-color="#d97706"/>
-                  <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
-                </linearGradient>
-                <linearGradient id="tip-middle-notes" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#d916bb"/>
-                  <stop offset="60%" stop-color="#930ea3"/>
-                  <stop offset="100%" stop-color="#d916bb" stop-opacity="0"/>
-                </linearGradient>
-                <linearGradient id="tip-ring-notes" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#00c8f5"/>
-                  <stop offset="60%" stop-color="#0284c7"/>
-                  <stop offset="100%" stop-color="#00c8f5" stop-opacity="0"/>
-                </linearGradient>
-                <linearGradient id="tip-pinky-notes" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#f87157"/>
-                  <stop offset="60%" stop-color="#dc2626"/>
-                  <stop offset="100%" stop-color="#f87157" stop-opacity="0"/>
-                </linearGradient>
-                <radialGradient id="palm-shadow-notes" cx="50%" cy="65%" r="45%">
-                  <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
-                  <stop offset="75%" stop-color="#4b5563" stop-opacity="0.04"/>
-                  <stop offset="100%" stop-color="#374151" stop-opacity="0.14"/>
-                </radialGradient>
-              </defs>
-
-              <g filter="drop-shadow(0 4px 6px rgba(0,0,0,0.35))">
-                <path d="
-                  M 38 116
-                  C 38 116, 36 94, 30 78
-                  C 25 66, 17 61, 19 50
-                  C 20 44, 25 43, 27 49
-                  C 29 55, 33 63, 35 68
-                  L 35 32
-                  C 35 24, 46 24, 46 32
-                  L 46 64
-                  L 48 20
-                  C 48 12, 60 12, 60 20
-                  L 60 62
-                  L 62 25
-                  C 62 17, 73 17, 73 25
-                  L 73 66
-                  L 74 38
-                  C 74 30, 84 32, 84 39
-                  L 83 72
-                  C 82 86, 76 100, 71 116
-                  Z
-                " fill="url(#glove-grad-notes)" stroke="rgba(255,255,255,0.85)" stroke-width="1.2" stroke-linejoin="round"/>
-
-                <path d="
-                  M 38 116
-                  C 38 116, 36 94, 30 78
-                  C 25 66, 17 61, 19 50
-                  C 20 44, 25 43, 27 49
-                  C 29 55, 33 63, 35 68
-                  L 35 32
-                  C 35 24, 46 24, 46 32
-                  L 46 64
-                  L 48 20
-                  C 48 12, 60 12, 60 20
-                  L 60 62
-                  L 62 25
-                  C 62 17, 73 17, 73 25
-                  L 73 66
-                  L 74 38
-                  C 74 30, 84 32, 84 39
-                  L 83 72
-                  C 82 86, 76 100, 71 116
-                  Z
-                " fill="url(#palm-shadow-notes)"/>
-
-                <path d="M 35 32 C 35 24, 46 24, 46 32 L 46 48 C 43 49, 38 49, 35 48 Z" fill="url(#tip-index-notes)"/>
-                <path d="M 48 20 C 48 12, 60 12, 60 20 L 60 38 C 57 39, 51 39, 48 38 Z" fill="url(#tip-middle-notes)"/>
-                <path d="M 62 25 C 62 17, 73 17, 73 25 L 73 42 C 70 43, 65 43, 62 42 Z" fill="url(#tip-ring-notes)"/>
-                <path d="M 74 38 C 74 30, 84 32, 84 39 L 83 54 C 80 55, 77 55, 74 54 Z" fill="url(#tip-pinky-notes)"/>
-
-                <ellipse cx="54.5" cy="116" rx="16.5" ry="5.5" fill="url(#cuff-bottom-notes)" stroke="#ffffff" stroke-width="1.2"/>
-                <ellipse cx="54.5" cy="116" rx="13" ry="3.5" fill="#58606c"/>
-              </g>
-            </svg>
-          </div>
-        </footer>
+        <div data-mount="tpl-gameplay-footer" data-variant="notes" data-timeline="ticks"></div>
       </section>
 
 
@@ -1002,156 +1019,9 @@
         <div class="game-measure-line measure-line-1"></div>
         <div class="game-measure-line measure-line-2"></div>
 
-        <div class="fretboard-track-wrapper">
-          <div class="fretboard-canvas-container">
-            <div class="fretboard-plane">
-              <div class="fretboard-frets-grid">
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-                <span class="fret-wire"></span>
-              </div>
+        <div data-mount="tpl-gameplay-fretboard" data-ball-top="62%"></div>
 
-              <!-- 6 Strings: Thin steel on top (1, 2, 3), Thick wound at bottom (4, 5, 6) -->
-              <div class="track-string steel string-1"></div>
-              <div class="track-string steel string-2"></div>
-              <div class="track-string steel string-3"></div>
-              <div class="track-string wound string-4"></div>
-              <div class="track-string wound string-5"></div>
-              <div class="track-string wound string-6"></div>
-            </div>
-
-            <!-- Parabolic Dotted Trajectory Canvas -->
-            <canvas class="trajectory-canvas"></canvas>
-
-            <div class="bouncing-ball" style="left: 35%; top: 62%;"></div>
-          </div>
-        </div>
-
-        <footer class="gameplay-bottom-bar">
-          <div class="timeline-pill-container">
-            <button class="play-pause-btn" title="Pausar / Reanudar">
-              <svg viewBox="0 0 24 24" width="22" height="22" fill="currentColor">
-                <rect x="6" y="4" width="4" height="16" rx="1"/>
-                <rect x="14" y="4" width="4" height="16" rx="1"/>
-              </svg>
-            </button>
-
-            <div class="timeline-track-area" title="Clic: ir a ese punto. Arrastra los paréntesis ( ) para repetir un tramo. Doble clic: quitar bucle.">
-              <div class="timeline-progress-green progress-fill"></div>
-              <div class="timeline-playhead"></div>
-              <div class="timeline-loop-region" hidden>
-                <button type="button" class="timeline-loop-handle is-start" title="Inicio del tramo en bucle (arrastrar)"></button>
-                <button type="button" class="timeline-loop-handle is-end" title="Fin del tramo en bucle (arrastrar)"></button>
-              </div>
-              <div class="timeline-segment-red"></div>
-              <div class="timeline-segment-purple seg-purp-1"></div>
-              <div class="timeline-segment-purple seg-purp-2"></div>
-              <div class="timeline-segment-purple seg-purp-3"></div>
-              <div class="timeline-segment-purple seg-purp-4"></div>
-              <div class="timeline-segment-purple seg-purp-5"></div>
-            </div>
-          </div>
-
-          <div class="finger-legend-icon" title="Ver código de colores de dedos">
-            <svg viewBox="0 0 100 130" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <linearGradient id="glove-grad-chords" x1="0%" y1="0%" x2="100%" y2="100%">
-                  <stop offset="0%" stop-color="#ffffff"/>
-                  <stop offset="70%" stop-color="#f2f5f8"/>
-                  <stop offset="100%" stop-color="#dde2e8"/>
-                </linearGradient>
-                <linearGradient id="cuff-bottom-chords" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#adb5be"/>
-                  <stop offset="100%" stop-color="#7a828d"/>
-                </linearGradient>
-                <linearGradient id="tip-index-chords" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#f59e0b"/>
-                  <stop offset="60%" stop-color="#d97706"/>
-                  <stop offset="100%" stop-color="#f59e0b" stop-opacity="0"/>
-                </linearGradient>
-                <linearGradient id="tip-middle-chords" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#d916bb"/>
-                  <stop offset="60%" stop-color="#930ea3"/>
-                  <stop offset="100%" stop-color="#d916bb" stop-opacity="0"/>
-                </linearGradient>
-                <linearGradient id="tip-ring-chords" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#00c8f5"/>
-                  <stop offset="60%" stop-color="#0284c7"/>
-                  <stop offset="100%" stop-color="#00c8f5" stop-opacity="0"/>
-                </linearGradient>
-                <linearGradient id="tip-pinky-chords" x1="0%" y1="0%" x2="0%" y2="100%">
-                  <stop offset="0%" stop-color="#f87157"/>
-                  <stop offset="60%" stop-color="#dc2626"/>
-                  <stop offset="100%" stop-color="#f87157" stop-opacity="0"/>
-                </linearGradient>
-                <radialGradient id="palm-shadow-chords" cx="50%" cy="65%" r="45%">
-                  <stop offset="0%" stop-color="#000000" stop-opacity="0"/>
-                  <stop offset="75%" stop-color="#4b5563" stop-opacity="0.04"/>
-                  <stop offset="100%" stop-color="#374151" stop-opacity="0.14"/>
-                </radialGradient>
-              </defs>
-
-              <g filter="drop-shadow(0 4px 6px rgba(0,0,0,0.35))">
-                <path d="
-                  M 38 116
-                  C 38 116, 36 94, 30 78
-                  C 25 66, 17 61, 19 50
-                  C 20 44, 25 43, 27 49
-                  C 29 55, 33 63, 35 68
-                  L 35 32
-                  C 35 24, 46 24, 46 32
-                  L 46 64
-                  L 48 20
-                  C 48 12, 60 12, 60 20
-                  L 60 62
-                  L 62 25
-                  C 62 17, 73 17, 73 25
-                  L 73 66
-                  L 74 38
-                  C 74 30, 84 32, 84 39
-                  L 83 72
-                  C 82 86, 76 100, 71 116
-                  Z
-                " fill="url(#glove-grad-chords)" stroke="rgba(255,255,255,0.85)" stroke-width="1.2" stroke-linejoin="round"/>
-
-                <path d="
-                  M 38 116
-                  C 38 116, 36 94, 30 78
-                  C 25 66, 17 61, 19 50
-                  C 20 44, 25 43, 27 49
-                  C 29 55, 33 63, 35 68
-                  L 35 32
-                  C 35 24, 46 24, 46 32
-                  L 46 64
-                  L 48 20
-                  C 48 12, 60 12, 60 20
-                  L 60 62
-                  L 62 25
-                  C 62 17, 73 17, 73 25
-                  L 73 66
-                  L 74 38
-                  C 74 30, 84 32, 84 39
-                  L 83 72
-                  C 82 86, 76 100, 71 116
-                  Z
-                " fill="url(#palm-shadow-chords)"/>
-
-                <path d="M 35 32 C 35 24, 46 24, 46 32 L 46 48 C 43 49, 38 49, 35 48 Z" fill="url(#tip-index-chords)"/>
-                <path d="M 48 20 C 48 12, 60 12, 60 20 L 60 38 C 57 39, 51 39, 48 38 Z" fill="url(#tip-middle-chords)"/>
-                <path d="M 62 25 C 62 17, 73 17, 73 25 L 73 42 C 70 43, 65 43, 62 42 Z" fill="url(#tip-ring-chords)"/>
-                <path d="M 74 38 C 74 30, 84 32, 84 39 L 83 54 C 80 55, 77 55, 74 54 Z" fill="url(#tip-pinky-chords)"/>
-
-                <ellipse cx="54.5" cy="116" rx="16.5" ry="5.5" fill="url(#cuff-bottom-chords)" stroke="#ffffff" stroke-width="1.2"/>
-                <ellipse cx="54.5" cy="116" rx="13" ry="3.5" fill="#58606c"/>
-              </g>
-            </svg>
-          </div>
-        </footer>
+        <div data-mount="tpl-gameplay-footer" data-variant="chords" data-timeline="segments"></div>
       </section>
 
 

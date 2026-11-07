@@ -1360,3 +1360,43 @@
   }
 }
 
+
+/* --------------------------------------------------------------------------
+   Editor en teléfono horizontal (alto ~400-450 px): barra compacta y la grilla
+   conserva espacio. Antes la partitura y la barra dejaban la grilla en 2 px.
+   -------------------------------------------------------------------------- */
+@media (orientation: landscape) and (max-height: 560px) {
+  #view-editor {
+    padding: 60px max(14px, env(safe-area-inset-left)) 6px max(14px, env(safe-area-inset-right));
+  }
+
+  .editor-toolbar {
+    padding: 6px 10px;
+    margin-bottom: 6px;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .editor-toolbar-left,
+  .editor-toolbar-right {
+    align-items: center;
+    gap: 8px;
+  }
+
+  .editor-sheet {
+    height: 96px;
+    margin-top: 6px;
+  }
+
+  .editor-sequencer-wrapper {
+    min-height: 120px;
+  }
+
+  .editor-bottom-bar {
+    padding-top: 4px;
+  }
+
+  .editor-hint {
+    display: none;
+  }
+}
