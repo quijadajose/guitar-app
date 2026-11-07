@@ -946,8 +946,9 @@ export class GameplayEngine {
   public renderChordsMotion(width: number, height: number, hitZoneX: number): void { return renderChordsMotion(this, width, height, hitZoneX); }
 
   public triggerNoteHit(note: TrackNoteWithDOM): void {
-    guitarAudio.playString(note.string, note.fret);
-    guitarAudio.playHitSound();
+    // Sin sonido: con guitarra real ya se escucha lo que se tocó (repetir la nota
+    // distrae y el micrófono puede volver a captarla); con teclado/clic,
+    // userPlayString ya la hizo sonar. El acierto se marca solo de forma visual.
 
     const { points, multiplierUp } = this.board.hit(NOTE_RULES);
     if (multiplierUp) this.triggerMultiplierPopup();
@@ -992,8 +993,7 @@ export class GameplayEngine {
       this.onNoteMissCallback(note.id);
     }
 
-    guitarAudio.playMissSound();
-
+    // Sin sonido de error para no desconcentrar: el fallo se marca solo visualmente.
     if (note.el) {
       note.el.classList.add('miss-flash');
     }
@@ -1202,8 +1202,7 @@ export class GameplayEngine {
       this.onNoteMissCallback(chord.id);
     }
 
-    guitarAudio.playMissSound();
-
+    // Sin sonido de error para no desconcentrar: el fallo se marca solo visualmente.
     if (chord.el) {
       chord.el.classList.add('miss-flash');
     }
@@ -1216,8 +1215,7 @@ export class GameplayEngine {
   public updateHudChordCard(chordName: string): void { return updateHudChordCard(this, chordName); }
 
   public triggerChordHit(chord: TrackChordWithDOM): void {
-    guitarAudio.playChord(chord.chord);
-    guitarAudio.playHitSound();
+    // Sin sonido (ver triggerNoteHit): userPlayChord ya hace sonar el acorde elegido.
 
     const { points, multiplierUp } = this.board.hit(CHORD_RULES);
     if (multiplierUp) this.triggerMultiplierPopup();
