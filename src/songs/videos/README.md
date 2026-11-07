@@ -3,7 +3,8 @@
 Transcritas automáticamente de los videos en `archive/another/musics/*.mp4`
 (se lee la tablatura de pantalla y el tiempo de cada nota con el cursor/resaltado).
 
-Cómo cargarlas: Editor → Importar JSON → elegir el archivo → Tocar.
+Aparecen como lecciones en Tocar → Cuerdas → Lecciones (registradas en `src/songs/videoSongs.ts`).
+También se pueden cargar a mano: Editor → Importar JSON.
 
 - Cada canción va completa en un solo archivo (límite de la app: 96 compases; la más larga, Megalovania, usa 80).
 - La rejilla de la app es de semicorcheas (16 pasos por compás). Las canciones en 3/4, 6/8 o 3/8
@@ -14,3 +15,4 @@ Cómo cargarlas: Editor → Importar JSON → elegir el archivo → Tocar.
 
 Scripts para regenerar: `archive/tab-extractor/` (`final.py`).
 Test: `npx vitest run src/__tests__/songsImport.test.ts`.
+`fur.json` no se usa como lección (ya existe Für Elise en `furElise.ts`).
