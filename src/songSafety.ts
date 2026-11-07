@@ -7,7 +7,7 @@ export const SONG_LIMITS = {
   bpmMin: 50,
   bpmMax: 180,
   measuresMin: 1,
-  measuresMax: 32,
+  measuresMax: 96,
   notesMax: 2048,
   chordsMax: 256,
   jsonMaxBytes: 512 * 1024,

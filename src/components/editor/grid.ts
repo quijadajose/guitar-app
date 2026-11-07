@@ -25,6 +25,14 @@ export function renderGrid(eng: SongEditor): void {
 
   matrix.replaceChildren();
 
+  // Índice de notas por celda: evita recorrer todas las notas en cada una de las
+  // (compases × 16 × 6) celdas, que con canciones largas se vuelve cuadrático.
+  const notesByCell = new Map<string, EditorNote>();
+  for (const n of eng.currentSong.notes) {
+    const key = `${n.string}|${n.measure}|${noteStep(n)}`;
+    if (!notesByCell.has(key)) notesByCell.set(key, n);
+  }
+
   for (let stringNum = 1; stringNum <= 6; stringNum++) {
     const row = document.createElement('div');
     row.className = 'matrix-string-row';
@@ -46,9 +54,7 @@ export function renderGrid(eng: SongEditor): void {
       cell.dataset.step = step.toString();
       cell.title = `Cuerda ${stringNum} · Compás ${measure} · pulso ${beatInMeasure}.${((step - 1) % 4) + 1}`;
 
-      const existingNote = eng.currentSong.notes.find(
-        n => n.string === stringNum && n.measure === measure && noteStep(n) === step
-      );
+      const existingNote = notesByCell.get(`${stringNum}|${measure}|${step}`);
 
       if (existingNote) {
         const chip = document.createElement('div');
