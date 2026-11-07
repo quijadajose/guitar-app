@@ -5,6 +5,7 @@ import { fillSvgFromTemplate } from '../dom';
 import { sanitizeSongProject } from '../songSafety';
 import { getEditorSongId, newSongId, setEditorSongId, upsertLibrarySong } from '../songLibrary';
 import { furEliseSong } from '../songs/furElise';
+import { cocoVideoSong, videoSongs } from '../songs/videoSongs';
 import { setupEventListeners, setupPopoverEvents } from './editor/controls';
 import { handleSelectedAudioFile, processPendingAudioFile, revokeReferenceObjectUrl, setupAudioExtractionEvents, showEditorMessage } from './editor/audioImport';
 import { formatAudioTime, insertCurrentInspectedNote, inspectAudioAtTime, removeReferenceAudio, setupAudioPlayerEvents, setupReferenceAudioPlayer, toggleReferenceAudio } from './editor/referenceAudio';
@@ -93,46 +94,8 @@ export class SongEditor {
 
   public presets: Record<string, LegacySongProject & { chords: (EditorChord & { durationBeats?: number })[] }> = {
     fur_elise: furEliseSong,
-    coco_recuerdame: {
-      title: 'Recuérdame (Coco)',
-      section: 'Tema Principal',
-      bpm: 88,
-      mode: 'notes',
-      measures: 8,
-      notes: [
-        { id: 1, measure: 1, beat: 2, string: 2, fret: 3, finger: 2 },
-        { id: 2, measure: 1, beat: 3, string: 1, fret: 0, finger: 0 },
-        { id: 3, measure: 1, beat: 4, string: 2, fret: 1, finger: 1 },
-        { id: 4, measure: 2, beat: 1, string: 3, fret: 0, finger: 0 },
-        { id: 5, measure: 2, beat: 3, string: 3, fret: 0, finger: 0 },
-        { id: 6, measure: 2, beat: 4, string: 4, fret: 3, finger: 2 },
-        { id: 7, measure: 3, beat: 1, string: 5, fret: 3, finger: 3 },
-        { id: 8, measure: 3, beat: 2, string: 2, fret: 1, finger: 1 },
-        { id: 9, measure: 3, beat: 3, string: 2, fret: 1, finger: 1 },
-        { id: 10, measure: 3, beat: 4, string: 2, fret: 3, finger: 2 },
-        { id: 11, measure: 4, beat: 1, string: 2, fret: 3, finger: 2 },
-        { id: 12, measure: 4, beat: 2, string: 1, fret: 0, finger: 0 },
-        { id: 13, measure: 4, beat: 3, string: 1, fret: 0, finger: 0 },
-        { id: 14, measure: 4, beat: 4, string: 2, fret: 3, finger: 2 },
-        { id: 15, measure: 5, beat: 1, string: 3, fret: 0, finger: 0 },
-        { id: 16, measure: 5, beat: 2, string: 1, fret: 0, finger: 0 },
-        { id: 17, measure: 5, beat: 3, string: 2, fret: 3, finger: 2 },
-        { id: 18, measure: 5, beat: 4, string: 2, fret: 1, finger: 1 },
-        { id: 19, measure: 6, beat: 1, string: 3, fret: 0, finger: 0 },
-        { id: 20, measure: 6, beat: 2, string: 3, fret: 2, finger: 2 },
-        { id: 21, measure: 6, beat: 3, string: 4, fret: 3, finger: 3 },
-        { id: 22, measure: 6, beat: 4, string: 4, fret: 0, finger: 0 },
-        { id: 23, measure: 7, beat: 1, string: 2, fret: 1, finger: 1 },
-        { id: 24, measure: 7, beat: 2, string: 2, fret: 3, finger: 2 },
-        { id: 25, measure: 7, beat: 3, string: 1, fret: 0, finger: 0 },
-        { id: 26, measure: 7, beat: 4, string: 1, fret: 1, finger: 1 },
-        { id: 27, measure: 8, beat: 1, string: 1, fret: 3, finger: 3 },
-        { id: 28, measure: 8, beat: 2, string: 1, fret: 0, finger: 0 },
-        { id: 29, measure: 8, beat: 3, string: 2, fret: 1, finger: 1 },
-        { id: 30, measure: 8, beat: 4, string: 5, fret: 3, finger: 3 }
-      ],
-      chords: []
-    },
+    coco_recuerdame: cocoVideoSong,
+    ...videoSongs,
     empty_notes: {
       title: 'Nueva Melodía',
       section: 'Sección 1',

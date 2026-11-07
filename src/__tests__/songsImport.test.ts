@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { sanitizeSongProject, SONG_LIMITS } from '../songSafety';
 
 // Canciones transcritas desde los videos tutoriales (archive/another/musics/*.mp4).
-const modules = import.meta.glob('../../songs-import/*.json', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
+const modules = import.meta.glob('../songs/videos/*.json', { eager: true, query: '?raw', import: 'default' }) as Record<string, string>;
 const files = Object.entries(modules);
 
 describe('songs-import JSON', () => {
