@@ -251,11 +251,23 @@ export async function currentAccountProfile(): Promise<AccountProfile | null> {
 }
 
 export async function scheduledDeletionDue(): Promise<string | null> {
-    const sb = await clientIfSession();
-    if (!sb) return null;
-  const { data } = await sb.auth.getUser();
-  const due = (data.user?.app_metadata as { deletion_due?: unknown } | undefined)?.deletion_due;
-  return typeof due === 'string' && due ? due : null;
+  const sb = await clientIfSession();
+  if (!sb) return null;
+  const { data } = await sb.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) return null;
+  // La fecha vive en la tabla account_deletion_requests (solo accesible al servidor).
+  try {
+    const res = await fetch(`${multiplayerOrigin()}/auth/account/deletion`, {
+      headers: { authorization: `Bearer ${token}` },
+      cache: 'no-store',
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS)
+    });
+    const body = (await res.json().catch(() => ({}))) as { due_at?: unknown };
+    return res.ok && typeof body.due_at === 'string' && body.due_at ? body.due_at : null;
+  } catch {
+    return null;
+  }
 }
 
 async function serverFetch(path: string, init: RequestInit): Promise<{ ok: boolean; error?: string }> {
@@ -421,4 +433,50 @@ export function communityRecordToSongProject(rec: CommunitySongRecord): SongProj
     notes: [],
     chords: []
   };
+}
+
+/* ---- Likes y reproducciones ---------------------------------------------- */
+
+/** Qué canciones de la lista le gustan al usuario actual (y si hay sesión). */
+export async function fetchMyLikes(songIds: string[]): Promise<{ signedIn: boolean; likedIds: Set<string> }> {
+  const sb = await clientIfSession();
+  if (!sb) return { signedIn: false, likedIds: new Set() };
+  const { data: userData } = await sb.auth.getUser();
+  const uid = userData.user?.id;
+  if (!uid) return { signedIn: false, likedIds: new Set() };
+  if (!songIds.length) return { signedIn: true, likedIds: new Set() };
+  const { data, error } = await sb
+    .from('song_likes')
+    .select('song_id')
+    .eq('user_id', uid)
+    .in('song_id', songIds)
+    .abortSignal(AbortSignal.timeout(REQUEST_TIMEOUT_MS));
+  if (error || !data) return { signedIn: true, likedIds: new Set() };
+  return { signedIn: true, likedIds: new Set(data.map((row: { song_id: string }) => row.song_id)) };
+}
+
+/** Da o quita el like. El contador lo actualiza el trigger del servidor. */
+export async function setSongLike(songId: string, like: boolean): Promise<{ ok: boolean; error?: string }> {
+  const sb = await loadSupabase();
+  const { data: userData } = await sb.auth.getUser();
+  const uid = userData.user?.id;
+  if (!uid) return { ok: false, error: 'Iniciá sesión para dar like.' };
+  const result = like
+    ? await sb.from('song_likes').insert({ user_id: uid, song_id: songId })
+    : await sb.from('song_likes').delete().eq('user_id', uid).eq('song_id', songId);
+  // 23505 = ya tenía like (doble clic): no es un error para el usuario.
+  if (result.error && result.error.code !== '23505') {
+    return { ok: false, error: 'No se pudo guardar el like. Probá de nuevo.' };
+  }
+  return { ok: true };
+}
+
+/** Suma una reproducción. Un fallo aquí nunca debe frenar la canción. */
+export async function recordSongPlay(songId: string): Promise<void> {
+  try {
+    const sb = await loadSupabase();
+    await sb.rpc('register_song_play', { p_song_id: songId });
+  } catch {
+    // Contar no es crítico.
+  }
 }
