@@ -2,7 +2,7 @@ import { songEditor } from '../components/editor';
 import { queueGameplaySong } from '../screens';
 import { clearLibrary, listNotePickerItems, removeLibrarySong } from '../songLibrary';
 import { soundProbeSong } from '../songs/soundProbe';
-import { communityRecordToSongProject, fetchCommunitySongs, type DifficultyLevel } from '../services/supabase';
+import { communityRecordToSongProject, fetchCommunitySongs, fetchMyLikes, recordSongPlay, setSongLike, type CommunitySongRecord, type DifficultyLevel } from '../services/supabase';
 import { DIFFICULTY_LEVELS } from './helpers';
 import type { GuitarApp } from '../app';
 
@@ -124,6 +124,9 @@ export async function renderSongPicker(eng: GuitarApp): Promise<void> {
       return;
     }
 
+    const likes = await fetchMyLikes(res.songs.map(song => song.id));
+    if (generation !== eng.songPickerGeneration) return;
+
     res.songs.forEach(item => {
       const row = document.createElement('div');
       row.className = 'song-picker-row';
@@ -151,11 +154,13 @@ export async function renderSongPicker(eng: GuitarApp): Promise<void> {
       btn.append(textWrap, bpm);
       btn.addEventListener('click', () => {
         const songProject = communityRecordToSongProject(item);
+        void recordSongPlay(item.id);
         queueGameplaySong(songProject);
         eng.switchScreen(songProject.mode === 'chords' ? 'chords' : 'notes');
       });
 
       row.appendChild(btn);
+      row.appendChild(buildLikeButton(item, likes));
       list.appendChild(row);
     });
     return;
@@ -250,3 +255,40 @@ export async function renderSongPicker(eng: GuitarApp): Promise<void> {
     addGroup('Tus canciones', yours, 'Todavía no hay nada del editor. Guardá una melodía ahí y aparece acá.', true);
   }
 }
+
+/** Botón de like con contador. Sin sesión de Supabase queda deshabilitado. */
+function buildLikeButton(item: CommunitySongRecord, likes: { signedIn: boolean; likedIds: Set<string> }): HTMLButtonElement {
+  const likeBtn = document.createElement('button');
+  likeBtn.type = 'button';
+  likeBtn.className = 'song-picker-like';
+  let liked = likes.likedIds.has(item.id);
+  let count = item.likes_count;
+
+  const paint = (): void => {
+    likeBtn.setAttribute('aria-pressed', String(liked));
+    likeBtn.textContent = `♥ ${count}`;
+    likeBtn.title = liked ? 'Quitar like' : 'Dar like';
+  };
+  paint();
+
+  if (!likes.signedIn) {
+    likeBtn.disabled = true;
+    likeBtn.title = 'Iniciá sesión para dar like';
+    return likeBtn;
+  }
+
+  likeBtn.addEventListener('click', async () => {
+    likeBtn.disabled = true;
+    const result = await setSongLike(item.id, !liked);
+    likeBtn.disabled = false;
+    if (!result.ok) {
+      likeBtn.title = result.error ?? 'No se pudo guardar el like.';
+      return;
+    }
+    liked = !liked;
+    count += liked ? 1 : -1;
+    paint();
+  });
+  return likeBtn;
+}
+
